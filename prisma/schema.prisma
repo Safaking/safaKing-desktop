@@ -1,0 +1,100 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id            String       @id @default(uuid())
+  name          String
+  description   String?
+  sku           String       @unique
+  category      String?
+  rentPrice     Float        @default(0)
+  salePrice     Float        @default(0)
+  totalQuantity Int          @default(0)
+  isRentable    Boolean      @default(true)
+  isSellable    Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  image         String?
+  rentals       RentalItem[]
+  sales         SaleItem[]
+}
+
+model Rental {
+  id              String       @id @default(uuid())
+  orderNumber     String       @unique
+  customerName    String
+  customerPhone   String?
+  startDate       DateTime
+  endDate         DateTime
+  status          String
+  totalAmount     Float
+  paidAmount      Float        @default(0)
+  remainingAmount Float        @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  customerAddress String?
+  fatherName      String?
+  notes           String?
+  safaSize        String?
+  weddingDate     String?
+  invoice         Invoice?
+  items           RentalItem[]
+}
+
+model RentalItem {
+  id               String  @id @default(uuid())
+  rentalId         String
+  productId        String
+  quantity         Int
+  returnedQuantity Int     @default(0)
+  pricePerDay      Float
+  product          Product @relation(fields: [productId], references: [id])
+  rental           Rental  @relation(fields: [rentalId], references: [id])
+}
+
+model Sale {
+  id              String     @id @default(uuid())
+  orderNumber     String     @unique
+  customerName    String
+  totalAmount     Float
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  customerAddress String?
+  customerPhone   String?
+  fatherName      String?
+  notes           String?
+  safaSize        String?
+  weddingDate     String?
+  invoice         Invoice?
+  items           SaleItem[]
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  productId String
+  quantity  Int
+  price     Float
+  product   Product @relation(fields: [productId], references: [id])
+  sale      Sale    @relation(fields: [saleId], references: [id])
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  rentalId      String?  @unique
+  saleId        String?  @unique
+  amount        Float
+  status        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sale          Sale?    @relation(fields: [saleId], references: [id])
+  rental        Rental?  @relation(fields: [rentalId], references: [id])
+}

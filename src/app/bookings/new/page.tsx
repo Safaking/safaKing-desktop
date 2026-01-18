@@ -1,0 +1,471 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  Calendar, 
+  Package, 
+  ShoppingCart, 
+  Plus, 
+  ArrowLeft,
+  CheckCircle2,
+  X,
+  User,
+  Phone,
+  LayoutGrid,
+  Search,
+  Minus,
+  MapPin,
+  CreditCard,
+  FileText
+} from 'lucide-react';
+import Link from 'next/link';
+import { generateInvoicePDF } from '@/lib/invoice-gen';
+import { useLanguage } from '@/lib/LanguageContext';
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  totalQuantity: number;
+  availableQuantity: number;
+  rentPrice: number;
+  isRentable: boolean;
+  image?: string;
+}
+
+interface BookingItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  pricePerDay: number;
+}
+
+export default function OdooBookingPage() {
+  const { t } = useLanguage();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customer, setCustomer] = useState({ 
+    name: '', 
+    phone: '', 
+    address: '',
+    fatherName: '',
+    weddingDate: '',
+    safaSize: '',
+    notes: ''
+  });
+  const [dates, setDates] = useState({ start: '', end: '' });
+  const [items, setItems] = useState<BookingItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [recentBooking, setRecentBooking] = useState<any>(null);
+  const [paidAmount, setPaidAmount] = useState('0');
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => setProducts(data.filter((p: any) => p.isRentable)));
+  }, []);
+
+  const addToBooking = (product: Product) => {
+    setItems((prev: BookingItem[]) => {
+      const existing = prev.find(i => i.productId === product.id);
+      if (existing) {
+        return prev.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, { productId: product.id, name: product.name, quantity: 1, pricePerDay: product.rentPrice }];
+    });
+  };
+
+  const updateQuantity = (productId: string, delta: number) => {
+    setItems((prev: BookingItem[]) => prev.map(item => {
+      if (item.productId === productId) {
+        const newQty = Math.max(1, item.quantity + delta);
+        return { ...item, quantity: newQty };
+      }
+      return item;
+    }));
+  };
+
+  const setQuantity = (productId: string, value: string) => {
+    const qty = parseInt(value) || 0;
+    setItems((prev: BookingItem[]) => prev.map(item => {
+      if (item.productId === productId) {
+        return { ...item, quantity: Math.max(1, qty) };
+      }
+      return item;
+    }));
+  };
+
+  const removeItem = (productId: string) => {
+    setItems(prev => prev.filter(i => i.productId !== productId));
+  };
+
+  const calculateTotal = () => {
+    return items.reduce((s, i) => s + (i.pricePerDay * i.quantity), 0);
+  };
+
+  const handleBooking = async () => {
+    if (!customer.name || !customer.phone || !dates.start || !dates.end || items.length === 0) {
+      alert('Please fill in Name, Phone, and select Dates');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch('/api/rentals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerAddress: customer.address,
+          fatherName: customer.fatherName,
+          weddingDate: customer.weddingDate,
+          safaSize: customer.safaSize,
+          notes: customer.notes,
+          startDate: dates.start,
+          endDate: dates.end,
+          items,
+          paidAmount: parseFloat(paidAmount || '0'),
+        })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) alert(data.error || 'Booking failed');
+      else {
+        setRecentBooking(data);
+        setShowSuccess(true);
+        generateInvoicePDF(data);
+        setItems([]);
+        setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
+        setPaidAmount('0');
+      }
+    } catch (error) {
+      alert('Network error during checkout');
+    }
+    setLoading(false);
+  };
+
+  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  return (
+    <div className="h-screen bg-[#f8f9fa] text-slate-900 font-sans flex flex-col overflow-hidden">
+      {/* Header - Fixed */}
+      <div className="bg-white border-b border-slate-100 shrink-0">
+        <div className="max-w-full mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-slate-400 hover:text-indigo-600 transition-colors">
+              <ArrowLeft size={22} />
+            </Link>
+            <div className="h-10 flex items-center">
+              <img src="/assets/logo.png?v=3" alt="Logo" className="h-full w-auto object-contain" />
+            </div>
+            <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wider">{t('new_rental')}</h1>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleBooking}
+              disabled={loading || items.length === 0 || !customer.name || !customer.phone || !dates.start || !dates.end}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-2 rounded text-base font-bold shadow-sm transition-all"
+            >
+              {loading ? '...' : t('confirm')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 flex overflow-hidden p-2 gap-2">
+        {/* COLUMN 1: CUSTOMER DETAILS (35%) */}
+        <div className="w-[30%] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+           <div className="p-3 border-b border-slate-50 flex items-center gap-2 shrink-0">
+             <User size={18} className="text-indigo-600" />
+             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">{t('customer_details')}</h3>
+           </div>
+           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Mandatory Fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                   <input 
+                    type="text" 
+                    placeholder={`${t('customer')}${t('mandatory')}`}
+                    className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none font-bold text-sm"
+                    value={customer.name}
+                    onChange={e => setCustomer({...customer, name: e.target.value})}
+                  />
+                </div>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input 
+                    type="text" 
+                    placeholder={`${t('phone')}${t('mandatory')}`}
+                    className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none font-bold text-sm"
+                    value={customer.phone}
+                    onChange={e => setCustomer({...customer, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              {/* Extra Info */}
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input 
+                  type="text" 
+                  placeholder={`${t('father_name')}${t('optional')}`}
+                  className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
+                  value={customer.fatherName}
+                  onChange={e => setCustomer({...customer, fatherName: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="relative">
+                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input 
+                     type="date" 
+                     placeholder={`${t('wedding_date')}${t('optional')}`}
+                     className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
+                     value={customer.weddingDate}
+                     onChange={e => setCustomer({...customer, weddingDate: e.target.value})}
+                   />
+                </div>
+                <div className="relative">
+                   <LayoutGrid className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                   <input 
+                     type="text" 
+                     placeholder={`${t('safa_size')}${t('optional')}`}
+                     className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
+                     value={customer.safaSize}
+                     onChange={e => setCustomer({...customer, safaSize: e.target.value})}
+                   />
+                </div>
+              </div>
+
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 text-slate-400" size={14} />
+                <textarea 
+                  placeholder={`${t('address')}${t('optional')}`}
+                  className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none h-20 text-sm resize-none"
+                  value={customer.address}
+                  onChange={e => setCustomer({...customer, address: e.target.value})}
+                />
+              </div>
+
+              {/* Rental Period */}
+              <div className="pt-2 border-t border-slate-100">
+                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Rental Period</label>
+                 <div className="flex items-center gap-2">
+                   <input 
+                     type="date" 
+                     className="flex-1 px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
+                     onChange={e => setDates(prev => ({ ...prev, start: e.target.value }))}
+                   />
+                   <span className="text-slate-400 text-xs font-bold">TO</span>
+                   <input 
+                     type="date" 
+                     className="flex-1 px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
+                     onChange={e => setDates(prev => ({ ...prev, end: e.target.value }))}
+                   />
+                 </div>
+              </div>
+
+              {/* Notes */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t('notes')}</label>
+                <textarea 
+                  placeholder={`${t('notes')}${t('optional')}`}
+                  className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none h-24 text-sm resize-none"
+                  value={customer.notes}
+                  onChange={e => setCustomer({...customer, notes: e.target.value})}
+                />
+              </div>
+           </div>
+        </div>
+
+        {/* COLUMN 2: CATALOG (40%) */}
+        <div className="w-[42%] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+           <div className="p-3 border-b border-slate-50 flex justify-between items-center shrink-0">
+             <div className="flex items-center gap-2">
+               <Package size={16} className="text-indigo-600" />
+               <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{t('catalog')}</h3>
+             </div>
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+               <input 
+                 type="text" 
+                 placeholder="Search product..."
+                 className="pl-9 pr-3 py-1 bg-slate-50 border border-slate-200 rounded text-xs outline-none w-40 focus:w-56 focus:bg-white transition-all"
+                 value={searchQuery}
+                 onChange={e => setSearchQuery(e.target.value)}
+               />
+             </div>
+           </div>
+
+           <div className="flex-1 overflow-y-auto p-2 bg-slate-50/30">
+             <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
+                {filteredProducts.map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => addToBooking(p)}
+                    className="flex flex-col bg-white border border-slate-200 rounded hover:border-indigo-500 hover:shadow-md transition-all text-left group overflow-hidden"
+                  >
+                    <div className="h-20 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 border-b border-slate-50">
+                      {p.image ? (
+                        <img src={p.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                      ) : (
+                        <Package size={20} className="text-slate-300" />
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="font-bold text-slate-800 text-xs truncate leading-tight">{p.name}</p>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-[11px] text-slate-400 font-bold">{p.sku}</span>
+                        <span className="font-black text-indigo-600 text-[12px]">₹{p.rentPrice.toFixed(0)}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+             </div>
+           </div>
+        </div>
+
+        {/* COLUMN 3: CART & BILLING (25%) */}
+        <div className="w-[28%] flex flex-col gap-2 shrink-0 overflow-hidden">
+          {/* Cart Header & Items */}
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+            <div className="p-3 border-b border-slate-50 flex justify-between items-center shrink-0">
+               <div className="flex items-center gap-2">
+                 <ShoppingCart size={18} className="text-indigo-600" />
+                 <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">{t('cart')}</h3>
+               </div>
+               <span className="text-[11px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full uppercase">{items.length} items</span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+               {items.length === 0 ? (
+                 <div className="h-full flex flex-col items-center justify-center text-slate-300">
+                    <ShoppingCart size={32} strokeWidth={1} />
+                    <p className="text-[10px] font-bold mt-2">Empty Cart</p>
+                 </div>
+               ) : items.map((item) => (
+                 <div key={item.productId} className="bg-slate-50/50 p-2 rounded-lg border border-slate-100 flex items-center gap-2 group">
+                   <div className="flex-1 min-w-0">
+                     <p className="font-bold text-slate-800 text-sm truncate">{item.name}</p>
+                     <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-1 bg-white rounded border border-slate-200 p-0.5">
+                          <button onClick={() => updateQuantity(item.productId, -1)} className="p-0.5 hover:bg-slate-50 text-slate-500">
+                            <Minus size={10} />
+                          </button>
+                          <input 
+                            type="number" 
+                            className="w-10 text-center font-bold text-xs bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            value={item.quantity}
+                            onChange={(e) => setQuantity(item.productId, e.target.value)}
+                          />
+                          <button onClick={() => updateQuantity(item.productId, 1)} className="p-0.5 hover:bg-slate-50 text-slate-500">
+                            <Plus size={10} />
+                          </button>
+                        </div>
+                        <span className="text-xs font-black text-indigo-600">@ ₹{item.pricePerDay.toFixed(0)}</span>
+                     </div>
+                   </div>
+                   <div className="text-right">
+                     <p className="font-black text-slate-800 text-sm">₹{(item.pricePerDay * item.quantity).toFixed(0)}</p>
+                     <button onClick={() => removeItem(item.productId)} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-all">
+                       <X size={14} />
+                     </button>
+                   </div>
+                 </div>
+               ))}
+            </div>
+          </div>
+
+          {/* Billing Summary */}
+          <div className="bg-indigo-900 text-white rounded-lg shadow-xl p-4 shrink-0">
+             <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs font-black text-indigo-300 uppercase tracking-widest">
+                  <span>Days</span>
+                  <span className="text-white text-sm">
+                    {dates.start && dates.end 
+                      ? (Math.ceil(Math.abs(new Date(dates.end).setHours(0,0,0,0) - new Date(dates.start).setHours(0,0,0,0)) / (1000 * 3600 * 24)) + 1) 
+                      : '--'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs font-black text-indigo-300 uppercase tracking-widest">
+                  <span>Item Total</span>
+                  <span className="text-white text-sm">₹{calculateTotal().toFixed(2)}</span>
+                </div>
+                
+                <div className="pt-2 border-t border-white/10 mt-2">
+                   <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-black text-indigo-300 uppercase tracking-widest">Advanced Payment</label>
+                    <span className="text-xs font-black text-rose-300 uppercase">Due: ₹{(calculateTotal() - parseFloat(paidAmount || '0')).toFixed(0)}</span>
+                   </div>
+                   <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30 text-sm font-black">₹</span>
+                    <input 
+                      type="number"
+                      className="w-full bg-black/20 border border-white/10 rounded px-3 pl-8 py-2.5 outline-none focus:border-white/30 text-base font-black"
+                      value={paidAmount}
+                      onChange={(e) => setPaidAmount(e.target.value)}
+                    />
+                   </div>
+                </div>
+
+                <div className="pt-3 flex justify-between items-end">
+                   <div>
+                    <span className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t('total')}</span>
+                    <span className="text-4xl font-black leading-none tracking-tight">₹{calculateTotal().toFixed(0)}</span>
+                   </div>
+                   <button 
+                    onClick={handleBooking}
+                    disabled={loading || items.length === 0 || !customer.name || !customer.phone || !dates.start || !dates.end}
+                    className="bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-700 text-white px-6 py-3 rounded font-black text-sm shadow-lg transition-all flex items-center gap-2"
+                  >
+                    <CreditCard size={18} /> {loading ? '...' : t('confirm')}
+                  </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in duration-300 relative">
+            <button 
+              onClick={() => { setShowSuccess(false); window.location.reload(); }}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 mb-1">{t('booking_complete')}</h2>
+            <p className="text-xs text-slate-500 mb-6 font-medium">Order <span className="font-mono font-black text-indigo-600">{recentBooking?.orderNumber}</span> created.</p>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button onClick={() => generateInvoicePDF(recentBooking, 'RENTAL', 'download')} className="py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all border border-emerald-200">
+                {t('download_bill')}
+              </button>
+              <button onClick={() => generateInvoicePDF(recentBooking, 'RENTAL', 'print')} className="py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all border border-indigo-200">
+                {t('print_bill')}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button onClick={() => { setShowSuccess(false); window.location.reload(); }} className="py-3 px-4 rounded-lg font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all border border-slate-200 bg-white">
+                {t('new_booking')}
+              </button>
+              <Link href="/rentals" className="py-3 px-4 rounded-lg font-black text-xs uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-lg text-center">
+                {t('view_all')}
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

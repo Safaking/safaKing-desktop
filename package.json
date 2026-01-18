@@ -2,25 +2,48 @@
   "name": "rental-app",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "PRISMA_CLIENT_ENGINE_TYPE=library concurrently \"npm run next-dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "web": "PRISMA_CLIENT_ENGINE_TYPE=library next dev",
+    "next-dev": "PRISMA_CLIENT_ENGINE_TYPE=library next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "electron": "electron .",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "5.10.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "electron": "^39.2.7",
+    "electron-is-dev": "^3.0.1",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "electron-builder": "^26.4.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "prisma": "5.10.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "ts-node": "^10.9.2",
+    "typescript": "^5",
+    "wait-on": "^9.0.3"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }
