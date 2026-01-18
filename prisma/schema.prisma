@@ -95,6 +95,6 @@ model Invoice {
   status        String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  sale          Sale?    @relation(fields: [saleId], references: [id])
   rental        Rental?  @relation(fields: [rentalId], references: [id])
+  sale          Sale?    @relation(fields: [saleId], references: [id])
 }

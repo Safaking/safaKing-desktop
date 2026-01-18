@@ -2,40 +2,45 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const products = await prisma.product.findMany({
-    include: {
-      sales: true,
-      rentals: {
-        where: {
-          rental: {
-            status: { in: ['BOOKED', 'ACTIVE', 'OVERDUE'] },
-            AND: [
-              { startDate: { lte: new Date() } },
-              { endDate: { gte: new Date() } },
-            ],
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        sales: true,
+        rentals: {
+          where: {
+            rental: {
+              status: { in: ['BOOKED', 'ACTIVE', 'OVERDUE'] },
+              AND: [
+                { startDate: { lte: new Date() } },
+                { endDate: { gte: new Date() } },
+              ],
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  const productsWithAvailability = products.map((product) => {
-    const soldQuantity = product.sales.reduce((sum, item) => sum + item.quantity, 0);
-    const unreturnedRentalQuantity = product.rentals.reduce((sum, item) => {
-      const outstanding = item.quantity - item.returnedQuantity;
-      return sum + Math.max(0, outstanding);
-    }, 0);
+    const productsWithAvailability = products.map((product) => {
+      const soldQuantity = product.sales.reduce((sum, item) => sum + item.quantity, 0);
+      const unreturnedRentalQuantity = product.rentals.reduce((sum, item) => {
+        const outstanding = item.quantity - item.returnedQuantity;
+        return sum + Math.max(0, outstanding);
+      }, 0);
 
-    const availableQuantity = Math.max(0, product.totalQuantity - soldQuantity - unreturnedRentalQuantity);
+      const availableQuantity = Math.max(0, product.totalQuantity - soldQuantity - unreturnedRentalQuantity);
 
-    return {
-      ...product,
-      availableQuantity,
-      // Keep totalQuantity as the original total
-    };
-  });
+      return {
+        ...product,
+        availableQuantity,
+        // Keep totalQuantity as the original total
+      };
+    });
 
-  return NextResponse.json(productsWithAvailability);
+    return NextResponse.json(productsWithAvailability);
+  } catch (error: any) {
+    console.error('GET /api/products error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to fetch products' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
