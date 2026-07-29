@@ -29,12 +29,18 @@ interface Product {
   category: string;
 }
 
-// Define types for dashboard data
 interface DashboardStats {
-  activeRentals: number;
-  overdueRentals: number;
-  productCount: number;
-  revenue: number;
+  bookedRentals?: number;
+  activeRentals?: number;
+  overdueRentals?: number;
+  returnedRentals?: number;
+  totalRentals?: number;
+  productCount?: number;
+  totalStockQty?: number;
+  availableStockQty?: number;
+  salesCount?: number;
+  totalOrdersCount?: number;
+  revenue?: number;
 }
 
 interface RentalActivity {
@@ -80,9 +86,9 @@ export default function Dashboard() {
 
   // Combine activity for display
   const combinedActivity = [
-    ...(activity?.overdue?.map(r => ({ ...r, type: 'OVERDUE' })) || []),
-    ...(activity?.todays?.map(r => ({ ...r, type: 'TODAY' })) || []),
-    ...(activity?.recent?.map(r => ({ ...r, type: 'RECENT' })) || [])
+    ...(activity?.overdue?.map(r => ({ ...r, type: 'OVERDUE' as const })) || []),
+    ...(activity?.todays?.map(r => ({ ...r, type: 'TODAY' as const })) || []),
+    ...(activity?.recent?.map(r => ({ ...r, type: 'RECENT' as const })) || [])
   ].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i).slice(0, 10);
 
   return (
@@ -122,16 +128,14 @@ export default function Dashboard() {
 
             {user ? (
               <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center uppercase">
-                    {user.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 leading-tight">{user.name}</p>
-                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
-                      {user.role} {user.store?.name ? `• ${user.store.name}` : user.role === 'ADMIN' ? '• All Stores' : ''}
-                    </p>
-                  </div>
+                <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center uppercase">
+                  {user.name.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800 leading-tight">{user.name}</p>
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
+                    {user.role} {user.store?.name ? `• ${user.store.name}` : user.role === 'ADMIN' ? '• All Stores' : ''}
+                  </p>
                 </div>
                 <button 
                   onClick={logout}
@@ -152,33 +156,32 @@ export default function Dashboard() {
                 Admin
               </Link>
             )}
-
-            <Link href="/bookings/new" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md shadow-emerald-500/10 active:scale-95">
-              <Plus size={16} /> {t('new_booking')}
-            </Link>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto p-6 lg:p-10">
-        {/* Welcome & Stats Section */}
-        <section className="mb-12">
-            <div className="flex justify-between items-end mb-6">
+        {/* Welcome Section */}
+        <section className="mb-8">
+          <div className="flex justify-between items-center">
             <div>
               <h2 className="text-3xl font-bold text-slate-800">{t('welcome')}</h2>
               <p className="text-slate-500">{t('dashboard_subtitle')}</p>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title={t('rentals')} value={stats?.activeRentals?.toString() || '0'} icon={<Clock />} color="blue" />
-            <StatCard title={t('inventory')} value={stats?.productCount?.toString() || '0'} icon={<Package />} color="indigo" />
-            <StatCard title={t('total')} value={`₹${stats?.revenue?.toLocaleString() || '0'}`} icon={<TrendingUp />} color="emerald" />
-            <StatCard title={t('overdue')} value={stats?.overdueRentals?.toString() || '0'} icon={<AlertCircle />} color="rose" />
+            <Link 
+              href="/bookings/new" 
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-emerald-400/20 group"
+            >
+              <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Plus size={20} className="stroke-[3]" />
+              </div>
+              <span className="uppercase tracking-wider text-sm">{t('new_booking')}</span>
+            </Link>
           </div>
         </section>
 
-        {/* Quick Access Grid */}
+        {/* Quick Access Grid with Count Overviews */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           <QuickAction 
             title={t('rentals')} 
@@ -187,6 +190,26 @@ export default function Dashboard() {
             icon={<Calendar className="text-blue-600" />}
             bgColor="bg-blue-50"
             borderColor="border-blue-100"
+            metrics={
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-blue-200/60">
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold text-[11px]">
+                  Booked: {stats?.bookedRentals ?? 0}
+                </span>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-bold text-[11px]">
+                  Active: {stats?.activeRentals ?? 0}
+                </span>
+                {!!stats?.overdueRentals && stats.overdueRentals > 0 ? (
+                  <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[11px]">
+                    Overdue: {stats.overdueRentals}
+                  </span>
+                ) : null}
+                {!!stats?.returnedRentals && stats.returnedRentals > 0 ? (
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
+                    Returned: {stats.returnedRentals}
+                  </span>
+                ) : null}
+              </div>
+            }
           />
           <QuickAction 
             title={t('sales')} 
@@ -195,6 +218,16 @@ export default function Dashboard() {
             icon={<ShoppingCart className="text-indigo-600" />}
             bgColor="bg-indigo-50"
             borderColor="border-indigo-100"
+            metrics={
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-indigo-200/60">
+                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[11px]">
+                  Total Orders: {stats?.totalOrdersCount ?? 0}
+                </span>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
+                  Revenue: ₹{stats?.revenue?.toLocaleString() || '0'}
+                </span>
+              </div>
+            }
           />
           <QuickAction 
             title={t('inventory')} 
@@ -203,6 +236,16 @@ export default function Dashboard() {
             icon={<Package className="text-amber-600" />}
             bgColor="bg-amber-50"
             borderColor="border-amber-100"
+            metrics={
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-amber-200/60">
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold text-[11px]">
+                  Products: {stats?.productCount ?? 0}
+                </span>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded font-bold text-[11px]">
+                  Stock: {stats?.availableStockQty ?? 0} Pcs
+                </span>
+              </div>
+            }
           />
         </section>
 
@@ -277,41 +320,20 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ title, value, icon, color }: { title: string; value: string; icon: React.ReactNode; color: string }) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-600 shadow-blue-200',
-    indigo: 'bg-indigo-600 shadow-indigo-200',
-    emerald: 'bg-emerald-600 shadow-emerald-200',
-    rose: 'bg-rose-600 shadow-rose-200'
-  };
-
+function QuickAction({ title, desc, href, icon, bgColor, borderColor, metrics }: any) {
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
-          <h3 className="text-2xl font-bold text-slate-800 tracking-tight">{value}</h3>
-        </div>
-        <div className={`p-3 rounded-xl text-white ${colors[color]} shadow-lg`}>
-          {React.cloneElement(icon as React.ReactElement<any>, { size: 24 })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QuickAction({ title, desc, href, icon, bgColor, borderColor }: any) {
-  return (
-    <Link href={href} className={`block p-6 ${bgColor} border ${borderColor} rounded-2xl hover:scale-[1.02] transition-all group shadow-sm`}>
+    <Link href={href} className={`block p-6 ${bgColor} border ${borderColor} rounded-2xl hover:scale-[1.02] transition-all group shadow-sm flex flex-col justify-between`}>
       <div className="flex flex-col gap-4">
         <div className="bg-white p-3 rounded-xl w-fit shadow-sm group-hover:shadow-md transition-all">
           {React.cloneElement(icon as React.ReactElement<any>, { size: 28 })}
         </div>
         <div>
-          <h3 className="font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">{title}</h3>
+          <h3 className="font-bold text-slate-800 group-hover:text-indigo-700 transition-colors text-lg">{title}</h3>
           <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
         </div>
       </div>
+
+      {metrics}
     </Link>
   );
 }

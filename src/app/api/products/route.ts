@@ -54,9 +54,10 @@ export async function POST(request: Request) {
 
     const rentPrice = parseFloat(body.rentPrice || '0');
     const salePrice = parseFloat(body.salePrice || '0');
+    const discount = parseFloat(body.discount || '0');
     const totalQuantity = parseInt(body.totalQuantity || '0');
 
-    if (isNaN(rentPrice) || isNaN(salePrice) || isNaN(totalQuantity)) {
+    if (isNaN(rentPrice) || isNaN(salePrice) || isNaN(discount) || isNaN(totalQuantity)) {
       return NextResponse.json({ error: 'Invalid numeric values' }, { status: 400 });
     }
 
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
         category: body.category || null,
         rentPrice,
         salePrice,
+        discount,
         totalQuantity,
         isRentable: !!body.isRentable,
         isSellable: !!body.isSellable,
@@ -94,7 +96,7 @@ export async function PUT(request: Request) {
     const updateData: any = {};
     const allowedFields = [
       'name', 'sku', 'description', 'category', 
-      'rentPrice', 'salePrice', 'totalQuantity', 
+      'rentPrice', 'salePrice', 'discount', 'totalQuantity', 
       'isRentable', 'isSellable', 'image'
     ];
 
@@ -110,6 +112,10 @@ export async function PUT(request: Request) {
     
     if (updateData.salePrice !== undefined) {
       updateData.salePrice = parseFloat(updateData.salePrice?.toString() || '0') || 0;
+    }
+
+    if (updateData.discount !== undefined) {
+      updateData.discount = parseFloat(updateData.discount?.toString() || '0') || 0;
     }
     
     if (updateData.totalQuantity !== undefined) {

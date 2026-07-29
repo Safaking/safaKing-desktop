@@ -1,42 +1,84 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { startOfMonth, endOfMonth } from 'date-fns';
 
 export async function GET() {
   try {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startM = startOfMonth(now);
-    const endM = endOfMonth(now);
 
-    const [activeRentals, overdueRentalsCount, productCount, rentalsMonth, salesMonth] = await Promise.all([
-      prisma.rental.count({ where: { status: { in: ['ACTIVE', 'BOOKED'] } } }),
+    const [
+      bookedRentalsCount,
+      activeRentalsCount, 
+      overdueRentalsCount, 
+      returnedRentalsCount,
+      products,
+      salesCount,
+      rentalsTotal, 
+      salesTotal
+    ] = await Promise.all([
+      prisma.rental.count({ where: { status: 'BOOKED' } }),
       prisma.rental.count({ 
         where: { 
-          status: { in: ['ACTIVE', 'BOOKED'] },
+          status: 'ACTIVE',
+          endDate: { gte: startOfToday }
+        } 
+      }),
+      prisma.rental.count({ 
+        where: { 
+          status: 'ACTIVE',
           endDate: { lt: startOfToday }
         } 
       }),
-      prisma.product.count(),
+      prisma.rental.count({ where: { status: 'RETURNED' } }),
+      prisma.product.findMany({
+        include: {
+          sales: true,
+          rentals: {
+            where: {
+              rental: {
+                status: { in: ['BOOKED', 'ACTIVE', 'OVERDUE'] },
+              },
+            },
+          },
+        },
+      }),
+      prisma.sale.count(),
       prisma.rental.aggregate({
-        where: { createdAt: { gte: startM, lte: endM } },
         _sum: { totalAmount: true }
       }),
       prisma.sale.aggregate({
-        where: { createdAt: { gte: startM, lte: endM } },
         _sum: { totalAmount: true }
       })
     ]);
 
-    const revenue = (rentalsMonth._sum.totalAmount || 0) + (salesMonth._sum.totalAmount || 0);
+    const totalStock = products.reduce((sum, p) => sum + (p.totalQuantity || 0), 0);
+    const availableStock = products.reduce((sum, p) => {
+      const soldQty = p.sales.reduce((s, item) => s + item.quantity, 0);
+      const unreturnedQty = p.rentals.reduce((s, item) => {
+        const outstanding = item.quantity - item.returnedQuantity;
+        return s + Math.max(0, outstanding);
+      }, 0);
+      return sum + Math.max(0, p.totalQuantity - soldQty - unreturnedQty);
+    }, 0);
+
+    const revenue = (rentalsTotal._sum.totalAmount || 0) + (salesTotal._sum.totalAmount || 0);
+    const totalRentals = bookedRentalsCount + activeRentalsCount + overdueRentalsCount + returnedRentalsCount;
 
     return NextResponse.json({
-      activeRentals,
+      bookedRentals: bookedRentalsCount,
+      activeRentals: activeRentalsCount,
       overdueRentals: overdueRentalsCount,
-      productCount,
+      returnedRentals: returnedRentalsCount,
+      totalRentals,
+      productCount: products.length,
+      totalStockQty: totalStock,
+      availableStockQty: availableStock,
+      salesCount,
+      totalOrdersCount: totalRentals + salesCount,
       revenue
     });
   } catch (error: any) {
+    console.error('GET /api/dashboard/stats error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

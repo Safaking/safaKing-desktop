@@ -14,7 +14,8 @@ import {
   Users,
   UserPlus,
   ShieldCheck,
-  Trash2
+  Trash2,
+  IndianRupee
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import { useAuth } from '@/lib/AuthContext';
@@ -32,6 +33,7 @@ interface Product {
   category: string;
   rentPrice: number;
   salePrice: number;
+  discount?: number;
   totalQuantity: number;
   availableQuantity: number;
   isRentable: boolean;
@@ -52,7 +54,7 @@ interface UserAccount {
 }
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing'>('inventory');
   const { user: currentUser } = useAuth();
 
   // Stores State
@@ -78,10 +80,20 @@ export default function AdminPage() {
   const [newStoreId, setNewStoreId] = useState('');
   const [createUserLoading, setCreateUserLoading] = useState(false);
 
+  // Safa Pricing State
+  const [safaPrices, setSafaPrices] = useState({
+    roundedPrice: '50',
+    jodhpuriPrice: '50',
+    baratiSafaPrice: '50',
+  });
+  const [safaPricingLoading, setSafaPricingLoading] = useState(false);
+  const [safaPricingSaved, setSafaPricingSaved] = useState(false);
+
   useEffect(() => {
     fetchStores();
     fetchProducts();
     fetchUsers();
+    fetchSafaPricing();
     const handleClickOutside = () => setActiveMenuId(null);
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
@@ -126,6 +138,42 @@ export default function AdminPage() {
       setUsers([]);
     } finally {
       setUsersLoading(false);
+    }
+  };
+
+  const fetchSafaPricing = async () => {
+    try {
+      const res = await fetch('/api/safa-pricing');
+      const data = await res.json();
+      if (res.ok && data) {
+        setSafaPrices({
+          roundedPrice: data.roundedPrice?.toString() || '50',
+          jodhpuriPrice: data.jodhpuriPrice?.toString() || '50',
+          baratiSafaPrice: data.baratiSafaPrice?.toString() || '50',
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch Safa pricing', e);
+    }
+  };
+
+  const handleSaveSafaPricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSafaPricingLoading(true);
+    try {
+      const res = await fetch('/api/safa-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(safaPrices),
+      });
+      if (res.ok) {
+        setSafaPricingSaved(true);
+        setTimeout(() => setSafaPricingSaved(false), 3000);
+      }
+    } catch (e) {
+      console.error('Failed to save Safa pricing', e);
+    } finally {
+      setSafaPricingLoading(false);
     }
   };
 
@@ -252,6 +300,16 @@ export default function AdminPage() {
                 }`}
               >
                 <Users size={16} /> Users & Roles
+              </button>
+              <button 
+                onClick={() => setActiveTab('safa_pricing')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  activeTab === 'safa_pricing' 
+                    ? 'bg-white text-indigo-600 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <IndianRupee size={16} /> Safa Tying Rates
               </button>
             </div>
           </div>
@@ -383,6 +441,14 @@ export default function AdminPage() {
                             ₹{product.salePrice.toFixed(2)}
                           </p>
                         </div>
+                        {!!product.discount && product.discount > 0 && (
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Item Discount</p>
+                            <p className="font-bold text-emerald-600">
+                              -₹{product.discount.toFixed(2)}
+                            </p>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center mt-1">
                           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Available</p>
                           <p className={`font-bold ${product.availableQuantity > 5 ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -613,6 +679,93 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* SAFA TYING RATES TAB */}
+        {activeTab === 'safa_pricing' && (
+          <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+              <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center font-bold">
+                <IndianRupee size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Safa Tying Rates</h2>
+                <p className="text-xs text-slate-500 font-medium">Configure tying charges for different Safa styles across all bookings.</p>
+              </div>
+            </div>
+
+            {safaPricingSaved && (
+              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl flex items-center gap-2">
+                ✓ Safa Tying rates updated successfully!
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSafaPricing} className="space-y-6">
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Rounded Safa Tying</h3>
+                    <p className="text-xs text-slate-500 font-medium">Standard round style safa tying rate</p>
+                  </div>
+                  <div className="relative w-36">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
+                    <input 
+                      type="number"
+                      step="0.01"
+                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 font-bold text-slate-800 text-sm text-right"
+                      value={safaPrices.roundedPrice}
+                      onChange={e => setSafaPrices({ ...safaPrices, roundedPrice: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Jodhpuri Safa Tying</h3>
+                    <p className="text-xs text-slate-500 font-medium">Royal Jodhpuri style safa tying rate</p>
+                  </div>
+                  <div className="relative w-36">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
+                    <input 
+                      type="number"
+                      step="0.01"
+                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 font-bold text-slate-800 text-sm text-right"
+                      value={safaPrices.jodhpuriPrice}
+                      onChange={e => setSafaPrices({ ...safaPrices, jodhpuriPrice: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Barati Safa Tying</h3>
+                    <p className="text-xs text-slate-500 font-medium">Wedding procession (Barati) safa tying rate</p>
+                  </div>
+                  <div className="relative w-36">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
+                    <input 
+                      type="number"
+                      step="0.01"
+                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 font-bold text-slate-800 text-sm text-right"
+                      value={safaPrices.baratiSafaPrice}
+                      onChange={e => setSafaPrices({ ...safaPrices, baratiSafaPrice: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                disabled={safaPricingLoading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2"
+              >
+                {safaPricingLoading ? 'Saving...' : 'Save Tying Rates'}
+              </button>
+            </form>
           </div>
         )}
       </main>

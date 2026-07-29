@@ -87,6 +87,10 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
     doc.text(`Phone: ${data.customerPhone}`, 195, billToY, { align: 'right' });
     billToY += 7;
   }
+  if (data.customerAltPhone) {
+    doc.text(`Alt Phone: ${data.customerAltPhone}`, 195, billToY, { align: 'right' });
+    billToY += 7;
+  }
 
   // Business Specific Details
   let detailY = Math.max(startDetailsY + 16, billToY - 2);
@@ -104,6 +108,22 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
     doc.setFont('helvetica', 'normal');
     doc.text(data.safaSize, 65, detailY);
     detailY += 7;
+  }
+  if (data.tieSafa) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Safa Tying Info:', 20, detailY);
+    doc.setFont('helvetica', 'normal');
+    const tyingInfoStr = [
+      data.safaShape ? `Style: ${data.safaShape}` : '',
+      data.safaTyingName ? `Contact: ${data.safaTyingName}` : '',
+      data.safaTyingTime ? `Time: ${data.safaTyingTime}` : '',
+      data.safaTyingDate ? `Date: ${data.safaTyingDate}` : '',
+      data.safaTyingAddress ? `Venue: ${data.safaTyingAddress}` : ''
+    ].filter(Boolean).join(' | ');
+    
+    const splitTyingInfo = doc.splitTextToSize(tyingInfoStr, 110);
+    doc.text(splitTyingInfo, 65, detailY);
+    detailY += splitTyingInfo.length * 6;
   }
 
   let currentY = detailY + 5;

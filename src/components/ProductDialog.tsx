@@ -16,6 +16,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     category: '',
     rentPrice: '0',
     salePrice: '0',
+    discount: '0',
     totalQuantity: '0',
     isRentable: true,
     isSellable: true,
@@ -37,6 +38,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         category: product.category || '',
         rentPrice: product.rentPrice?.toString() || '0',
         salePrice: product.salePrice?.toString() || '0',
+        discount: product.discount?.toString() || '0',
         totalQuantity: product.totalQuantity?.toString() || '0',
         isRentable: product.isRentable ?? true,
         isSellable: product.isSellable ?? true,
@@ -59,6 +61,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
       ...formData,
       rentPrice: parseFloat(formData.rentPrice || '0'),
       salePrice: parseFloat(formData.salePrice || '0'),
+      discount: parseFloat(formData.discount || '0'),
       totalQuantity: parseInt(formData.totalQuantity || '0'),
     };
 
@@ -216,6 +219,21 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                   value={formData.salePrice}
                   onChange={e => setFormData({...formData, salePrice: e.target.value})}
                   disabled={!formData.isSellable}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Default Item Discount</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">₹</span>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  placeholder="0"
+                  className="w-full pl-8 pr-4 py-3 bg-emerald-50/50 border border-emerald-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all font-bold text-emerald-900"
+                  value={formData.discount}
+                  onChange={e => setFormData({...formData, discount: e.target.value})}
                 />
               </div>
             </div>

@@ -13,22 +13,28 @@ import {
   AlertCircle,
   Download,
   ArrowLeft,
-  RotateCcw
+  RotateCcw,
+  Truck
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import ReturnDialog from '@/components/ReturnDialog';
+import ActivateRentalDialog from '@/components/ActivateRentalDialog';
 
 interface Rental {
   id: string;
   orderNumber: string;
   customerName: string;
   customerPhone?: string;
+  pickupName?: string;
+  pickupPhone?: string;
+  pickupDate?: string;
   startDate: string;
   endDate: string;
   status: 'BOOKED' | 'ACTIVE' | 'RETURNED' | 'OVERDUE';
   totalAmount: number;
+  remainingAmount?: number;
   items: any[];
   invoice?: {
     status: string;
@@ -42,6 +48,7 @@ export default function RentalsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
+  const [activateRental, setActivateRental] = useState<Rental | null>(null);
 
   useEffect(() => {
     fetchRentals();
@@ -52,13 +59,14 @@ export default function RentalsPage() {
     const statusParam = activeTab === 'ALL' ? '' : `?status=${activeTab}`;
     const res = await fetch(`/api/rentals${statusParam}`);
     const data = await res.json();
-      setRentals(data.map((r: any) => {
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const isPast = new Date(r.endDate) < startOfToday;
-        const displayStatus = (isPast && r.status !== 'RETURNED') ? 'OVERDUE' : r.status;
-        return { ...r, status: displayStatus };
-      }));
+    setRentals(data.map((r: any) => {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const isPast = new Date(r.endDate) < startOfToday;
+      // Only mark OVERDUE if order was ACTIVE (delivered). BOOKED stays BOOKED until manually activated!
+      const displayStatus = (isPast && r.status === 'ACTIVE') ? 'OVERDUE' : r.status;
+      return { ...r, status: displayStatus };
+    }));
     setLoading(false);
   };
 
@@ -161,10 +169,17 @@ export default function RentalsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
                         <User size={14} />
                       </div>
-                      <span className="font-medium">{rental.customerName}</span>
+                      <div>
+                        <p className="font-medium text-slate-800 leading-snug">{rental.customerName}</p>
+                        {rental.pickupName && (
+                          <p className="text-[11px] font-semibold text-blue-600 flex items-center gap-1 mt-0.5">
+                            <Truck size={12} /> Delivered to: {rental.pickupName} ({rental.pickupPhone})
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
@@ -190,7 +205,7 @@ export default function RentalsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end items-center gap-2">
                       <button 
                         onClick={() => generateInvoicePDF(rental)}
                         className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors" 
@@ -198,13 +213,27 @@ export default function RentalsPage() {
                       >
                         <Download size={18} />
                       </button>
-                      <button 
-                        onClick={() => setSelectedRental(rental)}
-                        className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-400 transition-colors" 
-                        title="Process Return"
-                      >
-                        <RotateCcw size={18} />
-                      </button>
+
+                      {rental.status === 'BOOKED' && (
+                        <button 
+                          onClick={() => setActivateRental(rental)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5" 
+                          title="Confirm Delivery / Move to Active"
+                        >
+                          <Truck size={14} /> Activate / Out
+                        </button>
+                      )}
+
+                      {(rental.status === 'ACTIVE' || rental.status === 'OVERDUE') && (
+                        <button 
+                          onClick={() => setSelectedRental(rental)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5" 
+                          title="Confirm Return & Process Inventory"
+                        >
+                          <RotateCcw size={14} /> Process Return
+                        </button>
+                      )}
+
                       <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
                         <MoreVertical size={18} />
                       </button>
@@ -216,6 +245,17 @@ export default function RentalsPage() {
           </table>
         </div>
       </main>
+
+      {activateRental && (
+        <ActivateRentalDialog 
+          rental={activateRental} 
+          onClose={() => setActivateRental(null)} 
+          onSuccess={() => {
+            setActivateRental(null);
+            fetchRentals();
+          }} 
+        />
+      )}
 
       {selectedRental && (
         <ReturnDialog 

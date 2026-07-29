@@ -16,6 +16,7 @@ model Product {
   category      String?
   rentPrice     Float        @default(0)
   salePrice     Float        @default(0)
+  discount      Float        @default(0)
   totalQuantity Int          @default(0)
   isRentable    Boolean      @default(true)
   isSellable    Boolean      @default(true)
@@ -31,6 +32,7 @@ model Rental {
   orderNumber     String       @unique
   customerName    String
   customerPhone   String?
+  customerAltPhone String?
   customerAddress String?
   fatherName      String?
   weddingDate     String?
@@ -43,10 +45,18 @@ model Rental {
   paidAmount      Float        @default(0)
   remainingAmount Float        @default(0)
   storeId         String?
-  tieSafa         Boolean      @default(false)
-  safaShape       String?
-  tieSafaCharge   Float        @default(0)
-  discount        Float        @default(0)
+  tieSafa          Boolean      @default(false)
+  safaShape        String?
+  safaTyingName    String?
+  safaTyingAddress String?
+  safaTyingTime    String?
+  safaTyingDate    String?
+  tieSafaCharge    Float        @default(0)
+  discount         Float        @default(0)
+  pickupName       String?
+  pickupPhone      String?
+  pickupDate       String?
+  damageCharge     Float        @default(0)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   invoice         Invoice?
@@ -66,23 +76,24 @@ model RentalItem {
 }
 
 model Sale {
-  id              String     @id @default(uuid())
-  orderNumber     String     @unique
-  customerName    String
-  customerPhone   String?
-  customerAddress String?
-  fatherName      String?
-  weddingDate     String?
-  safaSize        String?
-  notes           String?
-  totalAmount     Float
-  storeId         String?
-  discount        Float        @default(0)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  invoice         Invoice?
-  items           SaleItem[]
-  store           Store?     @relation(fields: [storeId], references: [id])
+  id               String     @id @default(uuid())
+  orderNumber      String     @unique
+  customerName     String
+  customerPhone    String?
+  customerAltPhone String?
+  customerAddress  String?
+  fatherName       String?
+  weddingDate      String?
+  safaSize         String?
+  notes            String?
+  totalAmount      Float
+  storeId          String?
+  discount         Float      @default(0)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  invoice          Invoice?
+  items            SaleItem[]
+  store            Store?     @relation(fields: [storeId], references: [id])
 }
 
 model SaleItem {
@@ -130,5 +141,13 @@ model User {
   store     Store?   @relation(fields: [storeId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SafaPricing {
+  id              String   @id @default("default")
+  roundedPrice    Float    @default(50)
+  jodhpuriPrice   Float    @default(50)
+  baratiSafaPrice Float    @default(50)
+  updatedAt       DateTime @updatedAt
 }
 

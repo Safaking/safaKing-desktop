@@ -16,7 +16,8 @@ import {
   Minus,
   MapPin,
   CreditCard,
-  FileText
+  FileText,
+  Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
@@ -48,6 +49,7 @@ export default function OdooBookingPage() {
   const [customer, setCustomer] = useState({ 
     name: '', 
     phone: '', 
+    altPhone: '',
     address: '',
     fatherName: '',
     weddingDate: '',
@@ -66,12 +68,36 @@ export default function OdooBookingPage() {
   const [selectedStore, setSelectedStore] = useState('');
   const [tieSafa, setTieSafa] = useState(false);
   const [safaShape, setSafaShape] = useState('rounded');
+  const [safaTyingDetails, setSafaTyingDetails] = useState({
+    name: '',
+    address: '',
+    time: '',
+    marriageDate: '',
+  });
   const [discount, setDiscount] = useState('0');
+  const [safaPricingConfig, setSafaPricingConfig] = useState({
+    roundedPrice: 50,
+    jodhpuriPrice: 50,
+    baratiSafaPrice: 50,
+  });
 
   useEffect(() => {
     fetch('/api/products')
       .then(res => res.json())
       .then(data => setProducts(data.filter((p: any) => p.isRentable)));
+
+    fetch('/api/safa-pricing')
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setSafaPricingConfig({
+            roundedPrice: data.roundedPrice ?? 50,
+            jodhpuriPrice: data.jodhpuriPrice ?? 50,
+            baratiSafaPrice: data.baratiSafaPrice ?? 50,
+          });
+        }
+      })
+      .catch(e => console.error(e));
       
     fetch('/api/stores')
       .then(res => res.json())
@@ -89,6 +115,13 @@ export default function OdooBookingPage() {
       })
       .catch(() => setStores([]));
   }, [user]);
+
+  const getSafaCharge = () => {
+    if (!tieSafa) return 0;
+    if (safaShape === 'jodhpuri') return safaPricingConfig.jodhpuriPrice;
+    if (safaShape === 'barati') return safaPricingConfig.baratiSafaPrice;
+    return safaPricingConfig.roundedPrice;
+  };
 
   const addToBooking = (product: Product) => {
     setItems((prev: BookingItem[]) => {
@@ -126,7 +159,7 @@ export default function OdooBookingPage() {
 
   const calculateTotal = () => {
     let sum = items.reduce((s, i) => s + (i.pricePerDay * i.quantity), 0);
-    if (tieSafa) sum += 50;
+    if (tieSafa) sum += getSafaCharge();
     const discountVal = parseFloat(discount) || 0;
     return Math.max(0, sum - discountVal);
   };
@@ -145,6 +178,7 @@ export default function OdooBookingPage() {
         body: JSON.stringify({
           customerName: customer.name,
           customerPhone: customer.phone,
+          customerAltPhone: customer.altPhone,
           customerAddress: customer.address,
           fatherName: customer.fatherName,
           weddingDate: customer.weddingDate,
@@ -157,7 +191,11 @@ export default function OdooBookingPage() {
           storeId: selectedStore,
           tieSafa,
           safaShape: tieSafa ? safaShape : null,
-          tieSafaCharge: tieSafa ? 50 : 0,
+          safaTyingName: tieSafa ? safaTyingDetails.name : null,
+          safaTyingAddress: tieSafa ? safaTyingDetails.address : null,
+          safaTyingTime: tieSafa ? safaTyingDetails.time : null,
+          safaTyingDate: tieSafa ? safaTyingDetails.marriageDate : null,
+          tieSafaCharge: getSafaCharge(),
           discount: parseFloat(discount || '0'),
         })
       });
@@ -264,6 +302,18 @@ export default function OdooBookingPage() {
                 </div>
               </div>
 
+              {/* Alternate Phone (Optional) */}
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input 
+                  type="text" 
+                  placeholder="Alternate Mobile (Optional)"
+                  className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm font-medium"
+                  value={customer.altPhone}
+                  onChange={e => setCustomer({...customer, altPhone: e.target.value})}
+                />
+              </div>
+
               {/* Extra Info */}
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -310,41 +360,143 @@ export default function OdooBookingPage() {
               </div>
 
               {/* Tie Safa Options */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="flex items-center gap-2 cursor-pointer mb-2">
-                  <input 
-                    type="checkbox" 
-                    checked={tieSafa}
-                    onChange={(e) => setTieSafa(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm font-bold text-slate-700">Tie Safa (+₹50)</span>
-                </label>
+              <div className="pt-4 border-t border-slate-100">
+                <div 
+                  onClick={() => setTieSafa(!tieSafa)}
+                  className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    tieSafa 
+                      ? 'bg-indigo-50/80 border-indigo-200 shadow-xs' 
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={tieSafa}
+                      onChange={(e) => setTieSafa(e.target.checked)}
+                      className="w-5 h-5 text-indigo-600 rounded-md border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-slate-800">
+                        Tie Safa Service
+                      </span>
+                      <p className="text-[11px] font-medium text-slate-500">
+                        Professional safa tying service for wedding & events
+                      </p>
+                    </div>
+                  </div>
+                  {tieSafa && (
+                    <span className="px-2.5 py-1 bg-indigo-600 text-white font-black text-xs rounded-lg shadow-sm">
+                      +₹{getSafaCharge()}
+                    </span>
+                  )}
+                </div>
                 
                 {tieSafa && (
-                  <div className="flex items-center gap-4 ml-6 mb-2">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="safaShape" 
-                        value="rounded" 
-                        checked={safaShape === 'rounded'}
-                        onChange={(e) => setSafaShape(e.target.value)}
-                        className="text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-xs font-bold text-slate-600">Rounded</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="safaShape" 
-                        value="t shape" 
-                        checked={safaShape === 't shape'}
-                        onChange={(e) => setSafaShape(e.target.value)}
-                        className="text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-xs font-bold text-slate-600">T Shape</span>
-                    </label>
+                  <div className="mt-3 bg-gradient-to-br from-indigo-50/60 via-slate-50/80 to-indigo-50/30 p-4 rounded-2xl border border-indigo-100 shadow-xs space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                    {/* Style Selector Pills */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-indigo-900 uppercase tracking-widest mb-2">
+                        Select Safa Tying Style
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'rounded', label: 'Rounded', price: safaPricingConfig.roundedPrice },
+                          { id: 'jodhpuri', label: 'Jodhpuri', price: safaPricingConfig.jodhpuriPrice },
+                          { id: 'barati', label: 'Barati safa', price: safaPricingConfig.baratiSafaPrice },
+                        ].map((style) => {
+                          const isSelected = safaShape === style.id;
+                          return (
+                            <button
+                              type="button"
+                              key={style.id}
+                              onClick={() => setSafaShape(style.id)}
+                              className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span>{style.label}</span>
+                              <span className={`text-[10px] font-extrabold ${isSelected ? 'text-indigo-100' : 'text-indigo-600'}`}>
+                                ₹{style.price}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Form for Safa Tying Details */}
+                    <div className="pt-3 border-t border-indigo-100/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-black text-indigo-900 uppercase tracking-widest">
+                          Safa Tying Event Details
+                        </p>
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md">
+                          Required Event Info
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Contact Name</label>
+                          <div className="relative">
+                            <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Name of Tying Person"
+                              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                              value={safaTyingDetails.name}
+                              onChange={e => setSafaTyingDetails({ ...safaTyingDetails, name: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Tying Time</label>
+                          <div className="relative">
+                            <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input 
+                              type="time" 
+                              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                              value={safaTyingDetails.time}
+                              onChange={e => setSafaTyingDetails({ ...safaTyingDetails, time: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Marriage Date</label>
+                          <div className="relative">
+                            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input 
+                              type="date" 
+                              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                              value={safaTyingDetails.marriageDate}
+                              onChange={e => setSafaTyingDetails({ ...safaTyingDetails, marriageDate: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Venue / Tying Address</label>
+                          <div className="relative">
+                            <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Event venue or address"
+                              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                              value={safaTyingDetails.address}
+                              onChange={e => setSafaTyingDetails({ ...safaTyingDetails, address: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -496,8 +648,8 @@ export default function OdooBookingPage() {
                 
                 {tieSafa && (
                   <div className="flex justify-between items-center text-xs font-black text-emerald-300 uppercase tracking-widest">
-                    <span>Safa Tying Charge</span>
-                    <span className="text-emerald-300 text-sm">+ ₹50.00</span>
+                    <span>Safa Tying Charge ({safaShape})</span>
+                    <span className="text-emerald-300 text-sm">+ ₹{getSafaCharge().toFixed(2)}</span>
                   </div>
                 )}
 

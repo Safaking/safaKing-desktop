@@ -48,6 +48,7 @@ export async function POST(request: Request) {
   const { 
     customerName, 
     customerPhone, 
+    customerAltPhone,
     customerAddress, 
     fatherName,
     weddingDate,
@@ -61,6 +62,10 @@ export async function POST(request: Request) {
     storeId,
     tieSafa,
     safaShape,
+    safaTyingName,
+    safaTyingAddress,
+    safaTyingTime,
+    safaTyingDate,
     tieSafaCharge,
     discount
   } = body;
@@ -115,6 +120,7 @@ export async function POST(request: Request) {
           orderNumber,
           customerName,
           customerPhone,
+          customerAltPhone: customerAltPhone || null,
           customerAddress,
           fatherName,
           weddingDate,
@@ -129,6 +135,10 @@ export async function POST(request: Request) {
           storeId: storeId || null,
           tieSafa: !!tieSafa,
           safaShape,
+          safaTyingName: tieSafa ? (safaTyingName || null) : null,
+          safaTyingAddress: tieSafa ? (safaTyingAddress || null) : null,
+          safaTyingTime: tieSafa ? (safaTyingTime || null) : null,
+          safaTyingDate: tieSafa ? (safaTyingDate || null) : null,
           tieSafaCharge: parseFloat(tieSafaCharge?.toString() || '0') || 0,
           discount: parseFloat(discount?.toString() || '0') || 0,
           items: {
