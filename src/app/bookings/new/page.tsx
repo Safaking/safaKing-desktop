@@ -207,7 +207,7 @@ export default function OdooBookingPage() {
         setShowSuccess(true);
         generateInvoicePDF(data);
         setItems([]);
-        setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
+        setCustomer({ name: '', phone: '', altPhone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
         setPaidAmount('0');
         setTieSafa(false);
         setDiscount('0');
