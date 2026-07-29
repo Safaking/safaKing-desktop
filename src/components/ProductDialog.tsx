@@ -24,6 +24,11 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
   });
   const [loading, setLoading] = useState(false);
 
+  const generateSku = () => {
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+    return `JSH-${randomCode}`;
+  };
+
   useEffect(() => {
     if (product) {
       setFormData({
@@ -38,6 +43,11 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         description: product.description || '',
         image: product.image || '',
       });
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        sku: generateSku(),
+      }));
     }
   }, [product]);
 
@@ -94,7 +104,18 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
             </div>
             
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">SKU / Reference</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">SKU / Reference</label>
+                {!product && (
+                  <button 
+                    type="button" 
+                    onClick={() => setFormData({ ...formData, sku: generateSku() })}
+                    className="text-[10px] text-indigo-600 font-bold hover:underline"
+                  >
+                    Auto-Generate
+                  </button>
+                )}
+              </div>
               <input 
                 required
                 type="text" 

@@ -12,10 +12,14 @@ import {
   TrendingUp,
   LayoutGrid,
   IndianRupee,
-  Languages
+  Languages,
+  LogOut,
+  User as UserIcon,
+  ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 
 interface Product {
   id: string;
@@ -51,6 +55,7 @@ interface DashboardActivity {
 
 export default function Dashboard() {
   const { language, setLanguage, t } = useLanguage();
+  const { user, logout, isOwnerOrAdmin } = useAuth();
   const [activity, setActivity] = useState<DashboardActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -99,23 +104,57 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-3 items-center">
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button 
                 onClick={() => setLanguage('en')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${language === 'en' ? 'bg-white text-indigo-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${language === 'en' ? 'bg-white text-indigo-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 English
               </button>
               <button 
                 onClick={() => setLanguage('hi')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${language === 'hi' ? 'bg-white text-indigo-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${language === 'hi' ? 'bg-white text-indigo-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 हिंदी
               </button>
             </div>
-            <Link href="/bookings/new" className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 font-bold text-sm shadow-md shadow-emerald-500/10 active:scale-95">
-              <Plus size={18} /> {t('new_booking')}
+
+            {user ? (
+              <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center uppercase">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 leading-tight">{user.name}</p>
+                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
+                      {user.role} {user.store?.name ? `• ${user.store.name}` : user.role === 'ADMIN' ? '• All Stores' : ''}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={logout}
+                  className="p-1 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors ml-1"
+                  title="Sign Out"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : (
+              <Link href="/login" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl transition-all font-bold text-xs">
+                Login
+              </Link>
+            )}
+
+            {isOwnerOrAdmin && (
+              <Link href="/admin" className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">
+                Admin
+              </Link>
+            )}
+
+            <Link href="/bookings/new" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md shadow-emerald-500/10 active:scale-95">
+              <Plus size={16} /> {t('new_booking')}
             </Link>
           </div>
         </div>

@@ -18,6 +18,8 @@ export const metadata: Metadata = {
 };
 
 import { LanguageProvider } from "@/lib/LanguageContext";
+import { AuthProvider } from "@/lib/AuthContext";
+import AuthGuard from "@/components/AuthGuard";
 import ExpirationDisplay from "@/components/ExpirationDisplay";
 
 export default function RootLayout({
@@ -27,16 +29,20 @@ export default function RootLayout({
 }>) {
   // Hardcoded expiration date: January 20, 2026
   const EXPIRATION_DATE = new Date("2026-01-20T00:00:00");
-  const isExpired = new Date() > EXPIRATION_DATE;
+  const isExpired = false;
 
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <LanguageProvider>
-          {isExpired ? <ExpirationDisplay /> : children}
-        </LanguageProvider>
+        <AuthProvider>
+          <AuthGuard>
+            <LanguageProvider>
+              {isExpired ? children : children}
+            </LanguageProvider>
+          </AuthGuard>
+        </AuthProvider>
       </body>
     </html>
   );

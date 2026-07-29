@@ -31,7 +31,9 @@ export async function POST(request: Request) {
     safaSize,
     notes,
     items, 
-    totalAmount 
+    totalAmount,
+    storeId,
+    discount,
   } = body;
 
   if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -40,22 +42,22 @@ export async function POST(request: Request) {
 
   try {
     const total = parseFloat(totalAmount?.toString() || '0') || 0;
+    const discountAmount = parseFloat(discount?.toString() || '0') || 0;
+    const finalTotal = total - discountAmount;
 
     const sale = await prisma.$transaction(async (tx) => {
-      // 1. Generate Order Number
       const lastSale = await tx.sale.findFirst({
         orderBy: { createdAt: 'desc' },
       });
-      
+
       let lastNum = 0;
       if (lastSale && lastSale.orderNumber.includes('-')) {
         const parts = lastSale.orderNumber.split('-');
         lastNum = parseInt(parts[parts.length - 1]) || 0;
       }
-      
+
       const orderNumber = `SALE-${(lastNum + 1).toString().padStart(5, '0')}`;
 
-      // 2. Create Sale
       const newSale = await tx.sale.create({
         data: {
           orderNumber,
@@ -66,7 +68,9 @@ export async function POST(request: Request) {
           weddingDate,
           safaSize,
           notes,
-          totalAmount: total,
+          totalAmount: finalTotal,
+          storeId: storeId || null,
+          discount: discountAmount,
           items: {
             create: items.map((item: any) => ({
               productId: item.productId,
@@ -77,25 +81,24 @@ export async function POST(request: Request) {
         },
       });
 
-      // 3. Create Invoice
       const lastInvoice = await tx.invoice.findFirst({
         orderBy: { createdAt: 'desc' },
       });
-      
+
       let lastInvNum = 0;
       if (lastInvoice && lastInvoice.invoiceNumber.includes('-')) {
         const parts = lastInvoice.invoiceNumber.split('-');
         lastInvNum = parseInt(parts[parts.length - 1]) || 0;
       }
-      
+
       const invoiceNumber = `INV-${(lastInvNum + 1).toString().padStart(5, '0')}`;
 
       await tx.invoice.create({
         data: {
           invoiceNumber,
           saleId: newSale.id,
-          amount: total,
-          status: 'PAID', // Direct sales are usually paid immediately
+          amount: finalTotal,
+          status: 'PAID',
         },
       });
 

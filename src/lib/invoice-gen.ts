@@ -150,34 +150,63 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
   doc.setFontSize(10);
   const totalLabelX = 160;
   const totalValueX = 195;
+  let currentTotalY = finalY;
+
+  const itemTotal = data.items.reduce((sum: number, item: any) => sum + ((item.pricePerDay || item.price) * item.quantity), 0);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Total Amount:', totalLabelX, finalY, { align: 'right' });
+  doc.text('Item Total:', totalLabelX, currentTotalY, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  doc.text(`Rs. ${data.totalAmount.toFixed(2)}`, totalValueX, finalY, { align: 'right' });
+  doc.text(`Rs. ${itemTotal.toFixed(2)}`, totalValueX, currentTotalY, { align: 'right' });
+  currentTotalY += 7;
+
+  if (data.tieSafa) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Safa Tying Charge:', totalLabelX, currentTotalY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Rs. ${(data.tieSafaCharge || 50).toFixed(2)}`, totalValueX, currentTotalY, { align: 'right' });
+    currentTotalY += 7;
+  }
+
+  if (data.discount > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Discount:', totalLabelX, currentTotalY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(`- Rs. ${data.discount.toFixed(2)}`, totalValueX, currentTotalY, { align: 'right' });
+    currentTotalY += 7;
+  }
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Advanced Amount:', totalLabelX, finalY + 7, { align: 'right' });
+  doc.text('Total Amount:', totalLabelX, currentTotalY, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  doc.text(`Rs. ${(data.paidAmount || 0).toFixed(2)}`, totalValueX, finalY + 7, { align: 'right' });
+  doc.text(`Rs. ${data.totalAmount.toFixed(2)}`, totalValueX, currentTotalY, { align: 'right' });
+  currentTotalY += 7;
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Tax (0%):', totalLabelX, finalY + 14, { align: 'right' });
+  doc.text('Advanced Amount:', totalLabelX, currentTotalY, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  doc.text(`Rs. 0.00`, totalValueX, finalY + 14, { align: 'right' });
+  doc.text(`Rs. ${(data.paidAmount || 0).toFixed(2)}`, totalValueX, currentTotalY, { align: 'right' });
+  currentTotalY += 7;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Tax (0%):', totalLabelX, currentTotalY, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Rs. 0.00`, totalValueX, currentTotalY, { align: 'right' });
+  currentTotalY += 4;
 
   // Final Total Bar
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
-  doc.line(140, finalY + 18, 195, finalY + 18);
+  doc.line(140, currentTotalY, 195, currentTotalY);
+  currentTotalY += 7;
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Balance Due:', totalLabelX, finalY + 25, { align: 'right' });
-  doc.text(`Rs. ${(data.remainingAmount || 0).toFixed(2)}`, totalValueX, finalY + 25, { align: 'right' });
+  doc.text('Balance Due:', totalLabelX, currentTotalY, { align: 'right' });
+  doc.text(`Rs. ${(data.remainingAmount || 0).toFixed(2)}`, totalValueX, currentTotalY, { align: 'right' });
 
   // Terms Section (below totals)
-  let termsStartY = finalY + 40;
+  let termsStartY = currentTotalY + 15;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('Terms & Conditions:', 20, termsStartY);

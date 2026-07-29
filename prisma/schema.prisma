@@ -19,9 +19,9 @@ model Product {
   totalQuantity Int          @default(0)
   isRentable    Boolean      @default(true)
   isSellable    Boolean      @default(true)
+  image         String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-  image         String?
   rentals       RentalItem[]
   sales         SaleItem[]
 }
@@ -31,21 +31,27 @@ model Rental {
   orderNumber     String       @unique
   customerName    String
   customerPhone   String?
+  customerAddress String?
+  fatherName      String?
+  weddingDate     String?
+  safaSize        String?
+  notes           String?
   startDate       DateTime
   endDate         DateTime
   status          String
   totalAmount     Float
   paidAmount      Float        @default(0)
   remainingAmount Float        @default(0)
+  storeId         String?
+  tieSafa         Boolean      @default(false)
+  safaShape       String?
+  tieSafaCharge   Float        @default(0)
+  discount        Float        @default(0)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  customerAddress String?
-  fatherName      String?
-  notes           String?
-  safaSize        String?
-  weddingDate     String?
   invoice         Invoice?
   items           RentalItem[]
+  store           Store?       @relation(fields: [storeId], references: [id])
 }
 
 model RentalItem {
@@ -63,17 +69,20 @@ model Sale {
   id              String     @id @default(uuid())
   orderNumber     String     @unique
   customerName    String
+  customerPhone   String?
+  customerAddress String?
+  fatherName      String?
+  weddingDate     String?
+  safaSize        String?
+  notes           String?
   totalAmount     Float
+  storeId         String?
+  discount        Float        @default(0)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
-  customerAddress String?
-  customerPhone   String?
-  fatherName      String?
-  notes           String?
-  safaSize        String?
-  weddingDate     String?
   invoice         Invoice?
   items           SaleItem[]
+  store           Store?     @relation(fields: [storeId], references: [id])
 }
 
 model SaleItem {
@@ -95,6 +104,31 @@ model Invoice {
   status        String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  rental        Rental?  @relation(fields: [rentalId], references: [id])
   sale          Sale?    @relation(fields: [saleId], references: [id])
+  rental        Rental?  @relation(fields: [rentalId], references: [id])
 }
+
+model Store {
+  id        String   @id @default(uuid())
+  name      String
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rentals   Rental[]
+  sales     Sale[]
+  users     User[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String?  @unique
+  username  String?  @unique
+  password  String
+  name      String
+  role      String   @default("EMPLOYEE")
+  storeId   String?
+  store     Store?   @relation(fields: [storeId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

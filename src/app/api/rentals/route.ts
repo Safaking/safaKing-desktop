@@ -57,7 +57,12 @@ export async function POST(request: Request) {
     endDate, 
     items, 
     paidAmount, 
-    remainingAmount 
+    remainingAmount,
+    storeId,
+    tieSafa,
+    safaShape,
+    tieSafaCharge,
+    discount
   } = body;
 
   if (!customerName || !customerPhone || !startDate || !endDate || !items || items.length === 0) {
@@ -67,18 +72,23 @@ export async function POST(request: Request) {
   try {
     const sDate = new Date(startDate);
     const eDate = new Date(endDate);
-    
-    // Robust numeric parsing
-    const totalAmount = items.reduce((sum: number, item: any) => {
+
+    let totalAmount = items.reduce((sum: number, item: any) => {
       const price = parseFloat(item.pricePerDay?.toString() || '0') || 0;
       const qty = parseInt(item.quantity?.toString() || '0') || 0;
       return sum + (price * qty);
     }, 0);
-    
+
+    if (tieSafa) {
+      totalAmount += parseFloat(tieSafaCharge?.toString() || '50') || 50;
+    }
+    if (discount) {
+      totalAmount -= parseFloat(discount?.toString() || '0') || 0;
+    }
+
     const paid = parseFloat(paidAmount?.toString() || '0') || 0;
     const remaining = totalAmount - paid;
 
-    // 1. Check Availability
     const availability = await checkMultiProductAvailability(items, sDate, eDate);
     if (!availability.allAvailable) {
       return NextResponse.json({ 
@@ -87,19 +97,17 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 2. Create Rental Transaction
     const rental = await prisma.$transaction(async (tx: any) => {
-      // Get next order number
       const lastRental = await tx.rental.findFirst({
         orderBy: { createdAt: 'desc' },
       });
-      
+
       let lastNum = 0;
       if (lastRental && lastRental.orderNumber.includes('-')) {
         const parts = lastRental.orderNumber.split('-');
         lastNum = parseInt(parts[parts.length - 1]) || 0;
       }
-      
+
       const orderNumber = `RENT-${(lastNum + 1).toString().padStart(5, '0')}`;
 
       const newRental = await tx.rental.create({
@@ -118,6 +126,11 @@ export async function POST(request: Request) {
           totalAmount,
           paidAmount: paid,
           remainingAmount: remaining,
+          storeId: storeId || null,
+          tieSafa: !!tieSafa,
+          safaShape,
+          tieSafaCharge: parseFloat(tieSafaCharge?.toString() || '0') || 0,
+          discount: parseFloat(discount?.toString() || '0') || 0,
           items: {
             create: items.map((item: any) => ({
               productId: item.productId,
@@ -133,17 +146,16 @@ export async function POST(request: Request) {
         },
       });
 
-      // Create initial Invoice
       const lastInvoice = await tx.invoice.findFirst({
         orderBy: { createdAt: 'desc' },
       });
-      
+
       let lastInvNum = 0;
       if (lastInvoice && lastInvoice.invoiceNumber.includes('-')) {
         const parts = lastInvoice.invoiceNumber.split('-');
         lastInvNum = parseInt(parts[parts.length - 1]) || 0;
       }
-      
+
       const invoiceNumber = `INV-${(lastInvNum + 1).toString().padStart(5, '0')}`;
 
       await tx.invoice.create({

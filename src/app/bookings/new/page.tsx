@@ -21,6 +21,7 @@ import {
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 
 interface Product {
   id: string;
@@ -42,6 +43,7 @@ interface BookingItem {
 
 export default function OdooBookingPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [customer, setCustomer] = useState({ 
     name: '', 
@@ -59,12 +61,34 @@ export default function OdooBookingPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [recentBooking, setRecentBooking] = useState<any>(null);
   const [paidAmount, setPaidAmount] = useState('0');
+  
+  const [stores, setStores] = useState<any[]>([]);
+  const [selectedStore, setSelectedStore] = useState('');
+  const [tieSafa, setTieSafa] = useState(false);
+  const [safaShape, setSafaShape] = useState('rounded');
+  const [discount, setDiscount] = useState('0');
 
   useEffect(() => {
     fetch('/api/products')
       .then(res => res.json())
       .then(data => setProducts(data.filter((p: any) => p.isRentable)));
-  }, []);
+      
+    fetch('/api/stores')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setStores(data);
+          if (user?.storeId) {
+            setSelectedStore(user.storeId);
+          } else if (data.length > 0) {
+            setSelectedStore(data[0].id);
+          }
+        } else {
+          setStores([]);
+        }
+      })
+      .catch(() => setStores([]));
+  }, [user]);
 
   const addToBooking = (product: Product) => {
     setItems((prev: BookingItem[]) => {
@@ -101,7 +125,10 @@ export default function OdooBookingPage() {
   };
 
   const calculateTotal = () => {
-    return items.reduce((s, i) => s + (i.pricePerDay * i.quantity), 0);
+    let sum = items.reduce((s, i) => s + (i.pricePerDay * i.quantity), 0);
+    if (tieSafa) sum += 50;
+    const discountVal = parseFloat(discount) || 0;
+    return Math.max(0, sum - discountVal);
   };
 
   const handleBooking = async () => {
@@ -127,6 +154,11 @@ export default function OdooBookingPage() {
           endDate: dates.end,
           items,
           paidAmount: parseFloat(paidAmount || '0'),
+          storeId: selectedStore,
+          tieSafa,
+          safaShape: tieSafa ? safaShape : null,
+          tieSafaCharge: tieSafa ? 50 : 0,
+          discount: parseFloat(discount || '0'),
         })
       });
       const data = await res.json();
@@ -139,6 +171,8 @@ export default function OdooBookingPage() {
         setItems([]);
         setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
         setPaidAmount('0');
+        setTieSafa(false);
+        setDiscount('0');
       }
     } catch (error) {
       alert('Network error during checkout');
@@ -182,6 +216,30 @@ export default function OdooBookingPage() {
              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">{t('customer_details')}</h3>
            </div>
            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Store Selection */}
+              {stores.length > 0 && (
+                <div className="relative mb-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Select Store</label>
+                    {user?.role !== 'ADMIN' && user?.storeId && (
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                        Assigned Store
+                      </span>
+                    )}
+                  </div>
+                  <select 
+                    value={selectedStore}
+                    onChange={(e) => setSelectedStore(e.target.value)}
+                    disabled={user?.role !== 'ADMIN' && !!user?.storeId}
+                    className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded text-sm font-bold text-indigo-900 outline-none focus:border-indigo-500 disabled:opacity-80 disabled:bg-slate-100"
+                  >
+                    {stores.map(store => (
+                      <option key={store.id} value={store.id}>{store.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Mandatory Fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
@@ -249,6 +307,46 @@ export default function OdooBookingPage() {
                   value={customer.address}
                   onChange={e => setCustomer({...customer, address: e.target.value})}
                 />
+              </div>
+
+              {/* Tie Safa Options */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                  <input 
+                    type="checkbox" 
+                    checked={tieSafa}
+                    onChange={(e) => setTieSafa(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-bold text-slate-700">Tie Safa (+₹50)</span>
+                </label>
+                
+                {tieSafa && (
+                  <div className="flex items-center gap-4 ml-6 mb-2">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="safaShape" 
+                        value="rounded" 
+                        checked={safaShape === 'rounded'}
+                        onChange={(e) => setSafaShape(e.target.value)}
+                        className="text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs font-bold text-slate-600">Rounded</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="safaShape" 
+                        value="t shape" 
+                        checked={safaShape === 't shape'}
+                        onChange={(e) => setSafaShape(e.target.value)}
+                        className="text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs font-bold text-slate-600">T Shape</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Rental Period */}
@@ -393,7 +491,27 @@ export default function OdooBookingPage() {
                 </div>
                 <div className="flex justify-between items-center text-xs font-black text-indigo-300 uppercase tracking-widest">
                   <span>Item Total</span>
-                  <span className="text-white text-sm">₹{calculateTotal().toFixed(2)}</span>
+                  <span className="text-white text-sm">₹{items.reduce((s, i) => s + (i.pricePerDay * i.quantity), 0).toFixed(2)}</span>
+                </div>
+                
+                {tieSafa && (
+                  <div className="flex justify-between items-center text-xs font-black text-emerald-300 uppercase tracking-widest">
+                    <span>Safa Tying Charge</span>
+                    <span className="text-emerald-300 text-sm">+ ₹50.00</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-xs font-black text-rose-300 uppercase tracking-widest mt-1">
+                  <span className="flex-1">Discount (Admin)</span>
+                  <div className="relative w-24">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/50 text-xs">₹</span>
+                    <input 
+                      type="number" 
+                      className="w-full bg-black/20 border border-white/10 rounded px-2 pl-6 py-1 outline-none focus:border-white/30 text-xs font-black text-white"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                    />
+                  </div>
                 </div>
                 
                 <div className="pt-2 border-t border-white/10 mt-2">
