@@ -90,7 +90,8 @@ export async function PUT(
       safaTyingTime,
       safaTyingDate,
       tieSafaCharge,
-      discount
+      discount,
+      paymentMethod
     } = body;
 
     const sDate = startDate ? new Date(startDate) : existingRental.startDate;
@@ -144,6 +145,7 @@ export async function PUT(
           safaTyingDate: safaTyingDate !== undefined ? safaTyingDate : existingRental.safaTyingDate,
           tieSafaCharge: tieSafaCharge !== undefined ? parseFloat(tieSafaCharge.toString()) : existingRental.tieSafaCharge,
           discount: discount !== undefined ? parseFloat(discount.toString()) : existingRental.discount,
+          paymentMethod: paymentMethod || existingRental.paymentMethod || 'CASH',
           ...(items && items.length > 0 ? {
             items: {
               create: items.map((item: any) => ({
@@ -159,11 +161,13 @@ export async function PUT(
 
       // Update associated invoice
       if (rental.invoice) {
+        const invStatus = paid >= totalAmount && totalAmount > 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'DUE');
         await tx.invoice.update({
           where: { id: rental.invoice.id },
           data: {
             amount: totalAmount,
-            status: paid >= totalAmount ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'UNPAID'),
+            status: invStatus,
+            paymentMethod: paymentMethod || existingRental.paymentMethod || 'CASH',
           }
         });
       }

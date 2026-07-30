@@ -63,6 +63,7 @@ export default function OdooBookingPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [recentBooking, setRecentBooking] = useState<any>(null);
   const [paidAmount, setPaidAmount] = useState('0');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE' | 'UPI' | 'CARD'>('CASH');
   
   const [stores, setStores] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState('');
@@ -203,6 +204,7 @@ export default function OdooBookingPage() {
           safaTyingDate: tieSafa ? safaTyingDetails.marriageDate : null,
           tieSafaCharge: getSafaCharge(),
           discount: parseFloat(discount || '0'),
+          paymentMethod,
         })
       });
       const data = await res.json();
@@ -215,6 +217,7 @@ export default function OdooBookingPage() {
         setItems([]);
         setCustomer({ name: '', phone: '', altPhone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
         setPaidAmount('0');
+        setPaymentMethod('CASH');
         setTieSafa(false);
         setSafaTyingCount(1);
         setDiscount('0');
@@ -705,16 +708,58 @@ export default function OdooBookingPage() {
                   </div>
                 </div>
                 
+                {/* Payment Method Selector */}
                 <div className="pt-2 border-t border-white/10 mt-2">
+                  <label className="block text-[11px] font-black text-indigo-300 uppercase tracking-widest mb-1.5">
+                    Payment Method
+                  </label>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[
+                      { id: 'CASH', label: '💵 Cash' },
+                      { id: 'ONLINE', label: '🌐 Online' },
+                      { id: 'UPI', label: '📱 UPI' },
+                      { id: 'CARD', label: '💳 Card' },
+                    ].map(pm => (
+                      <button
+                        type="button"
+                        key={pm.id}
+                        onClick={() => setPaymentMethod(pm.id as any)}
+                        className={`py-1.5 rounded text-[11px] font-bold text-center transition-all ${
+                          paymentMethod === pm.id
+                            ? 'bg-white text-indigo-950 font-black shadow-sm'
+                            : 'bg-black/20 text-indigo-200 hover:bg-black/30'
+                        }`}
+                      >
+                        {pm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payment Amount & Dynamic Status */}
+                <div className="pt-2 border-t border-white/10">
                    <div className="flex justify-between items-center mb-1">
-                    <label className="text-xs font-black text-indigo-300 uppercase tracking-widest">Advanced Payment</label>
-                    <span className="text-xs font-black text-rose-300 uppercase">Due: ₹{(calculateTotal() - parseFloat(paidAmount || '0')).toFixed(0)}</span>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-black text-indigo-300 uppercase tracking-widest">Advance Paid</label>
+                      {/* Dynamic Payment Status Badge */}
+                      {(() => {
+                        const paid = parseFloat(paidAmount || '0');
+                        const total = calculateTotal();
+                        if (paid >= total && total > 0) {
+                          return <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-400 text-emerald-950 uppercase">FULL PAID</span>;
+                        } else if (paid > 0) {
+                          return <span className="text-[10px] font-black px-2 py-0.5 rounded bg-amber-300 text-amber-950 uppercase">PARTIAL PAID</span>;
+                        }
+                        return <span className="text-[10px] font-black px-2 py-0.5 rounded bg-rose-400 text-rose-950 uppercase">DUE</span>;
+                      })()}
+                    </div>
+                    <span className="text-xs font-black text-rose-300 uppercase">Due: ₹{Math.max(0, calculateTotal() - parseFloat(paidAmount || '0')).toFixed(0)}</span>
                    </div>
                    <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30 text-sm font-black">₹</span>
                     <input 
                       type="number"
-                      className="w-full bg-black/20 border border-white/10 rounded px-3 pl-8 py-2.5 outline-none focus:border-white/30 text-base font-black"
+                      className="w-full bg-black/20 border border-white/10 rounded px-3 pl-8 py-2 outline-none focus:border-white/30 text-base font-black"
                       value={paidAmount}
                       onChange={(e) => setPaidAmount(e.target.value)}
                     />

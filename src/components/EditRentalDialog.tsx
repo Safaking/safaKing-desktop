@@ -22,6 +22,7 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
   const [endDate, setEndDate] = useState(rental.endDate ? new Date(rental.endDate).toISOString().split('T')[0] : '');
   const [paidAmount, setPaidAmount] = useState(rental.paidAmount?.toString() || '0');
   const [discount, setDiscount] = useState(rental.discount?.toString() || '0');
+  const [paymentMethod, setPaymentMethod] = useState(rental.paymentMethod || 'CASH');
 
   const [loading, setLoading] = useState(false);
 
@@ -46,6 +47,7 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
           endDate,
           paidAmount: parseFloat(paidAmount || '0'),
           discount: parseFloat(discount || '0'),
+          paymentMethod,
         }),
       });
 
@@ -171,7 +173,21 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Payment Method</label>
+              <select 
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-indigo-900 outline-none focus:border-indigo-500 focus:bg-white"
+                value={paymentMethod}
+                onChange={e => setPaymentMethod(e.target.value)}
+              >
+                <option value="CASH">💵 Cash</option>
+                <option value="ONLINE">🌐 Online</option>
+                <option value="UPI">📱 UPI</option>
+                <option value="CARD">💳 Card</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Advance / Paid (₹)</label>
               <input 

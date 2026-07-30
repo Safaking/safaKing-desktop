@@ -47,10 +47,12 @@ interface Rental {
   paidAmount?: number;
   remainingAmount?: number;
   discount?: number;
+  paymentMethod?: string;
   items: any[];
   invoice?: {
     status: string;
     invoiceNumber: string;
+    paymentMethod?: string;
   };
 }
 
@@ -220,12 +222,26 @@ export default function RentalsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`flex items-center gap-1 text-xs font-bold ${
-                      rental.invoice?.status === 'PAID' ? 'text-emerald-600' : 'text-rose-500'
-                    }`}>
-                      {rental.invoice?.status === 'PAID' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                      {rental.invoice?.status || 'UNPAID'}
-                    </span>
+                    {(() => {
+                      const status = rental.invoice?.status || 'UNPAID';
+                      const pm = rental.invoice?.paymentMethod || rental.paymentMethod || 'CASH';
+                      const isPaid = status === 'PAID';
+                      const isPartial = status === 'PARTIAL';
+
+                      return (
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className={`inline-flex items-center gap-1 text-xs font-extrabold ${
+                            isPaid ? 'text-emerald-600' : isPartial ? 'text-amber-600' : 'text-rose-500'
+                          }`}>
+                            {isPaid ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+                            {status}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Via {pm}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end items-center gap-2 relative">

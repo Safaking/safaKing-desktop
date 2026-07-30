@@ -60,12 +60,21 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
   doc.text('Invoice No:', 20, startDetailsY);
   doc.text('Date:', 20, startDetailsY + 7);
   doc.text('Due Date:', 20, startDetailsY + 14);
+  doc.text('Payment Mode:', 20, startDetailsY + 21);
+  doc.text('Payment Status:', 20, startDetailsY + 28);
   
   doc.setFont('helvetica', 'normal');
   doc.text(data.orderNumber || 'INV-001', 65, startDetailsY);
   doc.text(format(new Date(), 'dd MMM yyyy'), 65, startDetailsY + 7);
   const dueDate = type === 'RENTAL' ? format(new Date(data.endDate), 'dd MMM yyyy') : format(new Date(), 'dd MMM yyyy');
   doc.text(dueDate, 65, startDetailsY + 14);
+  doc.text((data.paymentMethod || data.invoice?.paymentMethod || 'CASH').toUpperCase(), 65, startDetailsY + 21);
+  
+  const paid = parseFloat(data.paidAmount?.toString() || '0');
+  const total = parseFloat(data.totalAmount?.toString() || '0');
+  const payStatus = paid >= total && total > 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'DUE');
+  doc.setFont('helvetica', 'bold');
+  doc.text(payStatus, 65, startDetailsY + 28);
 
   // Right Side: Bill To
   doc.setFont('helvetica', 'bold');

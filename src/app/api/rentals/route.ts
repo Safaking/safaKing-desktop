@@ -68,7 +68,8 @@ export async function POST(request: Request) {
     safaTyingTime,
     safaTyingDate,
     tieSafaCharge,
-    discount
+    discount,
+    paymentMethod
   } = body;
 
   if (!customerName || !customerPhone || !startDate || !endDate || !items || items.length === 0) {
@@ -143,6 +144,7 @@ export async function POST(request: Request) {
           safaTyingDate: tieSafa ? (safaTyingDate || null) : null,
           tieSafaCharge: parseFloat(tieSafaCharge?.toString() || '0') || 0,
           discount: parseFloat(discount?.toString() || '0') || 0,
+          paymentMethod: paymentMethod || 'CASH',
           items: {
             create: items.map((item: any) => ({
               productId: item.productId,
@@ -169,13 +171,15 @@ export async function POST(request: Request) {
       }
 
       const invoiceNumber = `INV-${(lastInvNum + 1).toString().padStart(5, '0')}`;
+      const invStatus = paid >= totalAmount && totalAmount > 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'DUE');
 
       await tx.invoice.create({
         data: {
           invoiceNumber,
           rentalId: newRental.id,
           amount: totalAmount,
-          status: paid >= totalAmount ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'UNPAID'),
+          status: invStatus,
+          paymentMethod: paymentMethod || 'CASH',
         },
       });
 

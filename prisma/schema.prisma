@@ -54,6 +54,7 @@ model Rental {
   safaTyingDate    String?
   tieSafaCharge    Float        @default(0)
   discount         Float        @default(0)
+  paymentMethod    String?      @default("CASH")
   pickupName       String?
   pickupPhone      String?
   pickupDate       String?
@@ -114,6 +115,7 @@ model Invoice {
   saleId        String?  @unique
   amount        Float
   status        String
+  paymentMethod String?  @default("CASH")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   sale          Sale?    @relation(fields: [saleId], references: [id])
