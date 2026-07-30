@@ -67,8 +67,9 @@ export default function OdooBookingPage() {
   const [stores, setStores] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState('');
   const [tieSafa, setTieSafa] = useState(false);
-  const [safaShape, setSafaShape] = useState('rounded');
+  const [safaShape, setSafaShape] = useState('');
   const [safaTyingCount, setSafaTyingCount] = useState<number>(1);
+  const [safaOptions, setSafaOptions] = useState<any[]>([]);
   const [safaTyingDetails, setSafaTyingDetails] = useState({
     name: '',
     address: '',
@@ -87,15 +88,12 @@ export default function OdooBookingPage() {
       .then(res => res.json())
       .then(data => setProducts(data.filter((p: any) => p.isRentable)));
 
-    fetch('/api/safa-pricing')
+    fetch('/api/safa-options')
       .then(res => res.json())
       .then(data => {
-        if (data) {
-          setSafaPricingConfig({
-            roundedPrice: data.roundedPrice ?? 50,
-            jodhpuriPrice: data.jodhpuriPrice ?? 50,
-            baratiSafaPrice: data.baratiSafaPrice ?? 50,
-          });
+        if (Array.isArray(data)) {
+          setSafaOptions(data);
+          if (data.length > 0) setSafaShape(data[0].name);
         }
       })
       .catch(e => console.error(e));
@@ -119,9 +117,8 @@ export default function OdooBookingPage() {
 
   const getSafaUnitPrice = () => {
     if (!tieSafa) return 0;
-    if (safaShape === 'jodhpuri') return safaPricingConfig.jodhpuriPrice;
-    if (safaShape === 'barati') return safaPricingConfig.baratiSafaPrice;
-    return safaPricingConfig.roundedPrice;
+    const match = safaOptions.find(opt => opt.name.toLowerCase() === safaShape.toLowerCase() || opt.id === safaShape);
+    return match ? parseFloat(match.price?.toString() || '0') : 50;
   };
 
   const getSafaCharge = () => {
@@ -410,27 +407,23 @@ export default function OdooBookingPage() {
                       <label className="block text-[11px] font-bold text-indigo-900 uppercase tracking-widest mb-2">
                         Select Safa Tying Style
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { id: 'rounded', label: 'Rounded', price: safaPricingConfig.roundedPrice },
-                          { id: 'jodhpuri', label: 'Jodhpuri', price: safaPricingConfig.jodhpuriPrice },
-                          { id: 'barati', label: 'Barati safa', price: safaPricingConfig.baratiSafaPrice },
-                        ].map((style) => {
-                          const isSelected = safaShape === style.id;
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {safaOptions.map((style: any) => {
+                          const isSelected = safaShape.toLowerCase() === style.name.toLowerCase();
                           return (
                             <button
                               type="button"
                               key={style.id}
-                              onClick={() => setSafaShape(style.id)}
+                              onClick={() => setSafaShape(style.name)}
                               className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
                                 isSelected
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
                                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                               }`}
                             >
-                              <span>{style.label}</span>
+                              <span>{style.name}</span>
                               <span className={`text-[10px] font-extrabold ${isSelected ? 'text-indigo-100' : 'text-indigo-600'}`}>
-                                ₹{style.price}
+                                ₹{parseFloat(style.price || '0').toFixed(2)}
                               </span>
                             </button>
                           );

@@ -15,7 +15,8 @@ import {
   UserPlus,
   ShieldCheck,
   Trash2,
-  IndianRupee
+  IndianRupee,
+  Edit3
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import { useAuth } from '@/lib/AuthContext';
@@ -29,49 +30,47 @@ interface StoreData {
 interface Product {
   id: string;
   name: string;
+  description: string | null;
   sku: string;
-  category: string;
+  category: string | null;
   rentPrice: number;
   salePrice: number;
-  discount?: number;
+  discount: number;
   totalQuantity: number;
   availableQuantity: number;
   isRentable: boolean;
   isSellable: boolean;
+  image: string | null;
 }
 
-interface UserAccount {
+interface UserData {
   id: string;
   username: string;
-  email?: string;
   name: string;
   role: 'ADMIN' | 'OWNER' | 'EMPLOYEE';
-  storeId?: string | null;
-  store?: {
-    id: string;
-    name: string;
-  } | null;
+  storeId: string | null;
+  store: { name: string } | null;
 }
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing'>('inventory');
   const { user: currentUser } = useAuth();
-
-  // Stores State
+  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing'>('inventory');
+  
+  // Stores state
   const [stores, setStores] = useState<StoreData[]>([]);
   const [newStoreName, setNewStoreName] = useState('');
   const [newStoreLocation, setNewStoreLocation] = useState('');
-  const [storeLoading, setStoreLoading] = useState(false);
+  const [addStoreLoading, setAddStoreLoading] = useState(false);
 
-  // Products State
+  // Products state
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState<Product | null | undefined>(undefined); // undefined = closed, null = new
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Users State
-  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -80,20 +79,18 @@ export default function AdminPage() {
   const [newStoreId, setNewStoreId] = useState('');
   const [createUserLoading, setCreateUserLoading] = useState(false);
 
-  // Safa Pricing State
-  const [safaPrices, setSafaPrices] = useState({
-    roundedPrice: '50',
-    jodhpuriPrice: '50',
-    baratiSafaPrice: '50',
-  });
-  const [safaPricingLoading, setSafaPricingLoading] = useState(false);
-  const [safaPricingSaved, setSafaPricingSaved] = useState(false);
+  // Dynamic Safa Options State
+  const [safaOptions, setSafaOptions] = useState<any[]>([]);
+  const [editingSafaOption, setEditingSafaOption] = useState<any | null>(null);
+  const [safaOptionName, setSafaOptionName] = useState('');
+  const [safaOptionPrice, setSafaOptionPrice] = useState('50');
+  const [safaOptionLoading, setSafaOptionLoading] = useState(false);
 
   useEffect(() => {
     fetchStores();
     fetchProducts();
     fetchUsers();
-    fetchSafaPricing();
+    fetchSafaOptions();
     const handleClickOutside = () => setActiveMenuId(null);
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
@@ -141,39 +138,66 @@ export default function AdminPage() {
     }
   };
 
-  const fetchSafaPricing = async () => {
+  const fetchSafaOptions = async () => {
     try {
-      const res = await fetch('/api/safa-pricing');
+      const res = await fetch('/api/safa-options');
       const data = await res.json();
-      if (res.ok && data) {
-        setSafaPrices({
-          roundedPrice: data.roundedPrice?.toString() || '50',
-          jodhpuriPrice: data.jodhpuriPrice?.toString() || '50',
-          baratiSafaPrice: data.baratiSafaPrice?.toString() || '50',
-        });
-      }
+      if (Array.isArray(data)) setSafaOptions(data);
+      else setSafaOptions([]);
     } catch (e) {
-      console.error('Failed to fetch Safa pricing', e);
+      console.error('Failed to fetch Safa options', e);
+      setSafaOptions([]);
     }
   };
 
-  const handleSaveSafaPricing = async (e: React.FormEvent) => {
+  const handleSaveSafaOption = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSafaPricingLoading(true);
+    if (!safaOptionName) return;
+    setSafaOptionLoading(true);
+
     try {
-      const res = await fetch('/api/safa-pricing', {
-        method: 'POST',
+      const isEdit = !!editingSafaOption;
+      const url = '/api/safa-options';
+      const method = isEdit ? 'PUT' : 'POST';
+      const payload = isEdit 
+        ? { id: editingSafaOption.id, name: safaOptionName, price: parseFloat(safaOptionPrice || '0') }
+        : { name: safaOptionName, price: parseFloat(safaOptionPrice || '0') };
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(safaPrices),
+        body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        setSafaPricingSaved(true);
-        setTimeout(() => setSafaPricingSaved(false), 3000);
+        setEditingSafaOption(null);
+        setSafaOptionName('');
+        setSafaOptionPrice('50');
+        fetchSafaOptions();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to save safa option');
       }
-    } catch (e) {
-      console.error('Failed to save Safa pricing', e);
+    } catch (err: any) {
+      alert(err.message || 'Error saving safa option');
     } finally {
-      setSafaPricingLoading(false);
+      setSafaOptionLoading(false);
+    }
+  };
+
+  const handleDeleteSafaOption = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}" safa style?`)) return;
+
+    try {
+      const res = await fetch(`/api/safa-options?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchSafaOptions();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete option');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error deleting option');
     }
   };
 
@@ -181,7 +205,7 @@ export default function AdminPage() {
     e.preventDefault();
     if (!newStoreName) return;
     
-    setStoreLoading(true);
+    setAddStoreLoading(true);
     try {
       const res = await fetch('/api/stores', {
         method: 'POST',
@@ -199,7 +223,7 @@ export default function AdminPage() {
     } catch (error) {
       console.error(error);
     }
-    setStoreLoading(false);
+    setAddStoreLoading(false);
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -497,11 +521,11 @@ export default function AdminPage() {
                 </div>
                 <button 
                   type="submit" 
-                  disabled={storeLoading || !newStoreName}
+                  disabled={addStoreLoading || !newStoreName}
                   className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg disabled:opacity-50 transition-all shadow-sm"
                 >
                   <Plus size={18} />
-                  {storeLoading ? 'Adding...' : 'Add Store'}
+                  {addStoreLoading ? 'Adding...' : 'Add Store'}
                 </button>
               </form>
             </div>
@@ -682,90 +706,121 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* SAFA TYING RATES TAB */}
+        {/* SAFA TYING RATES & STYLES TAB */}
         {activeTab === 'safa_pricing' && (
-          <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-              <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center font-bold">
-                <IndianRupee size={24} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">Safa Tying Rates</h2>
-                <p className="text-xs text-slate-500 font-medium">Configure tying charges for different Safa styles across all bookings.</p>
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center font-bold shrink-0">
+                  <IndianRupee size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Safa Tying Styles & Pricing</h2>
+                  <p className="text-xs text-slate-500 font-medium">Add, edit, or remove custom Safa tying options and their rates.</p>
+                </div>
               </div>
             </div>
 
-            {safaPricingSaved && (
-              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl flex items-center gap-2">
-                ✓ Safa Tying rates updated successfully!
-              </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Add / Edit Form Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center justify-between">
+                  <span>{editingSafaOption ? 'Edit Safa Style' : 'Add New Safa Style'}</span>
+                  {editingSafaOption && (
+                    <button 
+                      onClick={() => {
+                        setEditingSafaOption(null);
+                        setSafaOptionName('');
+                        setSafaOptionPrice('50');
+                      }}
+                      className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </h3>
 
-            <form onSubmit={handleSaveSafaPricing} className="space-y-6">
-              <div className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                <form onSubmit={handleSaveSafaOption} className="space-y-4">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Rounded Safa Tying</h3>
-                    <p className="text-xs text-slate-500 font-medium">Standard round style safa tying rate</p>
-                  </div>
-                  <div className="relative w-36">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
+                    <label className="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Style Name *</label>
                     <input 
-                      type="number"
-                      step="0.01"
-                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 font-bold text-slate-800 text-sm text-right"
-                      value={safaPrices.roundedPrice}
-                      onChange={e => setSafaPrices({ ...safaPrices, roundedPrice: e.target.value })}
+                      type="text" 
                       required
+                      placeholder="e.g. Royal Groom Safa"
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
+                      value={safaOptionName}
+                      onChange={e => setSafaOptionName(e.target.value)}
                     />
                   </div>
-                </div>
 
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Jodhpuri Safa Tying</h3>
-                    <p className="text-xs text-slate-500 font-medium">Royal Jodhpuri style safa tying rate</p>
+                    <label className="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Tying Rate (₹) *</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">₹</span>
+                      <input 
+                        type="number"
+                        step="0.01"
+                        required
+                        className="w-full pl-8 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
+                        value={safaOptionPrice}
+                        onChange={e => setSafaOptionPrice(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="relative w-36">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 font-bold text-slate-800 text-sm text-right"
-                      value={safaPrices.jodhpuriPrice}
-                      onChange={e => setSafaPrices({ ...safaPrices, jodhpuriPrice: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
 
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Barati Safa Tying</h3>
-                    <p className="text-xs text-slate-500 font-medium">Wedding procession (Barati) safa tying rate</p>
-                  </div>
-                  <div className="relative w-36">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 font-bold text-slate-800 text-sm text-right"
-                      value={safaPrices.baratiSafaPrice}
-                      onChange={e => setSafaPrices({ ...safaPrices, baratiSafaPrice: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
+                  <button 
+                    type="submit"
+                    disabled={safaOptionLoading || !safaOptionName}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2"
+                  >
+                    {safaOptionLoading ? 'Saving...' : editingSafaOption ? <><Edit3 size={16} /> Update Safa Style</> : <><Plus size={16} /> Add Safa Style</>}
+                  </button>
+                </form>
               </div>
 
-              <button 
-                type="submit"
-                disabled={safaPricingLoading}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2"
-              >
-                {safaPricingLoading ? 'Saving...' : 'Save Tying Rates'}
-              </button>
-            </form>
+              {/* Safa Options List */}
+              <div className="md:col-span-2 space-y-3">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Active Safa Tying Options ({safaOptions.length})</p>
+
+                {safaOptions.length === 0 ? (
+                  <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                    No safa tying styles added yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {safaOptions.map((opt: any) => (
+                      <div key={opt.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-indigo-200 transition-all">
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">{opt.name}</h4>
+                          <p className="text-xs font-black text-indigo-600 mt-0.5">₹{parseFloat(opt.price || '0').toFixed(2)} / pc</p>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingSafaOption(opt);
+                              setSafaOptionName(opt.name);
+                              setSafaOptionPrice(opt.price?.toString() || '50');
+                            }}
+                            className="p-1.5 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                            title="Edit Style"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSafaOption(opt.id, opt.name)}
+                            className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                            title="Delete Style"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>
