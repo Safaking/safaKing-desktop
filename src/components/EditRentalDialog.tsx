@@ -183,8 +183,6 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
               >
                 <option value="CASH">💵 Cash</option>
                 <option value="ONLINE">🌐 Online</option>
-                <option value="UPI">📱 UPI</option>
-                <option value="CARD">💳 Card</option>
               </select>
             </div>
 

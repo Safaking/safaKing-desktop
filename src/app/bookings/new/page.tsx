@@ -63,7 +63,7 @@ export default function OdooBookingPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [recentBooking, setRecentBooking] = useState<any>(null);
   const [paidAmount, setPaidAmount] = useState('0');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE' | 'UPI' | 'CARD'>('CASH');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH');
   
   const [stores, setStores] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState('');
@@ -713,20 +713,18 @@ export default function OdooBookingPage() {
                   <label className="block text-[11px] font-black text-indigo-300 uppercase tracking-widest mb-1.5">
                     Payment Method
                   </label>
-                  <div className="grid grid-cols-4 gap-1">
+                  <div className="grid grid-cols-2 gap-2">
                     {[
                       { id: 'CASH', label: '💵 Cash' },
                       { id: 'ONLINE', label: '🌐 Online' },
-                      { id: 'UPI', label: '📱 UPI' },
-                      { id: 'CARD', label: '💳 Card' },
                     ].map(pm => (
                       <button
                         type="button"
                         key={pm.id}
                         onClick={() => setPaymentMethod(pm.id as any)}
-                        className={`py-1.5 rounded text-[11px] font-bold text-center transition-all ${
+                        className={`py-2 rounded text-xs font-extrabold text-center transition-all ${
                           paymentMethod === pm.id
-                            ? 'bg-white text-indigo-950 font-black shadow-sm'
+                            ? 'bg-white text-indigo-950 font-black shadow-md'
                             : 'bg-black/20 text-indigo-200 hover:bg-black/30'
                         }`}
                       >
