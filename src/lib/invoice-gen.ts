@@ -115,6 +115,7 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
     doc.setFont('helvetica', 'normal');
     const tyingInfoStr = [
       data.safaShape ? `Style: ${data.safaShape}` : '',
+      `Qty: ${data.safaTyingCount || 1} pcs`,
       data.safaTyingName ? `Contact: ${data.safaTyingName}` : '',
       data.safaTyingTime ? `Time: ${data.safaTyingTime}` : '',
       data.safaTyingDate ? `Date: ${data.safaTyingDate}` : '',

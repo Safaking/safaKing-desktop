@@ -47,6 +47,7 @@ model Rental {
   storeId         String?
   tieSafa          Boolean      @default(false)
   safaShape        String?
+  safaTyingCount   Int          @default(1)
   safaTyingName    String?
   safaTyingAddress String?
   safaTyingTime    String?

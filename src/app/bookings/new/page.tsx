@@ -68,6 +68,7 @@ export default function OdooBookingPage() {
   const [selectedStore, setSelectedStore] = useState('');
   const [tieSafa, setTieSafa] = useState(false);
   const [safaShape, setSafaShape] = useState('rounded');
+  const [safaTyingCount, setSafaTyingCount] = useState<number>(1);
   const [safaTyingDetails, setSafaTyingDetails] = useState({
     name: '',
     address: '',
@@ -116,11 +117,18 @@ export default function OdooBookingPage() {
       .catch(() => setStores([]));
   }, [user]);
 
-  const getSafaCharge = () => {
+  const getSafaUnitPrice = () => {
     if (!tieSafa) return 0;
     if (safaShape === 'jodhpuri') return safaPricingConfig.jodhpuriPrice;
     if (safaShape === 'barati') return safaPricingConfig.baratiSafaPrice;
     return safaPricingConfig.roundedPrice;
+  };
+
+  const getSafaCharge = () => {
+    if (!tieSafa) return 0;
+    const unitPrice = getSafaUnitPrice();
+    const count = Math.max(1, safaTyingCount || 1);
+    return unitPrice * count;
   };
 
   const addToBooking = (product: Product) => {
@@ -191,6 +199,7 @@ export default function OdooBookingPage() {
           storeId: selectedStore,
           tieSafa,
           safaShape: tieSafa ? safaShape : null,
+          safaTyingCount: tieSafa ? safaTyingCount : 1,
           safaTyingName: tieSafa ? safaTyingDetails.name : null,
           safaTyingAddress: tieSafa ? safaTyingDetails.address : null,
           safaTyingTime: tieSafa ? safaTyingDetails.time : null,
@@ -210,6 +219,7 @@ export default function OdooBookingPage() {
         setCustomer({ name: '', phone: '', altPhone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
         setPaidAmount('0');
         setTieSafa(false);
+        setSafaTyingCount(1);
         setDiscount('0');
       }
     } catch (error) {
@@ -425,6 +435,42 @@ export default function OdooBookingPage() {
                             </button>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    {/* Safa Tying Quantity Count */}
+                    <div className="bg-white p-3 rounded-xl border border-indigo-100/80 flex items-center justify-between shadow-2xs">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800">
+                          Safa Tying Quantity (Count)
+                        </label>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          ₹{getSafaUnitPrice()} × {safaTyingCount} safas = <span className="font-bold text-indigo-600">₹{getSafaCharge()}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setSafaTyingCount(Math.max(1, safaTyingCount - 1))}
+                          className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center font-black text-sm hover:bg-slate-100 active:scale-95 transition-all"
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-12 text-center text-xs font-black text-slate-800 bg-transparent outline-none"
+                          value={safaTyingCount}
+                          onChange={(e) => setSafaTyingCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSafaTyingCount(safaTyingCount + 1)}
+                          className="w-7 h-7 rounded-md bg-indigo-600 text-white flex items-center justify-center font-black text-sm hover:bg-indigo-700 active:scale-95 transition-all shadow-xs"
+                        >
+                          <Plus size={14} />
+                        </button>
                       </div>
                     </div>
 
