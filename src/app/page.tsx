@@ -15,7 +15,8 @@ import {
   Languages,
   LogOut,
   User as UserIcon,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -161,160 +162,173 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6 lg:p-10">
-        {/* Welcome Section */}
-        <section className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-slate-800">{t('welcome')}</h2>
-              <p className="text-slate-500">{t('dashboard_subtitle')}</p>
+        {loading ? (
+          <div className="py-28 flex flex-col items-center justify-center space-y-4">
+            <div className="relative flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute" />
             </div>
-
-            <Link 
-              href="/bookings/new" 
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-emerald-400/20 group"
-            >
-              <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Plus size={20} className="stroke-[3]" />
-              </div>
-              <span className="uppercase tracking-wider text-sm">{t('new_booking')}</span>
-            </Link>
+            <div className="text-center space-y-1">
+              <p className="text-xs font-black text-slate-800 tracking-widest uppercase">Loading Dashboard...</p>
+              <p className="text-xs font-medium text-slate-400">Fetching live inventory, order counts & stats</p>
+            </div>
           </div>
-        </section>
+        ) : (
+          <>
+            {/* Welcome Section */}
+            <section className="mb-8">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-800">{t('welcome')}</h2>
+                  <p className="text-slate-500">{t('dashboard_subtitle')}</p>
+                </div>
 
-        {/* Quick Access Grid with Count Overviews */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <QuickAction 
-            title={t('rentals')} 
-            desc="Manage orders, pickups & returns" 
-            href="/rentals"
-            icon={<Calendar className="text-blue-600" />}
-            bgColor="bg-blue-50"
-            borderColor="border-blue-100"
-            metrics={
-              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-blue-200/60">
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold text-[11px]">
-                  Booked: {stats?.bookedRentals ?? 0}
-                </span>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-bold text-[11px]">
-                  Active: {stats?.activeRentals ?? 0}
-                </span>
-                {!!stats?.overdueRentals && stats.overdueRentals > 0 ? (
-                  <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[11px]">
-                    Overdue: {stats.overdueRentals}
-                  </span>
-                ) : null}
-                {!!stats?.returnedRentals && stats.returnedRentals > 0 ? (
-                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
-                    Returned: {stats.returnedRentals}
-                  </span>
-                ) : null}
+                <Link 
+                  href="/bookings/new" 
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-emerald-400/20 group"
+                >
+                  <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Plus size={20} className="stroke-[3]" />
+                  </div>
+                  <span className="uppercase tracking-wider text-sm">{t('new_booking')}</span>
+                </Link>
               </div>
-            }
-          />
-          <QuickAction 
-            title={t('sales')} 
-            desc="Direct sales and POS terminal" 
-            href="/sales/history"
-            icon={<ShoppingCart className="text-indigo-600" />}
-            bgColor="bg-indigo-50"
-            borderColor="border-indigo-100"
-            metrics={
-              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-indigo-200/60">
-                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[11px]">
-                  Total Orders: {stats?.totalOrdersCount ?? 0}
-                </span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
-                  Revenue: ₹{stats?.revenue?.toLocaleString() || '0'}
-                </span>
-              </div>
-            }
-          />
-          <QuickAction 
-            title={t('inventory')} 
-            desc="Stock levels and product settings" 
-            href="/products"
-            icon={<Package className="text-amber-600" />}
-            bgColor="bg-amber-50"
-            borderColor="border-amber-100"
-            metrics={
-              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-amber-200/60">
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold text-[11px]">
-                  Products: {stats?.productCount ?? 0}
-                </span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded font-bold text-[11px]">
-                  Stock: {stats?.availableStockQty ?? 0} Pcs
-                </span>
-              </div>
-            }
-          />
-        </section>
+            </section>
 
-        {/* Recent Activity Mini-Table */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <Clock size={20} className="text-indigo-600" /> Recent Activity
-            </h3>
-            <Link href="/rentals" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 flex items-center gap-1 group">
-              View All <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50/50">
-                <tr className="text-sm font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4 text-center">Qty</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-400">Loading...</td></tr>
-                ) : combinedActivity.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-400">No recent activity</td></tr>
-                ) : combinedActivity.map(rental => (
-                  <tr 
-                    key={rental.id} 
-                    className="hover:bg-slate-50 transition-colors cursor-pointer group/row"
-                    onClick={() => window.location.href = `/rentals`}
-                  >
-                    <td className="px-6 py-4 font-bold text-slate-800">
-                      {rental.customerName}
-                    </td>
-                    <td className="px-6 py-4 font-bold text-slate-700">
-                      {new Date(rental.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-center text-slate-600 font-medium">
-                      {rental.itemCount}
-                    </td>
-                    <td className="px-6 py-4">
-                      {rental.type === 'OVERDUE' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-tighter">
-                          Overdue
-                        </span>
-                      ) : rental.type === 'TODAY' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-tighter">
-                          Today
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-tighter">
-                          {rental.status}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 font-black text-slate-900 flex items-center justify-between">
-                      ₹{rental.totalAmount.toLocaleString()}
-                      <ChevronRight size={16} className="text-slate-300 opacity-0 group-hover/row:opacity-100 group-hover/row:translate-x-1 transition-all" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            {/* Quick Access Grid with Count Overviews */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+              <QuickAction 
+                title={t('rentals')} 
+                desc="Manage orders, pickups & returns" 
+                href="/rentals"
+                icon={<Calendar className="text-blue-600" />}
+                bgColor="bg-blue-50"
+                borderColor="border-blue-100"
+                metrics={
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-blue-200/60">
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold text-[11px]">
+                      Booked: {stats?.bookedRentals ?? 0}
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-bold text-[11px]">
+                      Active: {stats?.activeRentals ?? 0}
+                    </span>
+                    {!!stats?.overdueRentals && stats.overdueRentals > 0 ? (
+                      <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[11px]">
+                        Overdue: {stats.overdueRentals}
+                      </span>
+                    ) : null}
+                    {!!stats?.returnedRentals && stats.returnedRentals > 0 ? (
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
+                        Returned: {stats.returnedRentals}
+                      </span>
+                    ) : null}
+                  </div>
+                }
+              />
+              <QuickAction 
+                title={t('sales')} 
+                desc="Direct sales and POS terminal" 
+                href="/sales/history"
+                icon={<ShoppingCart className="text-indigo-600" />}
+                bgColor="bg-indigo-50"
+                borderColor="border-indigo-100"
+                metrics={
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-indigo-200/60">
+                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[11px]">
+                      Total Orders: {stats?.totalOrdersCount ?? 0}
+                    </span>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
+                      Revenue: ₹{stats?.revenue?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                }
+              />
+              <QuickAction 
+                title={t('inventory')} 
+                desc="Stock levels and product settings" 
+                href="/products"
+                icon={<Package className="text-amber-600" />}
+                bgColor="bg-amber-50"
+                borderColor="border-amber-100"
+                metrics={
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-amber-200/60">
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold text-[11px]">
+                      Products: {stats?.productCount ?? 0}
+                    </span>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded font-bold text-[11px]">
+                      Stock: {stats?.availableStockQty ?? 0} Pcs
+                    </span>
+                  </div>
+                }
+              />
+            </section>
+
+            {/* Recent Activity Mini-Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Clock size={20} className="text-indigo-600" /> Recent Activity
+                </h3>
+                <Link href="/rentals" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 flex items-center gap-1 group">
+                  View All <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50/50">
+                    <tr className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="px-6 py-4">Customer</th>
+                      <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4 text-center">Qty</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {combinedActivity.length === 0 ? (
+                      <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-400">No recent activity</td></tr>
+                    ) : combinedActivity.map(rental => (
+                      <tr 
+                        key={rental.id} 
+                        className="hover:bg-slate-50 transition-colors cursor-pointer group/row"
+                        onClick={() => window.location.href = `/rentals`}
+                      >
+                        <td className="px-6 py-4 font-bold text-slate-800">
+                          {rental.customerName}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-slate-700">
+                          {new Date(rental.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                          {rental.itemCount}
+                        </td>
+                        <td className="px-6 py-4">
+                          {rental.type === 'OVERDUE' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-tighter">
+                              Overdue
+                            </span>
+                          ) : rental.type === 'TODAY' ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-tighter">
+                              Today
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-tighter">
+                              {rental.status}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-black text-slate-900 flex items-center justify-between">
+                          ₹{rental.totalAmount.toLocaleString()}
+                          <ChevronRight size={16} className="text-slate-300 opacity-0 group-hover/row:opacity-100 group-hover/row:translate-x-1 transition-all" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
