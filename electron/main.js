@@ -4,8 +4,9 @@ const isDev = require('electron-is-dev');
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1200,
+    width: 1280,
     height: 800,
+    title: 'Joshi Safa House',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -14,13 +15,10 @@ function createWindow() {
     autoHideMenuBar: true,
   });
 
-  const url = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../out/index.html')}`;
+  const PROD_URL = process.env.APP_URL || 'https://joshisafahouse.vercel.app';
+  const url = isDev ? 'http://localhost:3000' : PROD_URL;
 
   win.loadURL(url);
-
-
 }
 
 app.whenReady().then(() => {

@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "electron": "electron .",
+    "dist:win": "electron-builder --win nsis",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -46,5 +47,33 @@
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
+  },
+  "build": {
+    "appId": "com.joshisafahouse.app",
+    "productName": "Joshi Safa House",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Joshi Safa House"
+    }
   }
 }

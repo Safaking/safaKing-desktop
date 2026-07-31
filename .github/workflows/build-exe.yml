@@ -1,0 +1,33 @@
+name: Build Windows EXE Installer
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Windows Executable (.exe)
+        run: npm run dist:win
+
+      - name: Upload .exe Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Joshi-Safa-House-Installer-Windows
+          path: dist/*.exe
