@@ -1,33 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDbSchema } from '@/lib/db-init';
 import crypto from 'crypto';
-
-async function ensureSafaOptionTable() {
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "SafaOption" (
-        "id" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "price" DOUBLE PRECISION NOT NULL DEFAULT 50,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "SafaOption_pkey" PRIMARY KEY ("id")
-      );
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingCount" INTEGER DEFAULT 1;
-      ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';
-      ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';
-    `);
-  } catch (err) {
-    console.error('Auto migration error:', err);
-  }
-}
 
 export async function GET() {
   try {
-    await ensureSafaOptionTable();
+    await ensureDbSchema();
 
     let options = await prisma.safaOption.findMany({
       orderBy: { createdAt: 'asc' },
@@ -62,7 +40,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await ensureSafaOptionTable();
+    await ensureDbSchema();
     const body = await request.json();
     const { name, price } = body;
 
@@ -88,7 +66,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    await ensureSafaOptionTable();
+    await ensureDbSchema();
     const body = await request.json();
     const { id, name, price } = body;
 
@@ -115,7 +93,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await ensureSafaOptionTable();
+    await ensureDbSchema();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

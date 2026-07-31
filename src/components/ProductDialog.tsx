@@ -1,13 +1,51 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Package, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Package, Plus, Trash2, Loader2 } from 'lucide-react';
 
 interface ProductDialogProps {
   product?: any | null;
   onClose: () => void;
   onSuccess: () => void;
 }
+
+const compressImage = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.75): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(event.target?.result as string);
+        }
+      };
+      img.onerror = () => resolve(event.target?.result as string);
+    };
+    reader.onerror = () => resolve('');
+  });
+};
 
 export default function ProductDialog({ product, onClose, onSuccess }: ProductDialogProps) {
   const [formData, setFormData] = useState({
@@ -24,6 +62,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     image: '',
   });
   const [loading, setLoading] = useState(false);
+  const [imageCompressing, setImageCompressing] = useState(false);
 
   const generateSku = () => {
     const randomCode = Math.floor(1000 + Math.random() * 9000);
@@ -55,29 +94,52 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (imageCompressing) {
+      alert('Please wait while the image is being processed');
+      return;
+    }
     setLoading(true);
     
-    const formattedBody = {
-      ...formData,
-      rentPrice: parseFloat(formData.rentPrice || '0'),
-      salePrice: parseFloat(formData.salePrice || '0'),
-      discount: parseFloat(formData.discount || '0'),
-      totalQuantity: parseInt(formData.totalQuantity || '0'),
-    };
+    try {
+      const formattedBody = {
+        ...formData,
+        rentPrice: parseFloat(formData.rentPrice || '0'),
+        salePrice: parseFloat(formData.salePrice || '0'),
+        discount: parseFloat(formData.discount || '0'),
+        totalQuantity: parseInt(formData.totalQuantity || '0'),
+      };
 
-    const method = product ? 'PUT' : 'POST';
-    const res = await fetch('/api/products', {
-      method,
-      body: JSON.stringify(product ? { ...formattedBody, id: product.id } : formattedBody),
-    });
+      const method = product ? 'PUT' : 'POST';
+      const res = await fetch('/api/products', {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(product ? { ...formattedBody, id: product.id } : formattedBody),
+      });
 
-    if (res.ok) {
-      onSuccess();
-    } else {
-      const data = await res.json();
-      alert(data.error || 'Failed to save product');
+      if (res.ok) {
+        onSuccess();
+      } else {
+        let errorMessage = 'Failed to save product';
+        try {
+          const data = await res.json();
+          errorMessage = data.error || errorMessage;
+        } catch {
+          if (res.status === 413) {
+            errorMessage = 'Image size is too large for the server. Please choose a smaller photo.';
+          } else {
+            errorMessage = `Server error (${res.status})`;
+          }
+        }
+        alert(errorMessage);
+      }
+    } catch (err: any) {
+      console.error('Error saving product:', err);
+      alert(err.message || 'Network error while saving product');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -151,19 +213,32 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                 <div className="flex-1 space-y-3">
                   <div className="flex gap-2">
                     <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 font-bold text-xs cursor-pointer hover:bg-indigo-100 transition-all">
-                      <Plus size={14} /> Import from Computer
+                      {imageCompressing ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin text-indigo-600" /> Optimizing Image...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={14} /> Import from Computer
+                        </>
+                      )}
                       <input 
                         type="file" 
                         accept="image/*" 
+                        disabled={imageCompressing}
                         className="hidden" 
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setFormData({ ...formData, image: reader.result as string });
-                            };
-                            reader.readAsDataURL(file);
+                            setImageCompressing(true);
+                            try {
+                              const compressedDataUrl = await compressImage(file);
+                              setFormData(prev => ({ ...prev, image: compressedDataUrl }));
+                            } catch (err) {
+                              console.error('Failed to compress image', err);
+                            } finally {
+                              setImageCompressing(false);
+                            }
                           }
                         }}
                       />
@@ -274,10 +349,22 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
           <div className="flex flex-col gap-3">
             <button 
               type="submit"
-              disabled={loading}
+              disabled={loading || imageCompressing}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
             >
-              {loading ? 'Saving...' : <><Save size={18} /> {product ? 'Update Product' : 'Create Product'}</>}
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" /> Saving...
+                </>
+              ) : imageCompressing ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" /> Optimizing Image...
+                </>
+              ) : (
+                <>
+                  <Save size={18} /> {product ? 'Update Product' : 'Create Product'}
+                </>
+              )}
             </button>
             <button type="button" onClick={onClose} className="w-full text-slate-500 font-medium py-2 hover:text-slate-700 transition-colors text-sm">
               Discard Changes
