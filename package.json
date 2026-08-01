@@ -13,7 +13,7 @@
     "start": "next start",
     "lint": "next lint",
     "electron": "electron .",
-    "dist:win": "electron-builder --win nsis",
+    "dist:win": "electron-builder --win nsis --publish never",
     "postinstall": "prisma generate"
   },
   "dependencies": {
