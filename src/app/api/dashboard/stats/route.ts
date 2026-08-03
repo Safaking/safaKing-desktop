@@ -11,7 +11,7 @@ export async function GET() {
       activeRentalsCount, 
       overdueRentalsCount, 
       returnedRentalsCount,
-      products,
+      stockRows,
       salesCount,
       rentalsTotal, 
       salesTotal
@@ -30,18 +30,33 @@ export async function GET() {
         } 
       }),
       prisma.rental.count({ where: { status: 'RETURNED' } }),
-      prisma.product.findMany({
-        include: {
-          sales: true,
-          rentals: {
-            where: {
-              rental: {
-                status: { in: ['BOOKED', 'ACTIVE', 'OVERDUE'] },
-              },
-            },
-          },
-        },
-      }),
+      // Stock totals are aggregated in SQL. Loading every product with all of
+      // its sale and rental rows just to sum them grew linearly with the
+      // dataset and dominated this endpoint's latency.
+      prisma.$queryRaw<{ product_count: bigint; total_stock: bigint; available_stock: bigint }[]>`
+        WITH sold AS (
+          SELECT "productId", SUM("quantity") AS qty
+          FROM "SaleItem"
+          GROUP BY "productId"
+        ),
+        out_on_rent AS (
+          SELECT ri."productId",
+                 SUM(GREATEST(0, ri."quantity" - ri."returnedQuantity")) AS qty
+          FROM "RentalItem" ri
+          JOIN "Rental" r ON r."id" = ri."rentalId"
+          WHERE r."status" IN ('BOOKED', 'ACTIVE', 'OVERDUE')
+          GROUP BY ri."productId"
+        )
+        SELECT
+          COUNT(*)::bigint AS product_count,
+          COALESCE(SUM(p."totalQuantity"), 0)::bigint AS total_stock,
+          COALESCE(SUM(GREATEST(0,
+            p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0)
+          )), 0)::bigint AS available_stock
+        FROM "Product" p
+        LEFT JOIN sold s ON s."productId" = p."id"
+        LEFT JOIN out_on_rent o ON o."productId" = p."id"
+      `,
       prisma.sale.count(),
       prisma.rental.aggregate({
         _sum: { totalAmount: true }
@@ -51,15 +66,10 @@ export async function GET() {
       })
     ]);
 
-    const totalStock = products.reduce((sum, p) => sum + (p.totalQuantity || 0), 0);
-    const availableStock = products.reduce((sum, p) => {
-      const soldQty = p.sales.reduce((s, item) => s + item.quantity, 0);
-      const unreturnedQty = p.rentals.reduce((s, item) => {
-        const outstanding = item.quantity - item.returnedQuantity;
-        return s + Math.max(0, outstanding);
-      }, 0);
-      return sum + Math.max(0, p.totalQuantity - soldQty - unreturnedQty);
-    }, 0);
+    const stock = stockRows[0];
+    const productCount = Number(stock?.product_count ?? 0);
+    const totalStock = Number(stock?.total_stock ?? 0);
+    const availableStock = Number(stock?.available_stock ?? 0);
 
     const revenue = (rentalsTotal._sum.totalAmount || 0) + (salesTotal._sum.totalAmount || 0);
     const totalRentals = bookedRentalsCount + activeRentalsCount + overdueRentalsCount + returnedRentalsCount;
@@ -70,7 +80,7 @@ export async function GET() {
       overdueRentals: overdueRentalsCount,
       returnedRentals: returnedRentalsCount,
       totalRentals,
-      productCount: products.length,
+      productCount,
       totalStockQty: totalStock,
       availableStockQty: availableStock,
       salesCount,
