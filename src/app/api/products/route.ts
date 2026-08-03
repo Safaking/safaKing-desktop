@@ -3,38 +3,33 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        sales: true,
-        rentals: {
-          where: {
-            rental: {
-              status: { in: ['BOOKED', 'ACTIVE', 'OVERDUE'] },
-              AND: [
-                { startDate: { lte: new Date() } },
-                { endDate: { gte: new Date() } },
-              ],
-            },
-          },
-        },
-      },
-    });
-
-    const productsWithAvailability = products.map((product) => {
-      const soldQuantity = product.sales.reduce((sum, item) => sum + item.quantity, 0);
-      const unreturnedRentalQuantity = product.rentals.reduce((sum, item) => {
-        const outstanding = item.quantity - item.returnedQuantity;
-        return sum + Math.max(0, outstanding);
-      }, 0);
-
-      const availableQuantity = Math.max(0, product.totalQuantity - soldQuantity - unreturnedRentalQuantity);
-
-      return {
-        ...product,
-        availableQuantity,
-        // Keep totalQuantity as the original total
-      };
-    });
+    // Availability is aggregated in SQL. Previously every product was loaded
+    // with all of its sale and rental rows so they could be summed in JS, which
+    // made this endpoint slower with every order the shop took.
+    const productsWithAvailability = await prisma.$queryRaw`
+      WITH sold AS (
+        SELECT "productId", SUM("quantity") AS qty
+        FROM "SaleItem"
+        GROUP BY "productId"
+      ),
+      out_on_rent AS (
+        SELECT ri."productId",
+               SUM(GREATEST(0, ri."quantity" - ri."returnedQuantity")) AS qty
+        FROM "RentalItem" ri
+        JOIN "Rental" r ON r."id" = ri."rentalId"
+        WHERE r."status" IN ('BOOKED', 'ACTIVE', 'OVERDUE')
+          AND r."startDate" <= NOW()
+          AND r."endDate" >= NOW()
+        GROUP BY ri."productId"
+      )
+      SELECT p.*,
+             GREATEST(0,
+               p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0)
+             )::int AS "availableQuantity"
+      FROM "Product" p
+      LEFT JOIN sold s ON s."productId" = p."id"
+      LEFT JOIN out_on_rent o ON o."productId" = p."id"
+    `;
 
     return NextResponse.json(productsWithAvailability);
   } catch (error: any) {
