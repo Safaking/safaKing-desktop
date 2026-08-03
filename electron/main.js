@@ -17,7 +17,7 @@ function createWindow() {
     autoHideMenuBar: true,
   });
 
-  const PROD_URL = process.env.APP_URL || 'https://safa-king-desktop.vercel.app';
+  const PROD_URL = process.env.APP_URL || 'https://store.safaking.in';
   const url = isDev ? 'http://localhost:3000' : PROD_URL;
 
   win.loadURL(url);
