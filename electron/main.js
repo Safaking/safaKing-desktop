@@ -1,6 +1,13 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
+
+// The desktop app is a shell around the hosted site and always loads it.
+// It previously branched on electron-is-dev, but that package is pure ESM, so
+// `require()` from this CommonJS file returned the module namespace object
+// instead of the boolean. Being an object it was always truthy, so every
+// packaged build tried http://localhost:3000 and failed with connection
+// refused on machines with no dev server.
+const APP_URL = 'https://store.safaking.in';
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -17,15 +24,12 @@ function createWindow() {
     autoHideMenuBar: true,
   });
 
-  const PROD_URL = process.env.APP_URL || 'https://store.safaking.in';
-  const url = isDev ? 'http://localhost:3000' : PROD_URL;
-
-  win.loadURL(url);
+  win.loadURL(APP_URL);
 
   // A blank white window is indistinguishable from a hung app, so surface the
   // actual reason the page could not load (offline, DNS, 404, server down).
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, failedUrl) => {
-    const message = `Could not load ${failedUrl || url}\n${errorDescription} (${errorCode})`;
+    const message = `Could not load ${failedUrl || APP_URL}\n${errorDescription} (${errorCode})`;
     win.loadURL(
       'data:text/html;charset=utf-8,' +
         encodeURIComponent(`
