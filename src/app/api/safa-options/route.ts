@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureDbSchema } from '@/lib/db-init';
 import crypto from 'crypto';
 
 export async function GET() {
   try {
-    await ensureDbSchema();
 
     let options = await prisma.safaOption.findMany({
       orderBy: { createdAt: 'asc' },
@@ -40,7 +38,6 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await ensureDbSchema();
     const body = await request.json();
     const { name, price } = body;
 
@@ -66,7 +63,6 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    await ensureDbSchema();
     const body = await request.json();
     const { id, name, price } = body;
 
@@ -93,7 +89,6 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await ensureDbSchema();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

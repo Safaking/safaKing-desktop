@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { checkMultiProductAvailability } from '@/lib/inventory';
-import { ensureDbSchema } from '@/lib/db-init';
 
 export async function GET(request: Request) {
-  await ensureDbSchema();
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
 
@@ -21,13 +19,21 @@ export async function GET(request: Request) {
     whereClause = { status };
   }
 
+  // Unbounded by default this query grew with every rental ever created.
+  // Cap it, and let callers page through with ?limit= / ?offset= when needed.
+  const limit = Math.min(Number(searchParams.get('limit')) || 200, 500);
+  const offset = Number(searchParams.get('offset')) || 0;
+
   try {
     const rentals = await prisma.rental.findMany({
       where: whereClause,
       include: {
         items: {
           include: {
-            product: true,
+            // Only the product columns the rentals UI and invoice generator read.
+            product: {
+              select: { id: true, name: true, sku: true, salePrice: true, rentPrice: true },
+            },
           },
         },
         invoice: true,
@@ -35,6 +41,8 @@ export async function GET(request: Request) {
       orderBy: {
         createdAt: 'desc',
       },
+      take: limit,
+      skip: offset,
     });
 
     return NextResponse.json(rentals);
@@ -44,7 +52,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  await ensureDbSchema();
   console.log('RENTAL POST API HIT');
   const body = await request.json();
   console.log('BODY:', JSON.stringify(body, null, 2));
