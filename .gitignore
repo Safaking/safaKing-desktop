@@ -18,7 +18,10 @@
 /out/
 
 # production
-/build
+/build/*
+# app icon is a committed build resource, not a build output
+!/build/icon.ico
+!/build/icon.png
 
 # misc
 .DS_Store
