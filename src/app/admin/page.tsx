@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useProducts, useStores, useUsers, useSafaOptions } from '@/lib/data';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -86,69 +87,42 @@ export default function AdminPage() {
   const [safaOptionPrice, setSafaOptionPrice] = useState('50');
   const [safaOptionLoading, setSafaOptionLoading] = useState(false);
 
+  // All four admin lists are cached. The fetchX helpers below are kept so the
+  // existing post-mutation call sites still work — they now force a
+  // revalidation of that one key instead of an uncached refetch.
+  const storesSWR = useStores();
+  const productsSWR = useProducts();
+  const usersSWR = useUsers();
+  const safaOptionsSWR = useSafaOptions();
+
   useEffect(() => {
-    fetchStores();
-    fetchProducts();
-    fetchUsers();
-    fetchSafaOptions();
+    setStores(Array.isArray(storesSWR.data) ? storesSWR.data : []);
+  }, [storesSWR.data]);
+
+  useEffect(() => {
+    setProducts(Array.isArray(productsSWR.data) ? productsSWR.data : []);
+    setProductsLoading(productsSWR.isLoading);
+  }, [productsSWR.data, productsSWR.isLoading]);
+
+  useEffect(() => {
+    setUsers(Array.isArray(usersSWR.data) ? usersSWR.data : []);
+    setUsersLoading(usersSWR.isLoading);
+  }, [usersSWR.data, usersSWR.isLoading]);
+
+  useEffect(() => {
+    setSafaOptions(Array.isArray(safaOptionsSWR.data) ? safaOptionsSWR.data : []);
+  }, [safaOptionsSWR.data]);
+
+  useEffect(() => {
     const handleClickOutside = () => setActiveMenuId(null);
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const fetchStores = async () => {
-    try {
-      const res = await fetch('/api/stores');
-      const data = await res.json();
-      if (Array.isArray(data)) setStores(data);
-      else setStores([]);
-    } catch (error) {
-      console.error('Failed to fetch stores', error);
-      setStores([]);
-    }
-  };
-
-  const fetchProducts = async () => {
-    setProductsLoading(true);
-    try {
-      const res = await fetch('/api/products');
-      const data = await res.json();
-      if (Array.isArray(data)) setProducts(data);
-      else setProducts([]);
-    } catch (error) {
-      console.error('Failed to fetch products', error);
-      setProducts([]);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  const fetchUsers = async () => {
-    setUsersLoading(true);
-    try {
-      const res = await fetch('/api/users');
-      const data = await res.json();
-      if (Array.isArray(data)) setUsers(data);
-      else setUsers([]);
-    } catch (error) {
-      console.error('Failed to fetch users', error);
-      setUsers([]);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
-
-  const fetchSafaOptions = async () => {
-    try {
-      const res = await fetch('/api/safa-options');
-      const data = await res.json();
-      if (Array.isArray(data)) setSafaOptions(data);
-      else setSafaOptions([]);
-    } catch (e) {
-      console.error('Failed to fetch Safa options', e);
-      setSafaOptions([]);
-    }
-  };
+  const fetchStores = () => storesSWR.mutate();
+  const fetchProducts = () => productsSWR.mutate();
+  const fetchUsers = () => usersSWR.mutate();
+  const fetchSafaOptions = () => safaOptionsSWR.mutate();
 
   const handleSaveSafaOption = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
+import { useSales } from '@/lib/data';
+import {
   Search, 
   ArrowLeft, 
   Download, 
@@ -31,27 +32,11 @@ interface Sale {
 }
 
 export default function SalesHistoryPage() {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const { data, isLoading: loading } = useSales();
+  const sales: Sale[] = Array.isArray(data) ? data : [];
 
-  useEffect(() => {
-    fetchSales();
-  }, []);
-
-  const fetchSales = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/sales');
-      const data = await res.json();
-      setSales(data);
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-    }
-    setLoading(false);
-  };
-
-  const filteredSales = sales.filter(s => 
+  const filteredSales = sales.filter(s =>
     s.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())
   );

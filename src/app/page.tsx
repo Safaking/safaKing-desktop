@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useDashboard } from '@/lib/data';
 import { 
   Calendar, 
   Package, 
@@ -63,27 +64,11 @@ interface DashboardActivity {
 export default function Dashboard() {
   const { language, setLanguage, t } = useLanguage();
   const { user, logout, isOwnerOrAdmin } = useAuth();
-  const [activity, setActivity] = useState<DashboardActivity | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [activityRes, statsRes] = await Promise.all([
-          fetch('/api/dashboard/activity'),
-          fetch('/api/dashboard/stats')
-        ]);
-        setActivity(await activityRes.json());
-        setStats(await statsRes.json());
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+  const { stats, activity, isLoading: loading } = useDashboard() as {
+    stats: DashboardStats | null;
+    activity: DashboardActivity | null;
+    isLoading: boolean;
+  };
 
   // Combine activity for display
   const combinedActivity = [

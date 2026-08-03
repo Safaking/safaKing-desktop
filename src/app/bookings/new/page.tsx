@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useProducts, useSafaOptions, useStores, invalidateAfterRentalChange } from '@/lib/data';
 import { 
   Calendar, 
   Package, 
@@ -84,37 +85,37 @@ export default function OdooBookingPage() {
     baratiSafaPrice: 50,
   });
 
-  useEffect(() => {
-    fetch('/api/products')
-      .then(res => res.json())
-      .then(data => setProducts(data.filter((p: any) => p.isRentable)));
+  // These three lists barely change, so they come from cache on repeat visits
+  // instead of three fresh round-trips every time the booking form opens.
+  const { data: productData } = useProducts();
+  const { data: safaOptionData } = useSafaOptions();
+  const { data: storeData } = useStores();
 
-    fetch('/api/safa-options')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setSafaOptions(data);
-          if (data.length > 0) setSafaShape(data[0].name);
-        }
-      })
-      .catch(e => console.error(e));
-      
-    fetch('/api/stores')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setStores(data);
-          if (user?.storeId) {
-            setSelectedStore(user.storeId);
-          } else if (data.length > 0) {
-            setSelectedStore(data[0].id);
-          }
-        } else {
-          setStores([]);
-        }
-      })
-      .catch(() => setStores([]));
-  }, [user]);
+  useEffect(() => {
+    if (Array.isArray(productData)) {
+      setProducts(productData.filter((p: any) => p.isRentable));
+    }
+  }, [productData]);
+
+  useEffect(() => {
+    if (Array.isArray(safaOptionData)) {
+      setSafaOptions(safaOptionData);
+      if (safaOptionData.length > 0) setSafaShape(safaOptionData[0].name);
+    }
+  }, [safaOptionData]);
+
+  useEffect(() => {
+    if (Array.isArray(storeData)) {
+      setStores(storeData);
+      if (user?.storeId) {
+        setSelectedStore(user.storeId);
+      } else if (storeData.length > 0) {
+        setSelectedStore(storeData[0].id);
+      }
+    } else if (storeData !== undefined) {
+      setStores([]);
+    }
+  }, [storeData, user]);
 
   const getSafaUnitPrice = () => {
     if (!tieSafa) return 0;
@@ -211,6 +212,8 @@ export default function OdooBookingPage() {
       
       if (!res.ok) alert(data.error || 'Booking failed');
       else {
+        // New booking changes rentals, stock and dashboard figures.
+        await invalidateAfterRentalChange();
         setRecentBooking(data);
         setShowSuccess(true);
         generateInvoicePDF(data);

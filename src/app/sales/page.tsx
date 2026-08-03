@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useProducts, invalidateAfterSale } from '@/lib/data';
 import { 
   Plus, 
   Search, 
@@ -59,11 +60,13 @@ export default function SalesPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [recentSale, setRecentSale] = useState<any>(null);
 
+  const { data: productData } = useProducts();
+
   useEffect(() => {
-    fetch('/api/products')
-      .then(res => res.json())
-      .then(data => setProducts(data.filter((p: any) => p.isSellable)));
-  }, []);
+    if (Array.isArray(productData)) {
+      setProducts(productData.filter((p: any) => p.isSellable));
+    }
+  }, [productData]);
 
   const addToCart = (product: Product) => {
     setItems((prev: SaleItem[]) => {
@@ -130,6 +133,8 @@ export default function SalesPage() {
       const data = await res.json();
       if (!res.ok) alert(data.error || 'Sale failed');
       else {
+        // A sale moves stock and revenue, so drop the caches that depend on it.
+        await invalidateAfterSale();
         setRecentSale(data);
         setShowSuccess(true);
         generateInvoicePDF(data, 'SALE');

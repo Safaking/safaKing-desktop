@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
+import { useRentals, invalidateAfterRentalChange } from '@/lib/data';
+import {
   Search, 
   Filter, 
   MoreVertical, 
@@ -58,8 +59,6 @@ interface Rental {
 
 export default function RentalsPage() {
   const { user } = useAuth();
-  const [rentals, setRentals] = useState<Rental[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
@@ -67,24 +66,27 @@ export default function RentalsPage() {
   const [editRental, setEditRental] = useState<Rental | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRentals();
-  }, [activeTab]);
+  // Cached per tab: switching tabs (or leaving and coming back) renders the
+  // previous result immediately while SWR revalidates in the background.
+  const { data: rentalData, isLoading: loading, mutate: refreshRentals } = useRentals(
+    activeTab === 'ALL' ? undefined : activeTab
+  );
 
-  const fetchRentals = async () => {
-    setLoading(true);
-    const statusParam = activeTab === 'ALL' ? '' : `?status=${activeTab}`;
-    const res = await fetch(`/api/rentals${statusParam}`);
-    const data = await res.json();
-    setRentals(data.map((r: any) => {
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const rentals: Rental[] = React.useMemo(() => {
+    if (!Array.isArray(rentalData)) return [];
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return rentalData.map((r: any) => {
       const isPast = new Date(r.endDate) < startOfToday;
       // Only mark OVERDUE if order was ACTIVE (delivered). BOOKED stays BOOKED until manually activated!
       const displayStatus = (isPast && r.status === 'ACTIVE') ? 'OVERDUE' : r.status;
       return { ...r, status: displayStatus };
-    }));
-    setLoading(false);
+    });
+  }, [rentalData]);
+
+  const fetchRentals = async () => {
+    await invalidateAfterRentalChange();
+    await refreshRentals();
   };
 
   const filteredRentals = rentals.filter(r => 
