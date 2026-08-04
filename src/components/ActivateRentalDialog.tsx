@@ -59,7 +59,7 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
           </button>
         </div>
 
-        <form onSubmit={handleActivate} className="p-6 space-y-4">
+        <form onSubmit={handleActivate} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Details</p>
             <p className="text-sm font-bold text-slate-800">{rental.orderNumber} • {rental.customerName}</p>

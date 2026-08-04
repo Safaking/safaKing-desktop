@@ -147,8 +147,11 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      {/* The form is taller than a laptop viewport, so the panel is capped and
+          only the fields scroll — otherwise the header (and its close button)
+          scrolled off the top of the screen and became unreachable. */}
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[92vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <Package size={20} className="text-indigo-600" /> 
             {product ? 'Edit Product' : 'Create New Product'}
@@ -158,7 +161,9 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          {/* Fields scroll; the actions below stay pinned. */}
+          <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Product Name</label>
@@ -366,7 +371,9 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
             </label>
           </div>
 
-          <div className="flex flex-col gap-3">
+          </div>
+
+          <div className="shrink-0 flex flex-col gap-3 border-t border-slate-100 bg-white px-6 py-4">
             <button 
               type="submit"
               disabled={loading || imageCompressing}

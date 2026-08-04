@@ -13,6 +13,7 @@ import {
   Clock, 
   AlertCircle,
   Download,
+  Eye,
   ArrowLeft,
   RotateCcw,
   Truck,
@@ -24,6 +25,7 @@ import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import ReturnDialog from '@/components/ReturnDialog';
 import ActivateRentalDialog from '@/components/ActivateRentalDialog';
+import RentalDetailsDialog from '@/components/RentalDetailsDialog';
 import EditRentalDialog from '@/components/EditRentalDialog';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -63,6 +65,7 @@ export default function RentalsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
   const [activateRental, setActivateRental] = useState<Rental | null>(null);
+  const [viewRental, setViewRental] = useState<Rental | null>(null);
   const [editRental, setEditRental] = useState<Rental | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -247,9 +250,17 @@ export default function RentalsPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end items-center gap-2 relative">
-                      <button 
+                      <button
+                        onClick={() => setViewRental(rental)}
+                        className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
+                        title="View order details"
+                      >
+                        <Eye size={18} />
+                      </button>
+
+                      <button
                         onClick={() => generateInvoicePDF(rental)}
-                        className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors" 
+                        className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
                         title="Download Invoice"
                       >
                         <Download size={18} />
@@ -338,9 +349,11 @@ export default function RentalsPage() {
         />
       )}
 
+      <RentalDetailsDialog rental={viewRental} onClose={() => setViewRental(null)} />
+
       {activateRental && (
-        <ActivateRentalDialog 
-          rental={activateRental} 
+        <ActivateRentalDialog
+          rental={activateRental}
           onClose={() => setActivateRental(null)} 
           onSuccess={() => {
             setActivateRental(null);
