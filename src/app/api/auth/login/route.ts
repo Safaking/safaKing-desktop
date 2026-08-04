@@ -60,6 +60,8 @@ export async function POST(req: Request) {
       username: user.username || user.email,
       name: user.name,
       role: user.role,
+      // Drives whether a SUPER sees the vendor register.
+      canManageVendors: user.canManageVendors,
       storeId: user.storeId,
       store: user.store,
     });

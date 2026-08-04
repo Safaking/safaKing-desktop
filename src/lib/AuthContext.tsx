@@ -7,7 +7,8 @@ export interface User {
   username: string;
   email?: string | null;
   name: string;
-  role: 'ADMIN' | 'OWNER' | 'EMPLOYEE';
+  role: 'ADMIN' | 'SUPER' | 'USER';
+  canManageVendors?: boolean;
   storeId?: string | null;
   store?: {
     id: string;
@@ -21,7 +22,9 @@ interface AuthContextType {
   login: (userData: User) => void;
   logout: () => void;
   isAdmin: boolean;
-  isOwnerOrAdmin: boolean;
+  isSuperOrAdmin: boolean;
+  /** Admin always; a SUPER only when granted the vendor permission. */
+  canManageVendors: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,7 +33,8 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: () => {},
   isAdmin: false,
-  isOwnerOrAdmin: false,
+  isSuperOrAdmin: false,
+  canManageVendors: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -61,10 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = user?.role === 'ADMIN';
-  const isOwnerOrAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
+  const isSuperOrAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER';
+  const canManageVendors = isAdmin || (user?.role === 'SUPER' && !!user?.canManageVendors);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isOwnerOrAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isSuperOrAdmin, canManageVendors }}>
       {children}
     </AuthContext.Provider>
   );

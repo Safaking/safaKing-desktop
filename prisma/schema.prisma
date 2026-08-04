@@ -176,7 +176,12 @@ model User {
   username  String?  @unique
   password  String
   name      String
-  role      String   @default("EMPLOYEE")
+  // ADMIN — full access including the admin panel.
+  // SUPER — shop floor lead: cash book, artist allocation.
+  // USER  — POS and bookings only.
+  role      String   @default("USER")
+  // Admin can grant an individual SUPER access to the vendor register.
+  canManageVendors Boolean @default(false)
   storeId   String?
   store     Store?   @relation(fields: [storeId], references: [id])
   createdAt DateTime @default(now())

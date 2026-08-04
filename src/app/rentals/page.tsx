@@ -70,7 +70,7 @@ interface Rental {
 }
 
 export default function RentalsPage() {
-  const { user, isOwnerOrAdmin } = useAuth();
+  const { user, isSuperOrAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
@@ -297,7 +297,7 @@ export default function RentalsPage() {
                         {rental.readyAt ? 'Ready' : 'Mark Ready'}
                       </button>
 
-                      {rental.tieSafa && isOwnerOrAdmin && (
+                      {rental.tieSafa && isSuperOrAdmin && (
                         <button
                           onClick={() => setArtistRental(rental)}
                           title={

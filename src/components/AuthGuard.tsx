@@ -19,8 +19,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       else if (user && pathname === '/login') {
         router.replace('/');
       }
-      // If employee tries to visit /admin, redirect to home /
-      else if (user && pathname.startsWith('/admin') && user.role === 'EMPLOYEE') {
+      // The admin panel is ADMIN only. SUPER used to get in because the check
+      // excluded only employees, which exposed the vendor register to them.
+      else if (user && pathname.startsWith('/admin') && user.role !== 'ADMIN') {
         router.replace('/');
       }
     }
