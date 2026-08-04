@@ -48,6 +48,11 @@ model Rental {
   tieSafa          Boolean      @default(false)
   safaShape        String?
   safaTyingCount   Int          @default(1)
+  // JSON array of the tying styles chosen and how many safas each covers:
+  // [{ "id": "...", "name": "Jodhpuri", "price": 50, "quantity": 10 }, ...]
+  // safaShape and safaTyingCount stay populated (joined names / total count)
+  // so existing invoices and order lists keep working.
+  safaTyingStyles  String?
   safaTyingName    String?
   safaTyingAddress String?
   safaTyingTime    String?

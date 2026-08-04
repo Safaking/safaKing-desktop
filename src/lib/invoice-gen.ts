@@ -122,8 +122,20 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
     doc.setFont('helvetica', 'bold');
     doc.text('Safa Tying Info:', 20, detailY);
     doc.setFont('helvetica', 'normal');
+    // Prefer the per-style breakdown when present ("Jodhpuri x10, Rounded x5"),
+    // falling back to the plain shape string on older orders.
+    let styleStr = data.safaShape ? `Style: ${data.safaShape}` : '';
+    try {
+      const styles = data.safaTyingStyles ? JSON.parse(data.safaTyingStyles) : null;
+      if (Array.isArray(styles) && styles.length > 0) {
+        styleStr = `Style: ${styles.map((s: any) => `${s.name} x${s.quantity}`).join(', ')}`;
+      }
+    } catch {
+      // Malformed JSON — keep the safaShape fallback.
+    }
+
     const tyingInfoStr = [
-      data.safaShape ? `Style: ${data.safaShape}` : '',
+      styleStr,
       `Qty: ${data.safaTyingCount || 1} pcs`,
       data.safaTyingName ? `Contact: ${data.safaTyingName}` : '',
       data.safaTyingTime ? `Time: ${data.safaTyingTime}` : '',

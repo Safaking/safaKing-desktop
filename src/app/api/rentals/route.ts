@@ -73,6 +73,7 @@ export async function POST(request: Request) {
     tieSafa,
     safaShape,
     safaTyingCount,
+    safaTyingStyles,
     safaTyingName,
     safaTyingAddress,
     safaTyingTime,
@@ -97,7 +98,11 @@ export async function POST(request: Request) {
     }, 0);
 
     if (tieSafa) {
-      totalAmount += parseFloat(tieSafaCharge?.toString() || '50') || 50;
+      // A genuine zero charge must stay zero: `parseFloat('0') || 50` would
+      // silently bill 50, which matters now that tying can be switched on
+      // before any style is chosen.
+      const parsedTieCharge = parseFloat(tieSafaCharge?.toString() ?? '');
+      totalAmount += Number.isFinite(parsedTieCharge) ? parsedTieCharge : 0;
     }
     if (discount) {
       totalAmount -= parseFloat(discount?.toString() || '0') || 0;
@@ -148,6 +153,7 @@ export async function POST(request: Request) {
           tieSafa: !!tieSafa,
           safaShape,
           safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,
+          safaTyingStyles: tieSafa ? (safaTyingStyles || null) : null,
           safaTyingName: tieSafa ? (safaTyingName || null) : null,
           safaTyingAddress: tieSafa ? (safaTyingAddress || null) : null,
           safaTyingTime: tieSafa ? (safaTyingTime || null) : null,

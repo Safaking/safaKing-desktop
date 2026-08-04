@@ -69,8 +69,8 @@ export default function OdooBookingPage() {
   const [stores, setStores] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState('');
   const [tieSafa, setTieSafa] = useState(false);
-  const [safaShape, setSafaShape] = useState('');
-  const [safaTyingCount, setSafaTyingCount] = useState<number>(1);
+  // styleId -> number of safas tied in that style (0 / absent means unselected)
+  const [tyingQuantities, setTyingQuantities] = useState<Record<string, number>>({});
   const [safaOptions, setSafaOptions] = useState<any[]>([]);
   const [safaTyingDetails, setSafaTyingDetails] = useState({
     name: '',
@@ -99,8 +99,9 @@ export default function OdooBookingPage() {
 
   useEffect(() => {
     if (Array.isArray(safaOptionData)) {
+      // No style is preselected — tying is multi-select and starts empty so
+      // nothing is billed until staff actively choose a style and quantity.
       setSafaOptions(safaOptionData);
-      if (safaOptionData.length > 0) setSafaShape(safaOptionData[0].name);
     }
   }, [safaOptionData]);
 
@@ -117,17 +118,45 @@ export default function OdooBookingPage() {
     }
   }, [storeData, user]);
 
-  const getSafaUnitPrice = () => {
-    if (!tieSafa) return 0;
-    const match = safaOptions.find(opt => opt.name.toLowerCase() === safaShape.toLowerCase() || opt.id === safaShape);
-    return match ? parseFloat(match.price?.toString() || '0') : 50;
-  };
+  // Styles are multi-select: each chosen style carries its own quantity, so a
+  // customer can have e.g. 10 Jodhpuri and 5 Rounded at their separate rates.
+  const selectedStyles = React.useMemo(
+    () =>
+      safaOptions
+        .filter((opt: any) => (tyingQuantities[opt.id] ?? 0) > 0)
+        .map((opt: any) => ({
+          id: opt.id,
+          name: opt.name,
+          price: parseFloat(opt.price?.toString() || '0') || 0,
+          quantity: tyingQuantities[opt.id] ?? 0,
+        })),
+    [safaOptions, tyingQuantities]
+  );
+
+  const totalTyingCount = selectedStyles.reduce((s, st) => s + st.quantity, 0);
 
   const getSafaCharge = () => {
     if (!tieSafa) return 0;
-    const unitPrice = getSafaUnitPrice();
-    const count = Math.max(1, safaTyingCount || 1);
-    return unitPrice * count;
+    return selectedStyles.reduce((s, st) => s + st.price * st.quantity, 0);
+  };
+
+  // Total safas being booked — the tying count defaults to this so staff don't
+  // re-enter it, but it stays editable for "book 20, tie only 12" cases.
+  const bookedSafaQty = items.reduce((s, i) => s + i.quantity, 0);
+
+  const setStyleQty = (styleId: string, qty: number) => {
+    setTyingQuantities(prev => ({ ...prev, [styleId]: Math.max(0, qty) }));
+  };
+
+  // First style picked on a booking order inherits the booked quantity.
+  const toggleStyle = (style: any) => {
+    const current = tyingQuantities[style.id] ?? 0;
+    if (current > 0) {
+      setStyleQty(style.id, 0);
+      return;
+    }
+    const seed = totalTyingCount === 0 && bookedSafaQty > 0 ? bookedSafaQty : 1;
+    setStyleQty(style.id, seed);
   };
 
   const addToBooking = (product: Product) => {
@@ -197,8 +226,11 @@ export default function OdooBookingPage() {
           paidAmount: parseFloat(paidAmount || '0'),
           storeId: selectedStore,
           tieSafa,
-          safaShape: tieSafa ? safaShape : null,
-          safaTyingCount: tieSafa ? safaTyingCount : 1,
+          // safaShape / safaTyingCount stay populated from the multi-select so
+          // existing invoices and order lists keep rendering unchanged.
+          safaShape: tieSafa ? selectedStyles.map(s => s.name).join(', ') : null,
+          safaTyingCount: tieSafa ? Math.max(1, totalTyingCount) : 1,
+          safaTyingStyles: tieSafa ? JSON.stringify(selectedStyles) : null,
           safaTyingName: tieSafa ? safaTyingDetails.name : null,
           safaTyingAddress: tieSafa ? safaTyingDetails.address : null,
           safaTyingTime: tieSafa ? safaTyingDetails.time : null,
@@ -222,7 +254,7 @@ export default function OdooBookingPage() {
         setPaidAmount('0');
         setPaymentMethod('CASH');
         setTieSafa(false);
-        setSafaTyingCount(1);
+        setTyingQuantities({});
         setDiscount('0');
       }
     } catch (error) {
@@ -408,69 +440,115 @@ export default function OdooBookingPage() {
                 
                 {tieSafa && (
                   <div className="mt-3 bg-gradient-to-br from-indigo-50/60 via-slate-50/80 to-indigo-50/30 p-4 rounded-2xl border border-indigo-100 shadow-xs space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                    {/* Style Selector Pills */}
+                    {/* Style Selector — multi-select, each with its own quantity */}
                     <div>
                       <label className="block text-[11px] font-bold text-indigo-900 uppercase tracking-widest mb-2">
-                        Select Safa Tying Style
+                        Select Safa Tying Styles
+                        <span className="ml-2 normal-case tracking-normal font-semibold text-slate-500">
+                          (choose one or more)
+                        </span>
                       </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {safaOptions.map((style: any) => {
-                          const isSelected = safaShape.toLowerCase() === style.name.toLowerCase();
+                          const qty = tyingQuantities[style.id] ?? 0;
+                          const isSelected = qty > 0;
+                          const price = parseFloat(style.price || '0') || 0;
                           return (
-                            <button
-                              type="button"
+                            <div
                               key={style.id}
-                              onClick={() => setSafaShape(style.name)}
-                              className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
+                              className={`px-3 py-2.5 rounded-xl border transition-all ${
                                 isSelected
-                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
-                                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-600/20'
+                                  : 'bg-white border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              <span>{style.name}</span>
-                              <span className={`text-[10px] font-extrabold ${isSelected ? 'text-indigo-100' : 'text-indigo-600'}`}>
-                                ₹{parseFloat(style.price || '0').toFixed(2)}
-                              </span>
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleStyle(style)}
+                                className="w-full flex items-center justify-between gap-2 text-left"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] font-black ${
+                                      isSelected
+                                        ? 'bg-white border-white text-indigo-600'
+                                        : 'bg-white border-slate-300 text-transparent'
+                                    }`}
+                                  >
+                                    ✓
+                                  </span>
+                                  <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-700'}`}>
+                                    {style.name}
+                                  </span>
+                                </span>
+                                <span className={`text-[10px] font-extrabold ${isSelected ? 'text-indigo-100' : 'text-indigo-600'}`}>
+                                  ₹{price.toFixed(2)}
+                                </span>
+                              </button>
+
+                              {isSelected && (
+                                <div className="mt-2 pt-2 border-t border-white/25 flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-bold text-indigo-100">
+                                    ₹{price} × {qty} = ₹{(price * qty).toFixed(2)}
+                                  </span>
+                                  <div className="flex items-center gap-1 bg-white/15 p-0.5 rounded-lg">
+                                    <button
+                                      type="button"
+                                      onClick={() => setStyleQty(style.id, qty - 1)}
+                                      className="w-6 h-6 rounded-md bg-white/90 text-slate-700 flex items-center justify-center hover:bg-white active:scale-95 transition-all"
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      className="w-10 text-center text-xs font-black text-white bg-transparent outline-none"
+                                      value={qty}
+                                      onChange={(e) => setStyleQty(style.id, parseInt(e.target.value) || 0)}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setStyleQty(style.id, qty + 1)}
+                                      className="w-6 h-6 rounded-md bg-white/90 text-slate-700 flex items-center justify-center hover:bg-white active:scale-95 transition-all"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
                     </div>
 
-                    {/* Safa Tying Quantity Count */}
-                    <div className="bg-white p-3 rounded-xl border border-indigo-100/80 flex items-center justify-between shadow-2xs">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-800">
-                          Safa Tying Quantity (Count)
-                        </label>
-                        <p className="text-[11px] text-slate-500 font-medium">
-                          ₹{getSafaUnitPrice()} × {safaTyingCount} safas = <span className="font-bold text-indigo-600">₹{getSafaCharge()}</span>
-                        </p>
+                    {/* Totals — surfaces any mismatch with the booked quantity */}
+                    <div className="bg-white p-3 rounded-xl border border-indigo-100/80 shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Total Safas Tied</span>
+                        <span className="text-sm font-black text-slate-900">{totalTyingCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-slate-500">Tying Charge</span>
+                        <span className="text-sm font-black text-indigo-600">₹{getSafaCharge().toFixed(2)}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                        <button
-                          type="button"
-                          onClick={() => setSafaTyingCount(Math.max(1, safaTyingCount - 1))}
-                          className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center font-black text-sm hover:bg-slate-100 active:scale-95 transition-all"
+                      {bookedSafaQty > 0 && (
+                        <p
+                          className={`text-[11px] font-semibold pt-1 ${
+                            totalTyingCount === bookedSafaQty ? 'text-emerald-600' : 'text-amber-600'
+                          }`}
                         >
-                          <Minus size={14} />
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          className="w-12 text-center text-xs font-black text-slate-800 bg-transparent outline-none"
-                          value={safaTyingCount}
-                          onChange={(e) => setSafaTyingCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setSafaTyingCount(safaTyingCount + 1)}
-                          className="w-7 h-7 rounded-md bg-indigo-600 text-white flex items-center justify-center font-black text-sm hover:bg-indigo-700 active:scale-95 transition-all shadow-xs"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
+                          {totalTyingCount === bookedSafaQty
+                            ? `Matches the ${bookedSafaQty} safas booked in this order.`
+                            : `Booking has ${bookedSafaQty} safas but ${totalTyingCount} are set to be tied.`}
+                        </p>
+                      )}
+                      {bookedSafaQty === 0 && totalTyingCount > 0 && (
+                        <p className="text-[11px] font-semibold text-slate-500 pt-1">
+                          Tying-only order — counted separately from any booking.
+                        </p>
+                      )}
                     </div>
 
                     {/* Form for Safa Tying Details */}
@@ -693,7 +771,14 @@ export default function OdooBookingPage() {
                 
                 {tieSafa && (
                   <div className="flex justify-between items-center text-xs font-black text-emerald-300 uppercase tracking-widest">
-                    <span>Safa Tying Charge ({safaShape})</span>
+                    <span>
+                      Safa Tying Charge
+                      {selectedStyles.length > 0 && (
+                        <span className="normal-case tracking-normal font-semibold">
+                          {' '}({selectedStyles.map(s => `${s.name} ×${s.quantity}`).join(', ')})
+                        </span>
+                      )}
+                    </span>
                     <span className="text-emerald-300 text-sm">+ ₹{getSafaCharge().toFixed(2)}</span>
                   </div>
                 )}
