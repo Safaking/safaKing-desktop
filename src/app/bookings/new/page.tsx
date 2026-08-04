@@ -23,7 +23,7 @@ import {
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
-import { isMeterBased, unitLabel, rateSuffix } from '@/lib/product-types';
+import { isMeterBased, unitLabel, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -63,6 +63,7 @@ export default function OdooBookingPage() {
   const [items, setItems] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCatalogTypes, setSelectedCatalogTypes] = useState<string[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [recentBooking, setRecentBooking] = useState<any>(null);
   const [paidAmount, setPaidAmount] = useState('0');
@@ -303,7 +304,28 @@ export default function OdooBookingPage() {
     setLoading(false);
   };
 
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Catalog category chips, same multi-select behaviour as inventory: nothing
+  // selected shows everything, several selected shows the union.
+  const catalogTypeOf = (p: any) => p.productType || UNCATEGORISED;
+
+  const catalogTypes = React.useMemo(() => {
+    const present = new Set(products.map(catalogTypeOf));
+    const ordered: string[] = PRODUCT_TYPES.filter(t => present.has(t));
+    const extras = [...present].filter(t => !PRODUCT_TYPES.includes(t as any)).sort();
+    return [...ordered, ...extras];
+  }, [products]);
+
+  const toggleCatalogType = (type: string) => {
+    setSelectedCatalogTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = selectedCatalogTypes.length === 0 || selectedCatalogTypes.includes(catalogTypeOf(p));
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="h-screen bg-[#f8f9fa] text-slate-900 font-sans flex flex-col overflow-hidden">
@@ -494,7 +516,48 @@ export default function OdooBookingPage() {
              </div>
            </div>
 
+           {/* Category chips — multi-select; none selected shows everything */}
+           {catalogTypes.length > 0 && (
+             <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-slate-100 bg-white shrink-0">
+               <button
+                 type="button"
+                 onClick={() => setSelectedCatalogTypes([])}
+                 className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                   selectedCatalogTypes.length === 0
+                     ? 'bg-indigo-600 text-white border-indigo-600'
+                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                 }`}
+               >
+                 All
+               </button>
+               {catalogTypes.map(type => {
+                 const active = selectedCatalogTypes.includes(type);
+                 const count = products.filter(p => catalogTypeOf(p) === type).length;
+                 return (
+                   <button
+                     key={type}
+                     type="button"
+                     onClick={() => toggleCatalogType(type)}
+                     className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                       active
+                         ? 'bg-indigo-600 text-white border-indigo-600'
+                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                     }`}
+                   >
+                     {type}
+                     <span className={`ml-1 ${active ? 'text-indigo-100' : 'text-slate-400'}`}>{count}</span>
+                   </button>
+                 );
+               })}
+             </div>
+           )}
+
            <div className="flex-1 overflow-y-auto p-2 bg-slate-50/30">
+             {filteredProducts.length === 0 && (
+               <p className="text-xs font-semibold text-slate-400 text-center py-8">
+                 No products match this filter.
+               </p>
+             )}
              <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
                 {filteredProducts.map(p => {
                   const available = getAvailable(p);
