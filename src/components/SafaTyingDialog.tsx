@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { X, User, Clock, Calendar, MapPin, Plus, Minus, Check } from 'lucide-react';
+import DateInput from '@/components/DateInput';
 
 interface SafaStyle {
   id: string;
@@ -247,11 +248,10 @@ export default function SafaTyingDialog({
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">Marriage Date</label>
                 <div className="relative">
                   <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input
-                    type="date"
+                  <DateInput
                     className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
                     value={details.marriageDate}
-                    onChange={(e) => setDetails({ ...details, marriageDate: e.target.value })}
+                    onChange={(v) => setDetails({ ...details, marriageDate: v })}
                   />
                 </div>
               </div>

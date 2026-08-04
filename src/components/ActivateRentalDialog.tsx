@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import DateInput from '@/components/DateInput';
 import { X, CheckCircle2, Truck, User, Phone, Calendar } from 'lucide-react';
 
 interface ActivateRentalDialogProps {
@@ -105,11 +106,10 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
             </label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="date" 
+              <DateInput
                 className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-sm"
                 value={pickupDate}
-                onChange={e => setPickupDate(e.target.value)}
+                onChange={v => setPickupDate(v)}
               />
             </div>
           </div>

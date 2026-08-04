@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
+import DateInput from '@/components/DateInput';
 import { isMeterBased, unitLabel, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -436,12 +437,11 @@ export default function OdooBookingPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input 
-                     type="date" 
-                     placeholder={`${t('wedding_date')}${t('optional')}`}
+                    <DateInput
+                     placeholder={`${t('wedding_date')} (mm/dd/yyyy)`}
                      className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
                      value={customer.weddingDate}
-                     onChange={e => setCustomer({...customer, weddingDate: e.target.value})}
+                     onChange={v => setCustomer({...customer, weddingDate: v})}
                    />
                 </div>
                 <div className="relative">
@@ -470,16 +470,16 @@ export default function OdooBookingPage() {
               <div className="pt-2 border-t border-slate-100">
                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Rental Period</label>
                  <div className="flex items-center gap-2">
-                   <input 
-                     type="date" 
+                   <DateInput
+                     value={dates.start}
                      className="flex-1 px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
-                     onChange={e => setDates(prev => ({ ...prev, start: e.target.value }))}
+                     onChange={v => setDates(prev => ({ ...prev, start: v }))}
                    />
                    <span className="text-slate-400 text-xs font-bold">TO</span>
-                   <input 
-                     type="date" 
+                   <DateInput
+                     value={dates.end}
                      className="flex-1 px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
-                     onChange={e => setDates(prev => ({ ...prev, end: e.target.value }))}
+                     onChange={v => setDates(prev => ({ ...prev, end: v }))}
                    />
                  </div>
               </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import DateInput from '@/components/DateInput';
 import { X, Edit3, User, Phone, MapPin, Calendar, FileText, CheckCircle2 } from 'lucide-react';
 
 interface EditRentalDialogProps {
@@ -140,23 +141,21 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Start Date *</label>
-              <input 
-                type="date" 
+              <DateInput
                 required
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={v => setStartDate(v)}
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">End Date *</label>
-              <input 
-                type="date" 
+              <DateInput
                 required
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
                 value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                onChange={v => setEndDate(v)}
               />
             </div>
           </div>

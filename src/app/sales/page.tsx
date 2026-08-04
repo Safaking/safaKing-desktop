@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useProducts, useSafaOptions, invalidateAfterSale } from '@/lib/data';
 import { isMeterBased, rateSuffix } from '@/lib/product-types';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
+import DateInput from '@/components/DateInput';
 import { 
   Plus, 
   Search, 
@@ -304,12 +305,11 @@ export default function SalesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                   <input 
-                     type="date" 
-                     placeholder={`${t('wedding_date')}${t('optional')}`}
+                   <DateInput
+                     placeholder={`${t('wedding_date')} (mm/dd/yyyy)`}
                      className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-sm"
                      value={customer.weddingDate}
-                     onChange={e => setCustomer({...customer, weddingDate: e.target.value})}
+                     onChange={v => setCustomer({...customer, weddingDate: v})}
                    />
                 </div>
                 <div className="relative">
