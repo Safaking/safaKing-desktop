@@ -20,6 +20,7 @@ import {
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -309,7 +310,7 @@ export default function Dashboard() {
                           {rental.customerName}
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-700">
-                          {new Date(rental.createdAt).toLocaleDateString()}
+                          {format(new Date(rental.createdAt), 'MM/dd/yyyy')}
                         </td>
                         <td className="px-6 py-4 text-center text-slate-600 font-medium">
                           {rental.itemCount}

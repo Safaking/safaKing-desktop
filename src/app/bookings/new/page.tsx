@@ -553,11 +553,15 @@ export default function OdooBookingPage() {
            )}
 
            <div className="flex-1 overflow-y-auto p-2 bg-slate-50/30">
-             {filteredProducts.length === 0 && (
+             {productData === undefined ? (
+               <p className="text-xs font-semibold text-slate-400 text-center py-8">
+                 Loading catalog…
+               </p>
+             ) : filteredProducts.length === 0 ? (
                <p className="text-xs font-semibold text-slate-400 text-center py-8">
                  No products match this filter.
                </p>
-             )}
+             ) : null}
              <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
                 {filteredProducts.map(p => {
                   const available = getAvailable(p);

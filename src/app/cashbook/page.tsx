@@ -20,6 +20,12 @@ import { useAuth } from '@/lib/AuthContext';
 const money = (n?: number | null) =>
   `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
+/** mm/dd/yyyy for display — matches every other date field in the app. */
+const displayDate = (iso: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
+};
+
 const todayISO = () => {
   const d = new Date();
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
@@ -90,7 +96,7 @@ export default function CashBookPage() {
   };
 
   const submitDay = async () => {
-    if (!window.confirm(`Submit ${date}? Closing ${money(data?.closing)} will carry to the next day and this day will lock.`)) return;
+    if (!window.confirm(`Submit ${displayDate(date)}? Closing ${money(data?.closing)} will carry to the next day and this day will lock.`)) return;
     await post({ action: 'submit', submittedBy: user?.username || user?.name || '' });
   };
 
@@ -198,7 +204,7 @@ export default function CashBookPage() {
             <Line label="Opening balance" hint="carried from the previous day" value={money(data?.openingBalance)} />
             <Line
               label="Collections"
-              hint={`${data?.rentalCount ?? 0} rentals · ${data?.saleCount ?? 0} sales`}
+              hint={`${data?.rentalCount ?? 0} rental${data?.rentalCount === 1 ? '' : 's'} · ${data?.saleCount ?? 0} sale${data?.saleCount === 1 ? '' : 's'}`}
               value={`+ ${money(data?.collected)}`}
               tone="emerald"
             />
@@ -325,7 +331,7 @@ export default function CashBookPage() {
               disabled={busy || isLoading}
               className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-sm shadow-lg shadow-emerald-600/20"
             >
-              Submit account for {date}
+              Submit account for {displayDate(date)}
             </button>
           )}
         </div>
