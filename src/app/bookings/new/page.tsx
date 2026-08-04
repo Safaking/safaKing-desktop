@@ -73,6 +73,8 @@ export default function OdooBookingPage() {
   // styleId -> number of safas tied in that style (0 / absent means unselected)
   const [tyingQuantities, setTyingQuantities] = useState<Record<string, number>>({});
   const [tyingDialogOpen, setTyingDialogOpen] = useState(false);
+  // True once staff type a tying quantity themselves, which pins it.
+  const [tyingCountEdited, setTyingCountEdited] = useState(false);
   const [safaOptions, setSafaOptions] = useState<any[]>([]);
   const [safaTyingDetails, setSafaTyingDetails] = useState({
     name: '',
@@ -146,19 +148,34 @@ export default function OdooBookingPage() {
   // re-enter it, but it stays editable for "book 20, tie only 12" cases.
   const bookedSafaQty = items.reduce((s, i) => s + i.quantity, 0);
 
+  // Editing a quantity by hand stops the automatic follow, so a deliberate
+  // "book 20, tie only 12" is never overwritten by a later basket change.
   const setStyleQty = (styleId: string, qty: number) => {
+    setTyingCountEdited(true);
     setTyingQuantities(prev => ({ ...prev, [styleId]: Math.max(0, qty) }));
   };
+
+  // The expected flow is: pick the safas first, then say whether they're tied.
+  // So while exactly one style is selected and staff haven't overridden the
+  // number, the tied count tracks the booked safa count as the basket changes.
+  useEffect(() => {
+    if (!tieSafa || tyingCountEdited) return;
+    if (bookedSafaQty <= 0) return;
+    if (selectedStyles.length !== 1) return;
+    const only = selectedStyles[0];
+    if (only.quantity === bookedSafaQty) return;
+    setTyingQuantities(prev => ({ ...prev, [only.id]: bookedSafaQty }));
+  }, [tieSafa, tyingCountEdited, bookedSafaQty, selectedStyles]);
 
   // First style picked on a booking order inherits the booked quantity.
   const toggleStyle = (style: any) => {
     const current = tyingQuantities[style.id] ?? 0;
     if (current > 0) {
-      setStyleQty(style.id, 0);
+      setTyingQuantities(prev => ({ ...prev, [style.id]: 0 }));
       return;
     }
     const seed = totalTyingCount === 0 && bookedSafaQty > 0 ? bookedSafaQty : 1;
-    setStyleQty(style.id, seed);
+    setTyingQuantities(prev => ({ ...prev, [style.id]: seed }));
   };
 
   const addToBooking = (product: Product) => {
@@ -257,6 +274,7 @@ export default function OdooBookingPage() {
         setPaymentMethod('CASH');
         setTieSafa(false);
         setTyingQuantities({});
+        setTyingCountEdited(false);
         setDiscount('0');
       }
     } catch (error) {
