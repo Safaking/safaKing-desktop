@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProducts, useSafaOptions, invalidateAfterSale } from '@/lib/data';
+import { useProducts, useSafaOptions, useVendors, invalidateAfterSale } from '@/lib/data';
 import { isMeterBased, rateSuffix } from '@/lib/product-types';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
 import DateInput from '@/components/DateInput';
@@ -67,11 +67,17 @@ export default function SalesPage() {
   const [tyingQuantities, setTyingQuantities] = useState<Record<string, number>>({});
   const [tyingDialogOpen, setTyingDialogOpen] = useState(false);
   const [tyingCountEdited, setTyingCountEdited] = useState(false);
+  // Bulk buyers order through this same screen; the sale is tagged to them and
+  // can be part-paid, unlike a counter sale which settles in full.
+  const [vendorId, setVendorId] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
   const [safaTyingDetails, setSafaTyingDetails] = useState({ name: '', address: '', time: '', marriageDate: '' });
   const [recentSale, setRecentSale] = useState<any>(null);
 
   const { data: productData } = useProducts();
   const { data: safaOptionData } = useSafaOptions();
+  const { data: vendorData } = useVendors();
+  const vendors: any[] = Array.isArray(vendorData) ? vendorData : [];
   const safaOptions: any[] = Array.isArray(safaOptionData) ? safaOptionData : [];
 
   useEffect(() => {
@@ -207,6 +213,9 @@ export default function SalesPage() {
           safaTyingTime: tieSafa ? safaTyingDetails.time : null,
           safaTyingDate: tieSafa ? safaTyingDetails.marriageDate : null,
           tieSafaCharge: getSafaCharge(),
+          vendorId: vendorId || null,
+          // Blank means settled in full, which is the counter-sale default.
+          paidAmount: vendorId && paidAmount !== '' ? parseFloat(paidAmount) || 0 : undefined,
         })
       });
 
@@ -223,6 +232,8 @@ export default function SalesPage() {
         setTieSafa(false);
         setTyingQuantities({});
         setTyingCountEdited(false);
+        setVendorId('');
+        setPaidAmount('');
       }
     } catch (error) {
       alert('Network error');
@@ -290,6 +301,28 @@ export default function SalesPage() {
                   />
                 </div>
               </div>
+
+              {vendors.length > 0 && (
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    Bulk Order (Vendor)
+                  </label>
+                  <select
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs font-bold"
+                    value={vendorId}
+                    onChange={e => setVendorId(e.target.value)}
+                  >
+                    <option value="">Walk-in customer</option>
+                    {vendors
+                      .filter(v => v.isActive)
+                      .map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.name}{v.phone ? ` — ${v.phone}` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -547,6 +580,27 @@ export default function SalesPage() {
                     <span className="text-white text-sm">₹{calculateTotal().toFixed(2)}</span>
                   </div>
                   
+                  {vendorId && (
+                    <div className="pt-3 border-t border-white/10 space-y-2">
+                      <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                        Amount Paid Now
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder={calculateTotal().toFixed(0)}
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white outline-none focus:border-emerald-400"
+                        value={paidAmount}
+                        onChange={e => setPaidAmount(e.target.value)}
+                      />
+                      <p className="text-[10px] font-bold text-slate-400">
+                        {paidAmount === ''
+                          ? 'Blank means paid in full.'
+                          : `Outstanding ₹${Math.max(0, calculateTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)}`}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="pt-3 border-t border-white/10 flex justify-between items-end">
                      <div>
                       <span className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t('total_payable')}</span>

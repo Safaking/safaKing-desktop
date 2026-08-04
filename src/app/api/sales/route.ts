@@ -43,6 +43,8 @@ export async function POST(request: Request) {
     safaTyingTime,
     safaTyingDate,
     tieSafaCharge,
+    vendorId,
+    paidAmount,
   } = body;
 
   if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -53,6 +55,12 @@ export async function POST(request: Request) {
     const total = parseFloat(totalAmount?.toString() || '0') || 0;
     const discountAmount = parseFloat(discount?.toString() || '0') || 0;
     const finalTotal = total - discountAmount;
+
+    // Counter sales are settled at the till, so an unspecified paid amount
+    // means paid in full. Bulk vendor orders send an explicit figure.
+    const parsedPaid = parseFloat(paidAmount?.toString() ?? '');
+    const paid = Number.isFinite(parsedPaid) ? Math.max(0, parsedPaid) : finalTotal;
+    const remaining = Math.max(0, finalTotal - paid);
 
     const sale = await prisma.$transaction(async (tx) => {
       const lastSale = await tx.sale.findFirst({
@@ -80,6 +88,9 @@ export async function POST(request: Request) {
           totalAmount: finalTotal,
           storeId: storeId || null,
           discount: discountAmount,
+          vendorId: vendorId || null,
+          paidAmount: paid,
+          remainingAmount: remaining,
           tieSafa: !!tieSafa,
           safaShape: tieSafa ? (safaShape || null) : null,
           safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,
@@ -120,7 +131,9 @@ export async function POST(request: Request) {
           invoiceNumber,
           saleId: newSale.id,
           amount: finalTotal,
-          status: 'PAID',
+          // Hardcoding PAID was fine while every sale settled at the till, but
+          // a bulk vendor order can be part-paid.
+          status: paid >= finalTotal && finalTotal > 0 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'DUE',
         },
       });
 

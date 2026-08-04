@@ -121,10 +121,17 @@ model Sale {
   safaTyingTime    String?
   safaTyingDate    String?
   tieSafaCharge    Float      @default(0)
+  // Bulk buyers go through the same POS screen; the order is simply tagged to
+  // a registered vendor. Sales previously had no part-payment tracking, which
+  // bulk orders need.
+  vendorId         String?
+  paidAmount       Float      @default(0)
+  remainingAmount  Float      @default(0)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   invoice          Invoice?
   items            SaleItem[]
+  vendor           Vendor?    @relation(fields: [vendorId], references: [id])
   store            Store?     @relation(fields: [storeId], references: [id])
 }
 
@@ -202,4 +209,17 @@ model Artist {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rentals   Rental[]
+}
+
+model Vendor {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  gstNumber String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
 }
