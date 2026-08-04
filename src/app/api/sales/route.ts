@@ -34,6 +34,15 @@ export async function POST(request: Request) {
     totalAmount,
     storeId,
     discount,
+    tieSafa,
+    safaShape,
+    safaTyingCount,
+    safaTyingStyles,
+    safaTyingName,
+    safaTyingAddress,
+    safaTyingTime,
+    safaTyingDate,
+    tieSafaCharge,
   } = body;
 
   if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -71,6 +80,19 @@ export async function POST(request: Request) {
           totalAmount: finalTotal,
           storeId: storeId || null,
           discount: discountAmount,
+          tieSafa: !!tieSafa,
+          safaShape: tieSafa ? (safaShape || null) : null,
+          safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,
+          safaTyingStyles: tieSafa ? (safaTyingStyles || null) : null,
+          safaTyingName: tieSafa ? (safaTyingName || null) : null,
+          safaTyingAddress: tieSafa ? (safaTyingAddress || null) : null,
+          safaTyingTime: tieSafa ? (safaTyingTime || null) : null,
+          safaTyingDate: tieSafa ? (safaTyingDate || null) : null,
+          tieSafaCharge: (() => {
+            // A real zero must stay zero: `parseFloat('0') || x` would not.
+            const parsed = parseFloat(tieSafaCharge?.toString() ?? '');
+            return tieSafa && Number.isFinite(parsed) ? parsed : 0;
+          })(),
           items: {
             create: items.map((item: any) => ({
               productId: item.productId,
