@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProducts, useStores, useUsers, useSafaOptions } from '@/lib/data';
-import { PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
+import { PRODUCT_TYPES, UNCATEGORISED, isMeterBased, rateSuffix } from '@/lib/product-types';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -537,7 +537,7 @@ export default function AdminPage() {
                         <div className="flex justify-between items-center mt-1">
                           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Available</p>
                           <p className={`font-bold ${product.availableQuantity > 5 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                            {product.availableQuantity} / {product.totalQuantity}
+                            {product.availableQuantity} / {product.totalQuantity}{isMeterBased(product as any) ? ' m' : ''}
                           </p>
                         </div>
                       </div>

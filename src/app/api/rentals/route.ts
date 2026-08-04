@@ -32,7 +32,7 @@ export async function GET(request: Request) {
           include: {
             // Only the product columns the rentals UI and invoice generator read.
             product: {
-              select: { id: true, name: true, sku: true, salePrice: true, rentPrice: true },
+              select: { id: true, name: true, sku: true, salePrice: true, rentPrice: true, productType: true },
             },
           },
         },

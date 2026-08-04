@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Phone, MapPin, Calendar, User, Package, IndianRupee, Clock, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
+import { unitLabel, rateSuffix } from '@/lib/product-types';
 
 interface Props {
   rental: any | null;
@@ -139,12 +140,12 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
                       </p>
                       <p className="text-[11px] font-semibold text-slate-400">
                         {item.product?.sku}
-                        {item.returnedQuantity > 0 && ` · ${item.returnedQuantity} returned`}
+                        {item.returnedQuantity > 0 && ` · ${item.returnedQuantity}${unitLabel(item.product) === 'm' ? ' m' : ''} returned`}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-black text-slate-800">
-                        {item.quantity} × {money(item.pricePerDay)}
+                        {item.quantity}{unitLabel(item.product) === 'm' ? ' m' : ''} × {money(item.pricePerDay)}{rateSuffix(item.product)}
                       </p>
                       <p className="text-[11px] font-bold text-indigo-600">
                         {money((Number(item.pricePerDay) || 0) * (Number(item.quantity) || 0))}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Package, Plus, Trash2, Loader2 } from 'lucide-react';
-import { PRODUCT_TYPES } from '@/lib/product-types';
+import { PRODUCT_TYPES, isMeterBased } from '@/lib/product-types';
 
 interface ProductDialogProps {
   product?: any | null;
@@ -65,6 +65,9 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
   });
   const [loading, setLoading] = useState(false);
   const [imageCompressing, setImageCompressing] = useState(false);
+
+  // Poli is cut from a roll: its stock is metres and its rate is per metre.
+  const meterBased = isMeterBased({ productType: formData.productType });
 
   const generateSku = () => {
     const randomCode = Math.floor(1000 + Math.random() * 9000);
@@ -292,7 +295,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Rental Price</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Rental Price{meterBased && ' / metre'}</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                 <input 
@@ -308,7 +311,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Sale Price</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Sale Price{meterBased && ' / metre'}</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                 <input 
@@ -339,7 +342,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">In Stock</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{meterBased ? 'Stock (metres)' : 'In Stock'}</label>
               <input 
                 required
                 type="number" 

@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
+import { isMeterBased, unitLabel, rateSuffix } from '@/lib/product-types';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -546,14 +547,14 @@ export default function OdooBookingPage() {
                       <p className="font-bold text-slate-800 text-xs truncate leading-tight">{p.name}</p>
                       <div className="flex justify-between items-center mt-1">
                         <span className="text-[11px] text-slate-400 font-bold">{p.sku}</span>
-                        <span className="font-black text-indigo-600 text-[12px]">₹{p.rentPrice.toFixed(0)}</span>
+                        <span className="font-black text-indigo-600 text-[12px]">₹{p.rentPrice.toFixed(0)}{rateSuffix(p as any)}</span>
                       </div>
                       <p
                         className={`text-[10px] font-black mt-0.5 ${
                           soldOut ? 'text-rose-600' : remaining <= 3 ? 'text-amber-600' : 'text-emerald-600'
                         }`}
                       >
-                        {remaining}/{p.totalQuantity}
+                        {remaining}/{p.totalQuantity}{isMeterBased(p as any) ? ' m' : ''}
                       </p>
                     </div>
                   </button>
@@ -600,7 +601,7 @@ export default function OdooBookingPage() {
                             <Plus size={10} />
                           </button>
                         </div>
-                        <span className="text-xs font-black text-indigo-600">@ ₹{item.pricePerDay.toFixed(0)}</span>
+                        <span className="text-xs font-black text-indigo-600">@ ₹{item.pricePerDay.toFixed(0)}{rateSuffix(products.find(pr => pr.id === item.productId) as any)}</span>
                      </div>
                    </div>
                    <div className="text-right">
