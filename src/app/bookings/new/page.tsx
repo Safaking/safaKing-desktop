@@ -553,7 +553,7 @@ export default function OdooBookingPage() {
                           soldOut ? 'text-rose-600' : remaining <= 3 ? 'text-amber-600' : 'text-emerald-600'
                         }`}
                       >
-                        {soldOut ? 'Unavailable' : `${remaining} of ${available} available`}
+                        {remaining}/{p.totalQuantity}
                       </p>
                     </div>
                   </button>
