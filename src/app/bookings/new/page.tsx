@@ -424,84 +424,6 @@ export default function OdooBookingPage() {
                 />
               </div>
 
-              {/* Tie Safa Options */}
-              <div className="pt-4 border-t border-slate-100">
-                <div 
-                  onClick={() => {
-                    const next = !tieSafa;
-                    setTieSafa(next);
-                    // Switching tying on goes straight to the sheet so styles
-                    // and quantities get filled in rather than left at zero.
-                    if (next) setTyingDialogOpen(true);
-                  }}
-                  className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer select-none ${
-                    tieSafa 
-                      ? 'bg-indigo-50/80 border-indigo-200 shadow-xs' 
-                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input 
-                      type="checkbox" 
-                      checked={tieSafa}
-                      onChange={(e) => setTieSafa(e.target.checked)}
-                      className="w-5 h-5 text-indigo-600 rounded-md border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <div>
-                      <span className="text-sm font-bold text-slate-800">
-                        Tie Safa Service
-                      </span>
-                      <p className="text-[11px] font-medium text-slate-500">
-                        Professional safa tying service for wedding & events
-                      </p>
-                    </div>
-                  </div>
-                  {tieSafa && (
-                    <span className="px-2.5 py-1 bg-indigo-600 text-white font-black text-xs rounded-lg shadow-sm">
-                      +₹{getSafaCharge()}
-                    </span>
-                  )}
-                </div>
-                
-                {tieSafa && (
-                  <button
-                    type="button"
-                    onClick={() => setTyingDialogOpen(true)}
-                    className="mt-3 w-full text-left bg-gradient-to-br from-indigo-50/60 via-slate-50/80 to-indigo-50/30 p-4 rounded-2xl border border-indigo-100 shadow-xs hover:border-indigo-300 transition-all animate-in fade-in zoom-in-95 duration-200"
-                  >
-                    {selectedStyles.length === 0 ? (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-black text-slate-800">Choose tying styles</p>
-                          <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                            No style selected yet — nothing is being charged
-                          </p>
-                        </div>
-                        <span className="text-[11px] font-black text-indigo-600 shrink-0 ml-3">SELECT</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-black text-slate-800">
-                            {totalTyingCount} safa{totalTyingCount === 1 ? '' : 's'} to be tied
-                          </p>
-                          <span className="text-[11px] font-black text-indigo-600 shrink-0 ml-3">EDIT</span>
-                        </div>
-                        <p className="text-[11px] font-semibold text-slate-500">
-                          {selectedStyles.map(s => `${s.name} \u00d7${s.quantity}`).join(', ')}
-                        </p>
-                        {bookedSafaQty > 0 && totalTyingCount !== bookedSafaQty && (
-                          <p className="text-[11px] font-semibold text-amber-600">
-                            Booking has {bookedSafaQty} safas but {totalTyingCount} are set to be tied.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                )}
-              </div>
-
               {/* Rental Period */}
               <div className="pt-2 border-t border-slate-100">
                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Rental Period</label>
@@ -629,6 +551,74 @@ export default function OdooBookingPage() {
                  </div>
                ))}
             </div>
+          </div>
+
+          {/* Tie Safa — sits with the cart because the tied count follows
+              whatever safas are in it */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 shrink-0">
+            <div
+              onClick={() => {
+                const next = !tieSafa;
+                setTieSafa(next);
+                // Switching tying on goes straight to the sheet so styles
+                // and quantities get filled in rather than left at zero.
+                if (next) setTyingDialogOpen(true);
+              }}
+              className={`flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer select-none ${
+                tieSafa
+                  ? 'bg-indigo-50/80 border-indigo-200'
+                  : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={tieSafa}
+                  readOnly
+                  className="w-4 h-4 accent-indigo-600 pointer-events-none"
+                />
+                <span className="text-xs font-black text-slate-800">Tie Safa</span>
+              </div>
+              {tieSafa && (
+                <span className="px-2 py-0.5 bg-indigo-600 text-white font-black text-[11px] rounded-md">
+                  +₹{getSafaCharge()}
+                </span>
+              )}
+            </div>
+
+            {tieSafa && (
+              <button
+                type="button"
+                onClick={() => setTyingDialogOpen(true)}
+                className="mt-2 w-full text-left px-2.5 py-2 rounded-lg border border-indigo-100 bg-indigo-50/40 hover:border-indigo-300 transition-all"
+              >
+                {selectedStyles.length === 0 ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold text-slate-600">
+                      No style selected — nothing charged
+                    </p>
+                    <span className="text-[10px] font-black text-indigo-600 shrink-0">SELECT</span>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-black text-slate-800">
+                        {totalTyingCount} safa{totalTyingCount === 1 ? '' : 's'} tied
+                      </p>
+                      <span className="text-[10px] font-black text-indigo-600 shrink-0">EDIT</span>
+                    </div>
+                    <p className="text-[10px] font-semibold text-slate-500 truncate">
+                      {selectedStyles.map(s => `${s.name} \u00d7${s.quantity}`).join(', ')}
+                    </p>
+                    {bookedSafaQty > 0 && totalTyingCount !== bookedSafaQty && (
+                      <p className="text-[10px] font-semibold text-amber-600">
+                        Cart has {bookedSafaQty} safas, {totalTyingCount} tied
+                      </p>
+                    )}
+                  </div>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Billing Summary */}
