@@ -26,6 +26,7 @@ import { generateInvoicePDF } from '@/lib/invoice-gen';
 import ReturnDialog from '@/components/ReturnDialog';
 import ActivateRentalDialog from '@/components/ActivateRentalDialog';
 import RentalDetailsDialog from '@/components/RentalDetailsDialog';
+import AllocateArtistDialog from '@/components/AllocateArtistDialog';
 import EditRentalDialog from '@/components/EditRentalDialog';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -53,6 +54,13 @@ interface Rental {
   paymentMethod?: string;
   readyAt?: string | null;
   readyBy?: string | null;
+  tieSafa?: boolean;
+  safaShape?: string | null;
+  safaTyingCount?: number;
+  artistId?: string | null;
+  artistFee?: number;
+  artistPaid?: boolean;
+  artist?: { id: string; name: string } | null;
   items: any[];
   invoice?: {
     status: string;
@@ -62,12 +70,13 @@ interface Rental {
 }
 
 export default function RentalsPage() {
-  const { user } = useAuth();
+  const { user, isOwnerOrAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
   const [activateRental, setActivateRental] = useState<Rental | null>(null);
   const [viewRental, setViewRental] = useState<Rental | null>(null);
+  const [artistRental, setArtistRental] = useState<Rental | null>(null);
   const [editRental, setEditRental] = useState<Rental | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -288,6 +297,24 @@ export default function RentalsPage() {
                         {rental.readyAt ? 'Ready' : 'Mark Ready'}
                       </button>
 
+                      {rental.tieSafa && isOwnerOrAdmin && (
+                        <button
+                          onClick={() => setArtistRental(rental)}
+                          title={
+                            rental.artist
+                              ? `Artist: ${rental.artist.name}${rental.artistPaid ? ' (fee paid)' : ''}`
+                              : 'Allocate a tying artist'
+                          }
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
+                            rental.artist
+                              ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
+                              : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                          }`}
+                        >
+                          {rental.artist ? rental.artist.name.split(' ')[0] : 'Allocate'}
+                        </button>
+                      )}
+
                       <button
                         onClick={() => setViewRental(rental)}
                         className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
@@ -388,6 +415,15 @@ export default function RentalsPage() {
       )}
 
       <RentalDetailsDialog rental={viewRental} onClose={() => setViewRental(null)} />
+
+      <AllocateArtistDialog
+        rental={artistRental}
+        onClose={() => setArtistRental(null)}
+        onSuccess={() => {
+          setArtistRental(null);
+          fetchRentals();
+        }}
+      />
 
       {activateRental && (
         <ActivateRentalDialog

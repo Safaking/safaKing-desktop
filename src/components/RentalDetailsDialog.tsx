@@ -177,6 +177,13 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
               <Row label="Time" value={rental.safaTyingTime} />
               <Row label="Date" value={rental.safaTyingDate} />
               <Row label="Venue" value={rental.safaTyingAddress} />
+              <Row label="Artist" value={rental.artist?.name} />
+              {rental.artist && (
+                <Row
+                  label="Artist Fee"
+                  value={`${money(rental.artistFee)} ${rental.artistPaid ? '(paid)' : '(unpaid)'}`}
+                />
+              )}
             </Section>
           )}
 

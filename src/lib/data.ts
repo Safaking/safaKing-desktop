@@ -39,6 +39,7 @@ export const KEYS = {
   stores: '/api/stores',
   users: '/api/users',
   safaOptions: '/api/safa-options',
+  artists: '/api/artists',
   sales: '/api/sales',
   dashboardStats: '/api/dashboard/stats',
   dashboardActivity: '/api/dashboard/activity',
@@ -59,6 +60,10 @@ export function useUsers() {
 
 export function useSafaOptions() {
   return useSWR(KEYS.safaOptions, defaultConfig);
+}
+
+export function useArtists() {
+  return useSWR(KEYS.artists, defaultConfig);
 }
 
 export function useSales() {
@@ -102,6 +107,10 @@ export const invalidateAfterRentalChange = () =>
 
 export const invalidateAfterSale = () =>
   invalidate(KEYS.sales, KEYS.dashboardStats, KEYS.dashboardActivity, KEYS.products);
+
+/** Allocating an artist changes the order and the artist's workload. */
+export const invalidateAfterArtistChange = () =>
+  invalidate(KEYS.artists, '/api/rentals');
 
 export const invalidateAfterProductChange = () =>
   invalidate(KEYS.products, KEYS.dashboardStats);

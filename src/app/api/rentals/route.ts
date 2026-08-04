@@ -37,6 +37,8 @@ export async function GET(request: Request) {
           },
         },
         invoice: true,
+        // Needed so the list can show who a tying order is allocated to.
+        artist: { select: { id: true, name: true, phone: true } },
       },
       orderBy: {
         createdAt: 'desc',

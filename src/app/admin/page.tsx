@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProducts, useStores, useUsers, useSafaOptions } from '@/lib/data';
+import { useProducts, useStores, useUsers, useSafaOptions, useArtists, invalidateAfterArtistChange } from '@/lib/data';
 import { PRODUCT_TYPES, UNCATEGORISED, isMeterBased, rateSuffix } from '@/lib/product-types';
 import Link from 'next/link';
 import { 
@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   Trash2,
   IndianRupee,
-  Edit3
+  Edit3,
+  Palette
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import { useAuth } from '@/lib/AuthContext';
@@ -56,7 +57,7 @@ interface UserData {
 
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing' | 'artists'>('inventory');
   
   // Stores state
   const [stores, setStores] = useState<StoreData[]>([]);
@@ -82,6 +83,13 @@ export default function AdminPage() {
   const [newStoreId, setNewStoreId] = useState('');
   const [createUserLoading, setCreateUserLoading] = useState(false);
 
+  // Artists
+  const [artistName, setArtistName] = useState('');
+  const [artistPhone, setArtistPhone] = useState('');
+  const [artistAddress, setArtistAddress] = useState('');
+  const [editingArtist, setEditingArtist] = useState<any | null>(null);
+  const [artistLoading, setArtistLoading] = useState(false);
+
   // Dynamic Safa Options State
   const [safaOptions, setSafaOptions] = useState<any[]>([]);
   const [editingSafaOption, setEditingSafaOption] = useState<any | null>(null);
@@ -96,6 +104,8 @@ export default function AdminPage() {
   const productsSWR = useProducts();
   const usersSWR = useUsers();
   const safaOptionsSWR = useSafaOptions();
+  const artistsSWR = useArtists();
+  const artists: any[] = Array.isArray(artistsSWR.data) ? artistsSWR.data : [];
 
   useEffect(() => {
     setStores(Array.isArray(storesSWR.data) ? storesSWR.data : []);
@@ -125,6 +135,77 @@ export default function AdminPage() {
   const fetchProducts = () => productsSWR.mutate();
   const fetchUsers = () => usersSWR.mutate();
   const fetchSafaOptions = () => safaOptionsSWR.mutate();
+
+  const resetArtistForm = () => {
+    setEditingArtist(null);
+    setArtistName('');
+    setArtistPhone('');
+    setArtistAddress('');
+  };
+
+  const handleSaveArtist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!artistName.trim()) return;
+    setArtistLoading(true);
+    try {
+      const res = await fetch('/api/artists', {
+        method: editingArtist ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(editingArtist ? { id: editingArtist.id } : {}),
+          name: artistName,
+          phone: artistPhone,
+          address: artistAddress,
+        }),
+      });
+      if (res.ok) {
+        resetArtistForm();
+        await invalidateAfterArtistChange();
+        artistsSWR.mutate();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to save artist');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error saving artist');
+    } finally {
+      setArtistLoading(false);
+    }
+  };
+
+  const handleDeleteArtist = async (artist: any) => {
+    if (!window.confirm(`Remove artist "${artist.name}"?`)) return;
+    try {
+      const res = await fetch(`/api/artists?id=${artist.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        // Artists with orders against them are deactivated, not deleted.
+        if (data?.message) alert(data.message);
+        await invalidateAfterArtistChange();
+        artistsSWR.mutate();
+      } else {
+        alert(data.error || 'Failed to remove artist');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error removing artist');
+    }
+  };
+
+  const handleToggleArtistActive = async (artist: any) => {
+    try {
+      const res = await fetch('/api/artists', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: artist.id, isActive: !artist.isActive }),
+      });
+      if (res.ok) {
+        await invalidateAfterArtistChange();
+        artistsSWR.mutate();
+      }
+    } catch {
+      /* surfaced by the list not changing */
+    }
+  };
 
   const handleSaveSafaOption = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,6 +410,16 @@ export default function AdminPage() {
                 }`}
               >
                 <Users size={16} /> Users & Roles
+              </button>
+              <button
+                onClick={() => setActiveTab('artists')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  activeTab === 'artists'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Palette size={16} /> Artists
               </button>
               <button 
                 onClick={() => setActiveTab('safa_pricing')}
@@ -768,6 +859,118 @@ export default function AdminPage() {
         )}
 
         {/* SAFA TYING RATES & STYLES TAB */}
+        {activeTab === 'artists' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1">
+              <div className="bg-white border border-slate-200 rounded-xl p-5 sticky top-24">
+                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                  <Palette size={18} className="text-indigo-600" />
+                  {editingArtist ? 'Edit Artist' : 'Register Artist'}
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">
+                  Artists available to allocate to safa tying orders.
+                </p>
+                <form onSubmit={handleSaveArtist} className="space-y-3">
+                  <input
+                    required
+                    type="text"
+                    placeholder="Artist name"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
+                    value={artistName}
+                    onChange={e => setArtistName(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Phone (optional)"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
+                    value={artistPhone}
+                    onChange={e => setArtistPhone(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address (optional)"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
+                    value={artistAddress}
+                    onChange={e => setArtistAddress(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    disabled={artistLoading || !artistName.trim()}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-2.5 rounded-xl font-bold text-sm transition-all"
+                  >
+                    {artistLoading ? 'Saving…' : editingArtist ? 'Update Artist' : 'Add Artist'}
+                  </button>
+                  {editingArtist && (
+                    <button
+                      type="button"
+                      onClick={resetArtistForm}
+                      className="w-full text-slate-500 font-medium py-1 text-xs hover:text-slate-700"
+                    >
+                      Cancel edit
+                    </button>
+                  )}
+                </form>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 space-y-3">
+              {artists.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-400 font-medium">
+                  No artists registered yet.
+                </div>
+              ) : (
+                artists.map(artist => (
+                  <div
+                    key={artist.id}
+                    className={`bg-white border rounded-xl p-4 flex items-center justify-between gap-4 ${
+                      artist.isActive ? 'border-slate-200' : 'border-slate-200 opacity-60'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        {artist.name}
+                        {!artist.isActive && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-black uppercase">
+                            Inactive
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-500 font-medium truncate">
+                        {[artist.phone, artist.address].filter(Boolean).join(' · ') || 'No contact details'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleToggleArtistActive(artist)}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                      >
+                        {artist.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingArtist(artist);
+                          setArtistName(artist.name || '');
+                          setArtistPhone(artist.phone || '');
+                          setArtistAddress(artist.address || '');
+                        }}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteArtist(artist)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'safa_pricing' && (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

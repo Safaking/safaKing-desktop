@@ -72,6 +72,12 @@ model Rental {
   // readyBy holds the username so the report can show who marked it.
   readyAt          DateTime?
   readyBy          String?
+  // Tying jobs are allocated to a registered artist by an admin or owner.
+  // artistFee is what the shop owes them for this order.
+  artistId         String?
+  artistFee        Float        @default(0)
+  artistPaid       Boolean      @default(false)
+  artist           Artist?      @relation(fields: [artistId], references: [id])
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   invoice         Invoice?
@@ -186,3 +192,14 @@ model SafaOption {
   updatedAt DateTime @updatedAt
 }
 
+model Artist {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rentals   Rental[]
+}
