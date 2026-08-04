@@ -168,15 +168,30 @@ export default function Dashboard() {
                   <p className="text-slate-500">{t('dashboard_subtitle')}</p>
                 </div>
 
-                <Link 
-                  href="/bookings/new" 
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-emerald-400/20 group"
-                >
-                  <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Plus size={20} className="stroke-[3]" />
-                  </div>
-                  <span className="uppercase tracking-wider text-sm">{t('new_booking')}</span>
-                </Link>
+                {/* The POS terminal was only reachable by going into Sales
+                    first, even though selling is a top-level daily action
+                    just like taking a booking. */}
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/bookings/new"
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-emerald-400/20 group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Plus size={20} className="stroke-[3]" />
+                    </div>
+                    <span className="uppercase tracking-wider text-sm">{t('new_booking')}</span>
+                  </Link>
+
+                  <Link
+                    href="/sales"
+                    className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-indigo-400/20 group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ShoppingCart size={20} className="stroke-[3]" />
+                    </div>
+                    <span className="uppercase tracking-wider text-sm">New Sell</span>
+                  </Link>
+                </div>
               </div>
             </section>
 
