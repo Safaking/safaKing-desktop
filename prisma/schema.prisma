@@ -168,6 +168,7 @@ model Store {
   rentals   Rental[]
   sales     Sale[]
   users     User[]
+  cashBooks CashBook[]
 }
 
 model User {
@@ -227,4 +228,39 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sales     Sale[]
+}
+
+/// One cash day per store. Opening balance is carried from the previous day's
+/// closing, so the chain is continuous without anyone re-entering it.
+model CashBook {
+  id             String      @id @default(uuid())
+  storeId        String
+  /// The day itself, stored at midnight local time.
+  date           DateTime
+  openingBalance Float       @default(0)
+  submitted      Boolean     @default(false)
+  submittedAt    DateTime?
+  submittedBy    String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  store          Store       @relation(fields: [storeId], references: [id])
+  entries        CashEntry[]
+
+  @@unique([storeId, date])
+}
+
+/// Money leaving the till: bank remittance, cash sent to the account office,
+/// or a manual adjustment when the count does not tally.
+model CashEntry {
+  id         String   @id @default(uuid())
+  cashBookId String
+  /// BANK | OFFICE | ADJUSTMENT
+  type       String
+  amount     Float
+  reference  String?
+  notes      String?
+  createdBy  String?
+  createdAt  DateTime @default(now())
+  cashBook   CashBook @relation(fields: [cashBookId], references: [id], onDelete: Cascade)
 }

@@ -63,7 +63,7 @@ interface DashboardActivity {
 
 export default function Dashboard() {
   const { language, setLanguage, t } = useLanguage();
-  const { user, logout, isAdmin, canManageVendors } = useAuth();
+  const { user, logout, isAdmin, isSuperOrAdmin, canManageVendors } = useAuth();
   const { stats, activity, isLoading: loading } = useDashboard() as {
     stats: DashboardStats | null;
     activity: DashboardActivity | null;
@@ -134,6 +134,12 @@ export default function Dashboard() {
             ) : (
               <Link href="/login" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl transition-all font-bold text-xs">
                 Login
+              </Link>
+            )}
+
+            {isSuperOrAdmin && (
+              <Link href="/cashbook" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">
+                Cash Book
               </Link>
             )}
 
