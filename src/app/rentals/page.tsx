@@ -215,7 +215,7 @@ export default function RentalsPage() {
                     {rental.pickupName && <p className="text-[11px] text-slate-400 font-semibold">To: {rental.pickupName}</p>}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {format(new Date(rental.startDate), 'MMM dd')} - {format(new Date(rental.endDate), 'MMM dd')}
+                    {format(new Date(rental.startDate), 'dd-MM-yy')} - {format(new Date(rental.endDate), 'dd-MM-yy')}
                   </td>
                   <td className="px-6 py-4 font-semibold text-slate-800">₹{rental.totalAmount.toFixed(2)}</td>
                   <td className="px-6 py-4">
