@@ -68,6 +68,10 @@ model Rental {
   pickupPhone      String?
   pickupDate       String?
   damageCharge     Float        @default(0)
+  // Set when staff confirm the order is packed and ready for handover.
+  // readyBy holds the username so the report can show who marked it.
+  readyAt          DateTime?
+  readyBy          String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   invoice         Invoice?

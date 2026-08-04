@@ -218,6 +218,14 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
             <Row label="Rental From" value={fmtDate(rental.startDate)} />
             <Row label="Rental To" value={fmtDate(rental.endDate)} />
             <Row label="Created" value={fmtDate(rental.createdAt)} />
+            <Row
+              label="Ready"
+              value={
+                rental.readyAt
+                  ? `Yes — ${fmtDate(rental.readyAt)}${rental.readyBy ? ` by ${rental.readyBy}` : ''}`
+                  : 'Not yet'
+              }
+            />
             <Row label="Store" value={rental.store?.name} />
           </Section>
         </div>

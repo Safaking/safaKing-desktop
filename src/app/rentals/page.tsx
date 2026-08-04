@@ -51,6 +51,8 @@ interface Rental {
   remainingAmount?: number;
   discount?: number;
   paymentMethod?: string;
+  readyAt?: string | null;
+  readyBy?: string | null;
   items: any[];
   invoice?: {
     status: string;
@@ -104,6 +106,26 @@ export default function RentalsPage() {
       case 'BOOKED': return 'bg-amber-100 text-amber-700 border-amber-200';
       case 'OVERDUE': return 'bg-rose-100 text-rose-700 border-rose-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const handleToggleReady = async (rental: Rental) => {
+    const next = !rental.readyAt;
+    try {
+      const res = await fetch(`/api/rentals/${rental.id}/ready`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ready: next, readyBy: user?.username || user?.name || '' }),
+      });
+      if (res.ok) {
+        setOpenMenuId(null);
+        fetchRentals();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update ready state');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error updating ready state');
     }
   };
 
@@ -250,6 +272,22 @@ export default function RentalsPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end items-center gap-2 relative">
+                      <button
+                        onClick={() => handleToggleReady(rental)}
+                        title={
+                          rental.readyAt
+                            ? `Ready${rental.readyBy ? ` — marked by ${rental.readyBy}` : ''}. Click to undo.`
+                            : 'Mark this order ready for handover'
+                        }
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
+                          rental.readyAt
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                      >
+                        {rental.readyAt ? 'Ready' : 'Mark Ready'}
+                      </button>
+
                       <button
                         onClick={() => setViewRental(rental)}
                         className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
