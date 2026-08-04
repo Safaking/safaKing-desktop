@@ -178,10 +178,27 @@ export default function OdooBookingPage() {
     setTyingQuantities(prev => ({ ...prev, [style.id]: seed }));
   };
 
+  // Stock ceiling for a product. The server re-checks availability for the
+  // actual rental dates on submit; this stops staff building an order that is
+  // already impossible before they get that far.
+  const getAvailable = (product: { id: string; availableQuantity?: number; totalQuantity?: number }) => {
+    const raw = product.availableQuantity ?? product.totalQuantity ?? 0;
+    return Math.max(0, Number(raw) || 0);
+  };
+
+  const availableFor = (productId: string) => {
+    const p = products.find(x => x.id === productId);
+    return p ? getAvailable(p) : 0;
+  };
+
   const addToBooking = (product: Product) => {
+    const available = getAvailable(product);
+    if (available <= 0) return;
+
     setItems((prev: BookingItem[]) => {
       const existing = prev.find(i => i.productId === product.id);
       if (existing) {
+        if (existing.quantity >= available) return prev;
         return prev.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
       return [...prev, { productId: product.id, name: product.name, quantity: 1, pricePerDay: product.rentPrice }];
@@ -189,9 +206,10 @@ export default function OdooBookingPage() {
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    const available = availableFor(productId);
     setItems((prev: BookingItem[]) => prev.map(item => {
       if (item.productId === productId) {
-        const newQty = Math.max(1, item.quantity + delta);
+        const newQty = Math.min(available, Math.max(1, item.quantity + delta));
         return { ...item, quantity: newQty };
       }
       return item;
@@ -200,9 +218,10 @@ export default function OdooBookingPage() {
 
   const setQuantity = (productId: string, value: string) => {
     const qty = parseInt(value) || 0;
+    const available = availableFor(productId);
     setItems((prev: BookingItem[]) => prev.map(item => {
       if (item.productId === productId) {
-        return { ...item, quantity: Math.max(1, qty) };
+        return { ...item, quantity: Math.min(available, Math.max(1, qty)) };
       }
       return item;
     }));
@@ -476,17 +495,51 @@ export default function OdooBookingPage() {
 
            <div className="flex-1 overflow-y-auto p-2 bg-slate-50/30">
              <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
-                {filteredProducts.map(p => (
-                  <button 
+                {filteredProducts.map(p => {
+                  const available = getAvailable(p);
+                  const inCart = items.find(i => i.productId === p.id)?.quantity ?? 0;
+                  const remaining = available - inCart;
+                  const soldOut = available <= 0;
+                  const maxedOut = !soldOut && remaining <= 0;
+                  return (
+                  <button
                     key={p.id}
                     onClick={() => addToBooking(p)}
-                    className="flex flex-col bg-white border border-slate-200 rounded hover:border-indigo-500 hover:shadow-md transition-all text-left group overflow-hidden"
+                    disabled={soldOut || maxedOut}
+                    title={
+                      soldOut
+                        ? 'Out of stock'
+                        : maxedOut
+                        ? `All ${available} already in the cart`
+                        : undefined
+                    }
+                    className={`flex flex-col bg-white border rounded transition-all text-left group overflow-hidden ${
+                      soldOut || maxedOut
+                        ? 'border-slate-200 opacity-50 cursor-not-allowed'
+                        : 'border-slate-200 hover:border-indigo-500 hover:shadow-md'
+                    }`}
                   >
-                    <div className="h-20 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 border-b border-slate-50">
+                    <div className="h-20 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 border-b border-slate-50 relative">
                       {p.image ? (
-                        <img src={p.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                        <img
+                          src={p.image}
+                          alt=""
+                          className={`w-full h-full object-cover transition-transform ${
+                            soldOut ? 'grayscale' : 'group-hover:scale-110'
+                          }`}
+                        />
                       ) : (
                         <Package size={20} className="text-slate-300" />
+                      )}
+                      {soldOut && (
+                        <span className="absolute inset-x-0 bottom-0 bg-rose-600/90 text-white text-[10px] font-black text-center py-0.5">
+                          OUT OF STOCK
+                        </span>
+                      )}
+                      {maxedOut && (
+                        <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 text-white text-[10px] font-black text-center py-0.5">
+                          ALL {available} IN CART
+                        </span>
                       )}
                     </div>
                     <div className="p-2">
@@ -495,9 +548,17 @@ export default function OdooBookingPage() {
                         <span className="text-[11px] text-slate-400 font-bold">{p.sku}</span>
                         <span className="font-black text-indigo-600 text-[12px]">₹{p.rentPrice.toFixed(0)}</span>
                       </div>
+                      <p
+                        className={`text-[10px] font-black mt-0.5 ${
+                          soldOut ? 'text-rose-600' : remaining <= 3 ? 'text-amber-600' : 'text-emerald-600'
+                        }`}
+                      >
+                        {soldOut ? 'Unavailable' : `${remaining} of ${available} available`}
+                      </p>
                     </div>
                   </button>
-                ))}
+                  );
+                })}
              </div>
            </div>
         </div>
