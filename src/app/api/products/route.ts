@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         sku: body.sku,
         description: body.description || null,
         category: body.category || null,
+        productType: body.productType || null,
         rentPrice,
         salePrice,
         discount,
@@ -90,7 +91,7 @@ export async function PUT(request: Request) {
     // Convert numeric strings to actual numbers and filter data
     const updateData: any = {};
     const allowedFields = [
-      'name', 'sku', 'description', 'category', 
+      'name', 'sku', 'description', 'category', 'productType',
       'rentPrice', 'salePrice', 'discount', 'totalQuantity', 
       'isRentable', 'isSellable', 'image'
     ];

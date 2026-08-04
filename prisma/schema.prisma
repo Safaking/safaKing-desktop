@@ -13,7 +13,11 @@ model Product {
   name          String
   description   String?
   sku           String       @unique
+  // Fabric (silk, poli, PYOR) — predates the category feature.
   category      String?
+  // Product category shown as chips in inventory: Safa Main / Barati safa /
+  // Accessory. Kept separate from `category` so the fabric data survives.
+  productType   String?
   rentPrice     Float        @default(0)
   salePrice     Float        @default(0)
   discount      Float        @default(0)

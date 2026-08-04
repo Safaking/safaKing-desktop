@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProducts, useStores, useUsers, useSafaOptions } from '@/lib/data';
+import { PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -68,6 +69,7 @@ export default function AdminPage() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Users State
@@ -248,11 +250,40 @@ export default function AdminPage() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Chips are multi-select: no chip active means show everything, otherwise
+  // show products in any of the selected categories.
+  const typeOf = (p: any) => p.productType || UNCATEGORISED;
+
+  const availableTypes = React.useMemo(() => {
+    const present = new Set(products.map(typeOf));
+    // Keep the canonical order, then append anything unexpected in the data.
+    const ordered: string[] = PRODUCT_TYPES.filter(t => present.has(t));
+    const extras = [...present].filter(t => !PRODUCT_TYPES.includes(t as any)).sort();
+    return [...ordered, ...extras];
+  }, [products]);
+
+  const countByType = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of products) counts[typeOf(p)] = (counts[typeOf(p)] ?? 0) + 1;
+    return counts;
+  }, [products]);
+
+  const toggleType = (type: string) => {
+    setSelectedTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const filteredProducts = products.filter(p => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      p.category?.toLowerCase().includes(q) ||
+      (p as any).productType?.toLowerCase().includes(q);
+    const matchesType = selectedTypes.length === 0 || selectedTypes.includes(typeOf(p));
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-slate-900 font-sans">
@@ -344,6 +375,53 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Category chips — multi-select; none selected shows everything */}
+            {availableTypes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTypes([])}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    selectedTypes.length === 0
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  All
+                  <span className={`ml-1.5 ${selectedTypes.length === 0 ? 'text-indigo-100' : 'text-slate-400'}`}>
+                    {products.length}
+                  </span>
+                </button>
+
+                {availableTypes.map(type => {
+                  const active = selectedTypes.includes(type);
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => toggleType(type)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                        active
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {type}
+                      <span className={`ml-1.5 ${active ? 'text-indigo-100' : 'text-slate-400'}`}>
+                        {countByType[type] ?? 0}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {selectedTypes.length > 0 && (
+                  <span className="text-xs font-semibold text-slate-500 ml-1">
+                    {filteredProducts.length} shown
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {productsLoading ? (
                 Array(8).fill(0).map((_, i) => (
@@ -359,12 +437,21 @@ export default function AdminPage() {
                 </div>
               ) : filteredProducts.map(product => (
                 <div key={product.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-indigo-200 transition-all group relative">
-                  <div className="h-40 bg-slate-50 border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                  <div className="h-40 bg-slate-50 border-b border-slate-100 flex items-center justify-center overflow-hidden relative">
                     {(product as any).image ? (
                       <img src={(product as any).image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <Package size={48} className="text-slate-200 group-hover:text-indigo-200 transition-colors" />
                     )}
+                    <span
+                      className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black shadow-sm ${
+                        (product as any).productType
+                          ? 'bg-white/95 text-indigo-700'
+                          : 'bg-slate-200/95 text-slate-500'
+                      }`}
+                    >
+                      {(product as any).productType || UNCATEGORISED}
+                    </span>
                   </div>
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">

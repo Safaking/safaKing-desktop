@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Package, Plus, Trash2, Loader2 } from 'lucide-react';
+import { PRODUCT_TYPES } from '@/lib/product-types';
 
 interface ProductDialogProps {
   product?: any | null;
@@ -52,6 +53,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     name: '',
     sku: '',
     category: '',
+    productType: '',
     rentPrice: '0',
     salePrice: '0',
     discount: '0',
@@ -75,6 +77,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         name: product.name || '',
         sku: product.sku || '',
         category: product.category || '',
+        productType: (product as any).productType || '',
         rentPrice: product.rentPrice?.toString() || '0',
         salePrice: product.salePrice?.toString() || '0',
         discount: product.discount?.toString() || '0',
@@ -192,8 +195,25 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
 
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Category</label>
-              <input 
-                type="text" 
+              <select
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all font-medium"
+                value={formData.productType}
+                onChange={e => setFormData({...formData, productType: e.target.value})}
+              >
+                <option value="">Select category…</option>
+                {PRODUCT_TYPES.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                Fabric <span className="normal-case tracking-normal text-slate-300">(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. silk, poli"
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all font-medium"
                 value={formData.category}
                 onChange={e => setFormData({...formData, category: e.target.value})}
