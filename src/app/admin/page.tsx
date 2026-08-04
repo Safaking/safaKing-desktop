@@ -20,7 +20,8 @@ import {
   IndianRupee,
   Edit3,
   Palette,
-  Building2
+  Building2,
+  BarChart3
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import { useAuth } from '@/lib/AuthContext';
@@ -488,6 +489,12 @@ export default function AdminPage() {
               >
                 <Palette size={16} /> Artists
               </button>
+              <Link
+                href="/admin/reports"
+                className="px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 text-slate-500 hover:text-slate-800"
+              >
+                <BarChart3 size={16} /> Reports
+              </Link>
               <button
                 onClick={() => setActiveTab('vendors')}
                 className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
