@@ -38,6 +38,17 @@ export async function ensureDbSchema() {
         CONSTRAINT "Artist_pkey" PRIMARY KEY ("id")
       );`,
 
+      // ── ArtistPayment (ledger) ─────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "ArtistPayment" (
+        "id" TEXT NOT NULL,
+        "artistId" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "note" TEXT,
+        "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "paidBy" TEXT,
+        CONSTRAINT "ArtistPayment_pkey" PRIMARY KEY ("id")
+      );`,
+
       // ── Vendor ────────────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS "Vendor" (
         "id" TEXT NOT NULL,

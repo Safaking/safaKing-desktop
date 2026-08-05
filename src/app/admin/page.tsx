@@ -22,12 +22,14 @@ import {
   Palette,
   Building2,
   BarChart3,
-  Clock
+  Clock,
+  BookOpen
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import EditUserDialog from '@/components/EditUserDialog';
 import VendorsPanel from '@/components/VendorsPanel';
 import WorkingHoursPanel from '@/components/WorkingHoursPanel';
+import ArtistLedgerDialog from '@/components/ArtistLedgerDialog';
 import { useAuth } from '@/lib/AuthContext';
 
 interface StoreData {
@@ -95,8 +97,10 @@ export default function AdminPage() {
   const [artistName, setArtistName] = useState('');
   const [artistPhone, setArtistPhone] = useState('');
   const [artistAddress, setArtistAddress] = useState('');
+  const [artistRate, setArtistRate] = useState('0');
   const [editingArtist, setEditingArtist] = useState<any | null>(null);
   const [artistLoading, setArtistLoading] = useState(false);
+  const [artistLedger, setArtistLedger] = useState<any | null>(null);
 
   // Dynamic Safa Options State
   const [safaOptions, setSafaOptions] = useState<any[]>([]);
@@ -149,6 +153,7 @@ export default function AdminPage() {
     setArtistName('');
     setArtistPhone('');
     setArtistAddress('');
+    setArtistRate('0');
   };
 
   const handleSaveArtist = async (e: React.FormEvent) => {
@@ -164,6 +169,7 @@ export default function AdminPage() {
           name: artistName,
           phone: artistPhone,
           address: artistAddress,
+          ratePerPiece: parseFloat(artistRate || '0') || 0,
         }),
       });
       if (res.ok) {
@@ -941,6 +947,24 @@ export default function AdminPage() {
                     value={artistAddress}
                     onChange={e => setArtistAddress(e.target.value)}
                   />
+                  <div>
+                    <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">
+                      प्रति साफा रेट (Rate per safa ₹)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        className="w-full pl-7 pr-3 py-2.5 bg-indigo-50/50 border border-indigo-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold text-indigo-900"
+                        value={artistRate}
+                        onChange={e => setArtistRate(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Only shown in Artist Payment report</p>
+                  </div>
                   <button
                     type="submit"
                     disabled={artistLoading || !artistName.trim()}
@@ -986,6 +1010,11 @@ export default function AdminPage() {
                       <p className="text-xs text-slate-500 font-medium truncate">
                         {[artist.phone, artist.address].filter(Boolean).join(' · ') || 'No contact details'}
                       </p>
+                      {artist.ratePerPiece > 0 && (
+                        <p className="text-xs font-bold text-indigo-600 mt-0.5">
+                          ₹{artist.ratePerPiece}/safa
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
@@ -1000,10 +1029,19 @@ export default function AdminPage() {
                           setArtistName(artist.name || '');
                           setArtistPhone(artist.phone || '');
                           setArtistAddress(artist.address || '');
+                          setArtistRate(artist.ratePerPiece?.toString() || '0');
                         }}
                         className="p-2 rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                        title="Edit artist"
                       >
                         <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => setArtistLedger(artist)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-violet-50 hover:text-violet-600 transition-colors"
+                        title="Ledger / खाता बही"
+                      >
+                        <BookOpen size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteArtist(artist)}
@@ -1160,6 +1198,13 @@ export default function AdminPage() {
             setSelectedProduct(undefined);
             fetchProducts();
           }} 
+        />
+      )}
+
+      {artistLedger && (
+        <ArtistLedgerDialog
+          artist={artistLedger}
+          onClose={() => setArtistLedger(null)}
         />
       )}
     </div>

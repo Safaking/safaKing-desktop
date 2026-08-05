@@ -220,6 +220,21 @@ model Artist {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rentals   Rental[]
+  /// Cash payments actually made to this artist (ledger entries).
+  payments  ArtistPayment[]
+}
+
+/// A cash payment made to an artist — separate from marking individual orders
+/// as paid. The ledger lets admin record partial payments, keep running
+/// balances, and add notes (e.g. "advance", "UPI ref #123").
+model ArtistPayment {
+  id        String   @id @default(uuid())
+  artistId  String
+  amount    Float
+  note      String?
+  paidAt    DateTime @default(now())
+  paidBy    String?
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 
 model Vendor {
