@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDbSchema } from '@/lib/db-init';
 
 /**
  * Allocate (or clear) the tying artist on a rental order.
@@ -13,6 +14,7 @@ import { prisma } from '@/lib/prisma';
  * order never carries a stray amount owed to nobody.
  */
 export async function POST(request: Request, { params }: { params: any }) {
+  await ensureDbSchema();
   try {
     const resolvedParams = await params;
     const id = resolvedParams?.id;

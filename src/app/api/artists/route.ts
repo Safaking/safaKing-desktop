@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDbSchema } from '@/lib/db-init';
 
 /** Registered safa-tying artists. Admin manages these; tying orders allocate one. */
 export async function GET(request: Request) {
+  await ensureDbSchema();
   try {
     const { searchParams } = new URL(request.url);
     const withWork = searchParams.get('withWork') === 'true';

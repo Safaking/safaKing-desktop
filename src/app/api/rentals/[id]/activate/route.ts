@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDbSchema } from '@/lib/db-init';
 
 export async function POST(
   request: Request,
   { params }: { params: any }
 ) {
+  await ensureDbSchema();
   try {
     const resolvedParams = await params;
     const id = resolvedParams?.id;
@@ -14,11 +16,20 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { pickupName, pickupPhone, pickupDate } = body;
+    const { pickupName, pickupPhone, pickupDate, paidNow } = body;
 
     if (!pickupName || !pickupPhone) {
       return NextResponse.json({ error: 'Receiver name and phone number are required' }, { status: 400 });
     }
+
+    const rental = await prisma.rental.findUnique({ where: { id } });
+    if (!rental) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    const additionalPaid = Math.max(0, parseFloat(paidNow?.toString() ?? '0') || 0);
+    const newPaidAmount = (rental.paidAmount || 0) + additionalPaid;
+    const newRemainingAmount = Math.max(0, rental.totalAmount - newPaidAmount);
 
     const updatedRental = await prisma.rental.update({
       where: { id },
@@ -27,6 +38,8 @@ export async function POST(
         pickupName,
         pickupPhone,
         pickupDate: pickupDate || new Date().toISOString(),
+        paidAmount: newPaidAmount,
+        remainingAmount: newRemainingAmount,
       },
     });
 

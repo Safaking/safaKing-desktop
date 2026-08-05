@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import DateInput from '@/components/DateInput';
-import { X, CheckCircle2, Truck, User, Phone, Calendar } from 'lucide-react';
+import { X, CheckCircle2, Truck, User, Phone, Calendar, IndianRupee, AlertCircle } from 'lucide-react';
 
 interface ActivateRentalDialogProps {
   rental: any;
@@ -11,10 +11,15 @@ interface ActivateRentalDialogProps {
 }
 
 export default function ActivateRentalDialog({ rental, onClose, onSuccess }: ActivateRentalDialogProps) {
-  const [pickupName, setPickupName] = useState(rental.customerName || '');
-  const [pickupPhone, setPickupPhone] = useState(rental.customerPhone || '');
+  const [pickupName, setPickupName] = useState(rental.pickupName || rental.customerName || '');
+  const [pickupPhone, setPickupPhone] = useState(rental.pickupPhone || rental.customerPhone || '');
   const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paidNow, setPaidNow] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const remaining = rental.remainingAmount ?? (rental.totalAmount - (rental.paidAmount || 0));
+  const paidNowAmt = parseFloat(paidNow) || 0;
+  const stillOwed = Math.max(0, remaining - paidNowAmt);
 
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +37,7 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
           pickupName,
           pickupPhone,
           pickupDate,
+          paidNow: paidNowAmt,
         }),
       });
 
@@ -65,6 +71,63 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Details</p>
             <p className="text-sm font-bold text-slate-800">{rental.orderNumber} • {rental.customerName}</p>
           </div>
+
+          {/* Balance Section */}
+          <div className={`p-4 rounded-xl border-2 ${
+            remaining > 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'
+          }`}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-2 "
+              style={{ color: remaining > 0 ? '#be123c' : '#065f46' }}>
+              {remaining > 0 ? '⚠️ बाकी पैसे / Remaining Amount' : '✓ पूरा भुगतान हो चुका है'}
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">कुल / Total</p>
+                <p className="font-bold text-slate-800">₹{(rental.totalAmount || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">पहले दिए / Paid</p>
+                <p className="font-bold text-emerald-700">₹{(rental.paidAmount || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">बाकी / Due</p>
+                <p className={`font-black text-lg ${remaining > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  ₹{remaining.toLocaleString('en-IN')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Collect payment now */}
+          {remaining > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                अभी लिए पैसे / Collect Now (optional)
+              </label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" size={16} />
+                <input
+                  type="number"
+                  min="0"
+                  max={remaining}
+                  step="1"
+                  placeholder={`Max ₹${remaining}`}
+                  className="w-full pl-9 pr-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl outline-none focus:border-emerald-500 font-bold text-sm text-emerald-900"
+                  value={paidNow}
+                  onChange={e => setPaidNow(e.target.value)}
+                />
+              </div>
+              {paidNowAmt > 0 && (
+                <p className={`text-xs mt-1 font-bold ${
+                  stillOwed === 0 ? 'text-emerald-600' : 'text-amber-600'
+                }`}>
+                  {stillOwed === 0
+                    ? '✓ पूरा भुगतान हो जाएगा'
+                    : `₹${stillOwed.toLocaleString('en-IN')} अभी भी बाकी रहेगा`}
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">

@@ -103,10 +103,20 @@ export default function RentalsPage() {
     await refreshRentals();
   };
 
-  const filteredRentals = rentals.filter(r => 
-    r.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRentals = rentals.filter(r => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (r.customerName && r.customerName.toLowerCase().includes(q)) ||
+      (r.orderNumber && r.orderNumber.toLowerCase().includes(q)) ||
+      (r.customerPhone && r.customerPhone.includes(q)) ||
+      (r.customerAltPhone && r.customerAltPhone.includes(q)) ||
+      (r.fatherName && r.fatherName.toLowerCase().includes(q)) ||
+      (r.pickupName && r.pickupName.toLowerCase().includes(q)) ||
+      (r.pickupPhone && r.pickupPhone.includes(q)) ||
+      (r.invoice?.invoiceNumber && r.invoice.invoiceNumber.toLowerCase().includes(q))
+    );
+  });
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -206,7 +216,7 @@ export default function RentalsPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search by customer or order..." 
+              placeholder="Search by Bill No, Name, Phone..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
