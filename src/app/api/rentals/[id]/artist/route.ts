@@ -4,8 +4,9 @@ import { prisma } from '@/lib/prisma';
 /**
  * Allocate (or clear) the tying artist on a rental order.
  *
- * Body: { artistId: string | null, artistFee?: number, artistPaid?: boolean }
- * Clearing the artist also resets the fee and paid flag so an unallocated
+ * Body: { artistId: string | null, artistRate?: number, artistPaid?: boolean }
+ * artistRate is per safa; the amount owed is rate * safaTyingCount.
+ * Clearing the artist also resets the rate and paid flag so an unallocated
  * order never carries a stray amount owed to nobody.
  */
 export async function POST(request: Request, { params }: { params: any }) {
@@ -31,15 +32,15 @@ export async function POST(request: Request, { params }: { params: any }) {
       }
     }
 
-    // A real zero fee must stay zero, so parse explicitly rather than with `||`.
-    const parsedFee = parseFloat(body?.artistFee?.toString() ?? '');
-    const fee = Number.isFinite(parsedFee) && parsedFee >= 0 ? parsedFee : 0;
+    // A real zero rate must stay zero, so parse explicitly rather than with `||`.
+    const parsedRate = parseFloat(body?.artistRate?.toString() ?? '');
+    const rate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate : 0;
 
     const updated = await prisma.rental.update({
       where: { id },
       data: artistId
-        ? { artistId, artistFee: fee, artistPaid: !!body?.artistPaid }
-        : { artistId: null, artistFee: 0, artistPaid: false },
+        ? { artistId, artistRate: rate, artistPaid: !!body?.artistPaid }
+        : { artistId: null, artistRate: 0, artistPaid: false },
       include: { artist: true },
     });
 

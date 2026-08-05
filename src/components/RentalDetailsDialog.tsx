@@ -181,7 +181,9 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
               {rental.artist && (
                 <Row
                   label="Artist Fee"
-                  value={`${money(rental.artistFee)} ${rental.artistPaid ? '(paid)' : '(unpaid)'}`}
+                  value={`${money(rental.artistRate)}/safa × ${rental.safaTyingCount || 0} = ${money(
+                    (rental.artistRate || 0) * (rental.safaTyingCount || 0)
+                  )} ${rental.artistPaid ? '(paid)' : '(unpaid)'}`}
                 />
               )}
             </Section>

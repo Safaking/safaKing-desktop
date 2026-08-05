@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * Allocate a registered artist to a tying order, with the fee owed to them.
+ * Allocate a registered artist to a tying order, with their per-safa rate.
  * Only reachable by admins and owners — the rentals list gates the entry point.
  */
 export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Props) {
@@ -19,20 +19,24 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
   const artists: any[] = Array.isArray(artistData) ? artistData : [];
 
   const [artistId, setArtistId] = React.useState('');
-  const [fee, setFee] = React.useState('0');
+  const [rate, setRate] = React.useState('0');
   const [paid, setPaid] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (!rental) return;
     setArtistId(rental.artistId || '');
-    setFee((rental.artistFee ?? 0).toString());
+    setRate((rental.artistRate ?? 0).toString());
     setPaid(!!rental.artistPaid);
   }, [rental]);
 
   if (!rental) return null;
 
   const selectable = artists.filter(a => a.isActive || a.id === rental.artistId);
+
+  // The rate is per safa, so the amount owed follows the tied count.
+  const safas = rental.safaTyingCount || 0;
+  const owed = (parseFloat(rate || '0') || 0) * safas;
 
   const save = async (clear = false) => {
     setSaving(true);
@@ -43,7 +47,7 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
         body: JSON.stringify(
           clear
             ? { artistId: null }
-            : { artistId: artistId || null, artistFee: parseFloat(fee || '0') || 0, artistPaid: paid }
+            : { artistId: artistId || null, artistRate: parseFloat(rate || '0') || 0, artistPaid: paid }
         ),
       });
       if (res.ok) {
@@ -110,7 +114,7 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
 
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Artist Fee
+              Rate per safa
             </label>
             <div className="relative">
               <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -119,13 +123,14 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
                 min="0"
                 step="1"
                 className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-violet-500 font-bold text-sm"
-                value={fee}
-                onChange={e => setFee(e.target.value)}
+                value={rate}
+                onChange={e => setRate(e.target.value)}
                 disabled={!artistId}
               />
             </div>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1">
-              What the shop owes this artist for the job.
+            <p className="text-[11px] font-semibold text-slate-500 mt-1">
+              ₹{parseFloat(rate || '0') || 0} × {safas} safa{safas === 1 ? '' : 's'} ={' '}
+              <span className="font-black text-violet-700">₹{owed.toFixed(2)}</span> owed
             </p>
           </div>
 
@@ -137,7 +142,7 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
               paid ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
             }`}
           >
-            <span className="text-xs font-bold text-slate-700">Fee already paid</span>
+            <span className="text-xs font-bold text-slate-700">Already paid to artist</span>
             <span
               className={`w-5 h-5 rounded-md border flex items-center justify-center ${
                 paid ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-transparent'

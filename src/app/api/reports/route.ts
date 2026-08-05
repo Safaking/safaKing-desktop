@@ -91,9 +91,11 @@ export async function GET(request: Request) {
       };
       entry.orderCount += 1;
       entry.safasTied += r.safaTyingCount || 0;
-      entry.feeTotal += r.artistFee || 0;
-      if (r.artistPaid) entry.feePaid += r.artistFee || 0;
-      else entry.feeDue += r.artistFee || 0;
+      // Rate is per safa, so what they earn on an order is rate x safas tied.
+      const owed = (r.artistRate || 0) * (r.safaTyingCount || 0);
+      entry.feeTotal += owed;
+      if (r.artistPaid) entry.feePaid += owed;
+      else entry.feeDue += owed;
       byArtist.set(r.artistId, entry);
     }
 
@@ -118,7 +120,8 @@ export async function GET(request: Request) {
         readyBy: r.readyBy,
         tieSafa: r.tieSafa,
         artistName: r.artist?.name ?? null,
-        artistFee: r.artistFee,
+        artistRate: r.artistRate,
+        artistOwed: (r.artistRate || 0) * (r.safaTyingCount || 0),
         artistPaid: r.artistPaid,
         vendorName: null,
         invoiceStatus: r.invoice?.status ?? null,
@@ -140,7 +143,8 @@ export async function GET(request: Request) {
         readyBy: null,
         tieSafa: s.tieSafa,
         artistName: null,
-        artistFee: 0,
+        artistRate: 0,
+        artistOwed: 0,
         artistPaid: false,
         vendorName: s.vendor?.name ?? null,
         invoiceStatus: s.invoice?.status ?? null,

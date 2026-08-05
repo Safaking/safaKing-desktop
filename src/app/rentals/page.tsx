@@ -58,7 +58,7 @@ interface Rental {
   safaShape?: string | null;
   safaTyingCount?: number;
   artistId?: string | null;
-  artistFee?: number;
+  artistRate?: number;
   artistPaid?: boolean;
   artist?: { id: string; name: string } | null;
   items: any[];
@@ -302,7 +302,7 @@ export default function RentalsPage() {
                           onClick={() => setArtistRental(rental)}
                           title={
                             rental.artist
-                              ? `Artist: ${rental.artist.name}${rental.artistPaid ? ' (fee paid)' : ''}`
+                              ? `Artist: ${rental.artist.name} — ₹${rental.artistRate ?? 0}/safa${rental.artistPaid ? ' (paid)' : ''}`
                               : 'Allocate a tying artist'
                           }
                           className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${

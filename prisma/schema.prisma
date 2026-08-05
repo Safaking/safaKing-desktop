@@ -73,9 +73,10 @@ model Rental {
   readyAt          DateTime?
   readyBy          String?
   // Tying jobs are allocated to a registered artist by an admin or owner.
-  // artistFee is what the shop owes them for this order.
+  // artistRate is per safa — what they earn for each one tied — so the amount
+  // owed on an order is artistRate * safaTyingCount.
   artistId         String?
-  artistFee        Float        @default(0)
+  artistRate       Float        @default(0)
   artistPaid       Boolean      @default(false)
   artist           Artist?      @relation(fields: [artistId], references: [id])
   createdAt       DateTime     @default(now())

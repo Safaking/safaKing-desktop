@@ -215,7 +215,7 @@ export default function ReportsPage() {
                   <th className="px-4 py-2">Artist</th>
                   <th className="px-4 py-2 text-right">Orders</th>
                   <th className="px-4 py-2 text-right">Safas tied</th>
-                  <th className="px-4 py-2 text-right">Fees</th>
+                  <th className="px-4 py-2 text-right">Earned</th>
                   <th className="px-4 py-2 text-right">Paid</th>
                   <th className="px-4 py-2 text-right">Due</th>
                 </tr>
@@ -323,10 +323,10 @@ export default function ReportsPage() {
                         {o.artistName ? (
                           <span className="text-[11px] font-bold text-violet-700">
                             {o.artistName}
-                            {o.artistFee > 0 && (
+                            {o.artistOwed > 0 && (
                               <span className={o.artistPaid ? 'text-emerald-600' : 'text-rose-600'}>
                                 {' '}
-                                {money(o.artistFee)}
+                                {money(o.artistOwed)}
                               </span>
                             )}
                           </span>
