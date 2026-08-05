@@ -186,7 +186,7 @@ export default function RentalsPage() {
       <main className="max-w-7xl mx-auto p-6 lg:p-10 space-y-6">
         {/* Filter Tabs & Search */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-xs">
+          <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-xs overflow-x-auto max-w-full [&>*]:shrink-0">
             {['ALL', 'BOOKED', 'ACTIVE', 'RETURNED', 'OVERDUE'].map(tab => (
               <button
                 key={tab}
@@ -215,8 +215,9 @@ export default function RentalsPage() {
         </div>
 
         {/* Table Container */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-visible">
-          <table className="w-full text-left">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[900px]">
             <thead className="bg-slate-50/70 border-b border-slate-200">
               <tr className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <th className="px-6 py-4">Order</th>
@@ -400,6 +401,7 @@ export default function RentalsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </main>
 

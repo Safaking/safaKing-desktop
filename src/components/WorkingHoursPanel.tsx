@@ -100,7 +100,8 @@ export default function WorkingHoursPanel() {
             No logins in this date range.
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[720px]">
             <thead className="bg-slate-50/70 text-[10px] font-black text-slate-400 uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-2">Staff</th>
@@ -173,6 +174,7 @@ export default function WorkingHoursPanel() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

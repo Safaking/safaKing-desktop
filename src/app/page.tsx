@@ -67,7 +67,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Odoo Style Top Bar */}
       <header className="bg-white border-b border-slate-100">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3 px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-8">
             <div className="h-16 flex items-center">
               <img src="/assets/logo.png?v=3" alt="Logo" className="h-full w-auto object-contain" />
@@ -82,7 +82,7 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-end">
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button 
                 onClick={() => setLanguage('en')}
@@ -160,7 +160,7 @@ export default function Dashboard() {
           <>
             {/* Welcome Section */}
             <section className="mb-8">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
                   <h2 className="text-3xl font-bold text-slate-800">
                     {t('welcome')}
@@ -179,7 +179,7 @@ export default function Dashboard() {
                 {/* The POS terminal was only reachable by going into Sales
                     first, even though selling is a top-level daily action
                     just like taking a booking. */}
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Link
                     href="/bookings/new"
                     className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-emerald-400/20 group"

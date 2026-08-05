@@ -294,7 +294,8 @@ export default function ReportsPage() {
               No tying orders allocated in this period.
             </p>
           ) : (
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[560px]">
               <thead className="bg-slate-50/70 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-2">Artist</th>
@@ -324,6 +325,7 @@ export default function ReportsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
