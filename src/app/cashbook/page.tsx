@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import {
   ArrowLeft,
@@ -39,7 +40,8 @@ const TYPES = [
 ] as const;
 
 export default function CashBookPage() {
-  const { user, isAdmin, isSuperOrAdmin, loading: authLoading } = useAuth();
+  const { user, isAdmin, isSuperOrAdmin, loading: authLoading, logout } = useAuth();
+  const router = useRouter();
   const { data: storeData } = useStores();
   const stores: any[] = Array.isArray(storeData) ? storeData : [];
 
@@ -60,13 +62,18 @@ export default function CashBookPage() {
   const key = storeId ? `/api/cashbook?storeId=${storeId}&date=${date}` : null;
   const { data, isLoading, mutate, error } = useSWR(key, fetcher, { keepPreviousData: true });
 
+  const isToday = date === todayISO();
+  // A super records the day they are working. Yesterday is history: only an
+  // admin can touch it, and only after reopening if it was submitted.
+  const dayEditable = isToday || isAdmin;
+
   const post = async (payload: any) => {
     setBusy(true);
     try {
       const res = await fetch('/api/cashbook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeId, date, ...payload }),
+        body: JSON.stringify({ storeId, date, role: user?.role, ...payload }),
       });
       const json = await res.json();
       if (!res.ok) alert(json.error || 'Failed');
@@ -96,8 +103,23 @@ export default function CashBookPage() {
   };
 
   const submitDay = async () => {
-    if (!window.confirm(`Submit ${displayDate(date)}? Closing ${money(data?.closing)} will carry to the next day and this day will lock.`)) return;
-    await post({ action: 'submit', submittedBy: user?.username || user?.name || '' });
+    if (
+      !window.confirm(
+        `Submit ${displayDate(date)}?\n\n` +
+          `Closing ${money(data?.closing)} carries to the next day, this day locks, ` +
+          `and you will be signed out for the day.`
+      )
+    )
+      return;
+
+    const ok = await post({ action: 'submit', submittedBy: user?.username || user?.name || '' });
+    // Closing the account ends the shift, so signing off is part of the same
+    // action rather than something staff have to remember separately.
+    if (ok) {
+      alert(`Account submitted for ${displayDate(date)}. Closing ${money(data?.closing)} carries to tomorrow.`);
+      logout();
+      router.replace('/login');
+    }
   };
 
   const reopenDay = async () => {
@@ -109,7 +131,7 @@ export default function CashBookPage() {
     if (!window.confirm('Remove this entry?')) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/cashbook?entryId=${entryId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/cashbook?entryId=${entryId}&role=${user?.role ?? ''}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) alert(json.error || 'Failed to remove');
       else await mutate();
@@ -231,6 +253,10 @@ export default function CashBookPage() {
             <p className="px-5 py-4 text-xs font-semibold text-slate-400">
               This day is submitted and locked.
             </p>
+          ) : !dayEditable ? (
+            <p className="px-5 py-4 text-xs font-semibold text-amber-600">
+              Only today&apos;s cash book can be edited. Ask an admin to change a past day.
+            </p>
           ) : (
             <form onSubmit={addEntry} className="px-5 py-4 space-y-3">
               <div className="flex flex-wrap gap-2">
@@ -294,7 +320,7 @@ export default function CashBookPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-black text-rose-600">− {money(e.amount)}</span>
-                    {!locked && (
+                    {!locked && dayEditable && (
                       <button
                         onClick={() => removeEntry(e.id)}
                         className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50"
@@ -325,14 +351,18 @@ export default function CashBookPage() {
                 Submitted — ask an admin to reopen if something is wrong.
               </p>
             )
-          ) : (
+          ) : dayEditable ? (
             <button
               onClick={submitDay}
               disabled={busy || isLoading}
               className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-sm shadow-lg shadow-emerald-600/20"
             >
-              Submit account for {displayDate(date)}
+              Submit account for {displayDate(date)} &amp; sign out
             </button>
+          ) : (
+            <p className="flex-1 text-center text-xs font-semibold text-amber-600 py-3.5">
+              Not submitted, but only an admin can close a past day now.
+            </p>
           )}
         </div>
       </main>

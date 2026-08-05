@@ -9,6 +9,19 @@ import {
 } from '@/lib/cashbook';
 
 /**
+ * Staff record the day they are working; yesterday is history. Enforced here
+ * as well as in the page, because a UI-only rule is no rule at all.
+ */
+function pastDayBlocked(date: string, role?: string) {
+  if (role === 'ADMIN') return null;
+  if (date === toISODay(new Date())) return null;
+  return NextResponse.json(
+    { error: "Only today's cash book can be changed. Ask an admin to adjust a past day." },
+    { status: 403 }
+  );
+}
+
+/**
  * The cash book for one store on one day.
  *
  * GET  ?storeId=&date=yyyy-mm-dd
@@ -85,6 +98,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const stale = pastDayBlocked(date, body.role);
+    if (stale) return stale;
+
     if (action === 'entry') {
       const type = String(body.type || '').toUpperCase();
       if (!['BANK', 'OFFICE', 'ADJUSTMENT'].includes(type)) {
@@ -159,6 +175,9 @@ export async function DELETE(request: Request) {
         { status: 409 }
       );
     }
+
+    const stale = pastDayBlocked(toISODay(entry.cashBook.date), searchParams.get('role') || undefined);
+    if (stale) return stale;
 
     await prisma.cashEntry.delete({ where: { id: entryId } });
     return NextResponse.json({ success: true });
