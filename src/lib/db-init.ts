@@ -63,6 +63,17 @@ export async function ensureDbSchema() {
         CONSTRAINT "Vendor_pkey" PRIMARY KEY ("id")
       );`,
 
+      // ── VendorPayment (ledger) ─────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "VendorPayment" (
+        "id" TEXT NOT NULL,
+        "vendorId" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "note" TEXT,
+        "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "paidBy" TEXT,
+        CONSTRAINT "VendorPayment_pkey" PRIMARY KEY ("id")
+      );`,
+
       // ── CashBook ──────────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS "CashBook" (
         "id" TEXT NOT NULL,

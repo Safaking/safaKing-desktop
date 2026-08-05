@@ -255,6 +255,19 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sales     Sale[]
+  /// Payments received from this vendor (ledger entries).
+  payments  VendorPayment[]
+}
+
+/// Payments received from a vendor (bulk buyer) to clear running dues.
+model VendorPayment {
+  id        String   @id @default(uuid())
+  vendorId  String
+  amount    Float
+  note      String?
+  paidAt    DateTime @default(now())
+  paidBy    String?
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
 
 /// One cash day per store. Opening balance is carried from the previous day's

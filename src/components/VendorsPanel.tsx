@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Building2, Edit3, Trash2 } from 'lucide-react';
+import { Building2, Edit3, Trash2, Search, BookOpen } from 'lucide-react';
 import { useVendors, invalidateAfterVendorChange } from '@/lib/data';
+import VendorLedgerDialog from '@/components/VendorLedgerDialog';
 
 /**
  * Vendor (bulk buyer) register.
@@ -18,9 +19,22 @@ export default function VendorsPanel() {
   const [vendorGst, setVendorGst] = useState('');
   const [editingVendor, setEditingVendor] = useState<any | null>(null);
   const [vendorLoading, setVendorLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [vendorLedger, setVendorLedger] = useState<any | null>(null);
 
   const vendorsSWR = useVendors(true);
   const vendors: any[] = Array.isArray(vendorsSWR.data) ? vendorsSWR.data : [];
+
+  const filteredVendors = vendors.filter(v => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (v.name && v.name.toLowerCase().includes(q)) ||
+      (v.phone && v.phone.includes(q)) ||
+      (v.gstNumber && v.gstNumber.toLowerCase().includes(q)) ||
+      (v.address && v.address.toLowerCase().includes(q))
+    );
+  });
 
   const resetVendorForm = () => {
     setEditingVendor(null);
@@ -79,172 +93,195 @@ export default function VendorsPanel() {
   };
 
   return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1">
-              <div className="bg-white border border-slate-200 rounded-xl p-5 sticky top-24">
-                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                  <Building2 size={18} className="text-indigo-600" />
-                  {editingVendor ? 'Edit Vendor' : 'Register Vendor'}
-                </h3>
-                <p className="text-xs text-slate-500 mb-4">
-                  Bulk buyers. Their orders go through the normal POS screen — pick the
-                  vendor there and the order is tagged to them.
-                </p>
-                <form onSubmit={handleSaveVendor} className="space-y-3">
-                  <input
-                    required
-                    type="text"
-                    placeholder="Vendor name"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
-                    value={vendorName}
-                    onChange={e => setVendorName(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Phone (optional)"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
-                    value={vendorPhone}
-                    onChange={e => setVendorPhone(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Address (optional)"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
-                    value={vendorAddress}
-                    onChange={e => setVendorAddress(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="GST number (optional)"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-mono"
-                    value={vendorGst}
-                    onChange={e => setVendorGst(e.target.value)}
-                  />
-                  <button
-                    type="submit"
-                    disabled={vendorLoading || !vendorName.trim()}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-2.5 rounded-xl font-bold text-sm transition-all"
-                  >
-                    {vendorLoading ? 'Saving…' : editingVendor ? 'Update Vendor' : 'Add Vendor'}
-                  </button>
-                  {editingVendor && (
-                    <button
-                      type="button"
-                      onClick={resetVendorForm}
-                      className="w-full text-slate-500 font-medium py-1 text-xs hover:text-slate-700"
-                    >
-                      Cancel edit
-                    </button>
-                  )}
-                </form>
-              </div>
-            </div>
-
-            <div className="lg:col-span-2 space-y-3">
-              {vendors.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-400 font-medium">
-                  No vendors registered yet.
-                </div>
-              ) : (
-                vendors.map(vendor => (
-                  <div
-                    key={vendor.id}
-                    className={`bg-white border rounded-xl p-4 ${
-                      vendor.isActive ? 'border-slate-200' : 'border-slate-200 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                          {vendor.name}
-                          {!vendor.isActive && (
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-black uppercase">
-                              Inactive
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-xs text-slate-500 font-medium truncate">
-                          {[vendor.phone, vendor.gstNumber, vendor.address].filter(Boolean).join(' · ') ||
-                            'No contact details'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => {
-                            setEditingVendor(vendor);
-                            setVendorName(vendor.name || '');
-                            setVendorPhone(vendor.phone || '');
-                            setVendorAddress(vendor.address || '');
-                            setVendorGst(vendor.gstNumber || '');
-                          }}
-                          className="p-2 rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVendor(vendor)}
-                          className="p-2 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-4 gap-2 text-center">
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Orders</p>
-                        <p className="text-sm font-black text-slate-800">{vendor.orderCount ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Purchased</p>
-                        <p className="text-sm font-black text-slate-800">
-                          ₹{(vendor.totalPurchased ?? 0).toFixed(0)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Paid</p>
-                        <p className="text-sm font-black text-emerald-600">
-                          ₹{(vendor.totalPaid ?? 0).toFixed(0)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Due</p>
-                        <p
-                          className={`text-sm font-black ${
-                            (vendor.totalOutstanding ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400'
-                          }`}
-                        >
-                          ₹{(vendor.totalOutstanding ?? 0).toFixed(0)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {vendor.sales?.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
-                        {vendor.sales.slice(0, 5).map((order: any) => (
-                          <div key={order.id} className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-slate-600">{order.orderNumber}</span>
-                            <span className="font-semibold text-slate-500">
-                              ₹{(order.totalAmount ?? 0).toFixed(0)} · paid ₹{(order.paidAmount ?? 0).toFixed(0)}
-                              {(order.remainingAmount ?? 0) > 0 && (
-                                <span className="text-rose-600 font-bold">
-                                  {' '}· due ₹{(order.remainingAmount ?? 0).toFixed(0)}
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        ))}
-                        {vendor.sales.length > 5 && (
-                          <p className="text-[10px] font-semibold text-slate-400">
-                            + {vendor.sales.length - 5} more order{vendor.sales.length - 5 === 1 ? '' : 's'}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 sticky top-24">
+            <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+              <Building2 size={18} className="text-indigo-600" />
+              {editingVendor ? 'Edit Vendor' : 'Register Vendor'}
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Bulk buyers. Their orders go through the normal POS screen — pick the
+              vendor there and the order is tagged to them.
+            </p>
+            <form onSubmit={handleSaveVendor} className="space-y-3">
+              <input
+                required
+                type="text"
+                placeholder="Vendor name *"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
+                value={vendorName}
+                onChange={e => setVendorName(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Phone (optional)"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
+                value={vendorPhone}
+                onChange={e => setVendorPhone(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Address (optional)"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium"
+                value={vendorAddress}
+                onChange={e => setVendorAddress(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="GST number (optional)"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-mono"
+                value={vendorGst}
+                onChange={e => setVendorGst(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={vendorLoading || !vendorName.trim()}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-2.5 rounded-xl font-bold text-sm transition-all"
+              >
+                {vendorLoading ? 'Saving…' : editingVendor ? 'Update Vendor' : 'Add Vendor'}
+              </button>
+              {editingVendor && (
+                <button
+                  type="button"
+                  onClick={resetVendorForm}
+                  className="w-full text-slate-500 font-medium py-1 text-xs hover:text-slate-700"
+                >
+                  Cancel edit
+                </button>
               )}
-            </div>
+            </form>
           </div>
+        </div>
+
+        <div className="lg:col-span-2 space-y-4">
+          {/* Search Bar for Vendors */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search vendor by name, phone, GST..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all shadow-sm"
+            />
+          </div>
+
+          {filteredVendors.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-400 font-medium">
+              {searchQuery ? 'No matching vendors found.' : 'No vendors registered yet.'}
+            </div>
+          ) : (
+            filteredVendors.map(vendor => (
+              <div
+                key={vendor.id}
+                className={`bg-white border rounded-xl p-4 shadow-sm ${
+                  vendor.isActive ? 'border-slate-200' : 'border-slate-200 opacity-60'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      {vendor.name}
+                      {!vendor.isActive && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-black uppercase">
+                          Inactive
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-500 font-medium truncate">
+                      {[vendor.phone, vendor.gstNumber, vendor.address].filter(Boolean).join(' · ') ||
+                        'No contact details'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setVendorLedger(vendor)}
+                      className="p-2 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                      title="Ledger / खाता बही & माल दिया"
+                    >
+                      <BookOpen size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingVendor(vendor);
+                        setVendorName(vendor.name || '');
+                        setVendorPhone(vendor.phone || '');
+                        setVendorAddress(vendor.address || '');
+                        setVendorGst(vendor.gstNumber || '');
+                      }}
+                      className="p-2 rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                      title="Edit Vendor"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVendor(vendor)}
+                      className="p-2 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                      title="Delete Vendor"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-4 gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Orders</p>
+                    <p className="text-sm font-black text-slate-800">{vendor.orderCount ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Purchased</p>
+                    <p className="text-sm font-black text-slate-800">
+                      ₹{(vendor.totalPurchased ?? 0).toFixed(0)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Paid</p>
+                    <p className="text-sm font-black text-emerald-600">
+                      ₹{(vendor.totalPaid ?? 0).toFixed(0)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Due</p>
+                    <p
+                      className={`text-sm font-black ${
+                        (vendor.totalOutstanding ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400'
+                      }`}
+                    >
+                      ₹{(vendor.totalOutstanding ?? 0).toFixed(0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Ledger Quick Access */}
+                <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                  <span className="text-slate-400 text-[11px]">
+                    {vendor.sales?.length || 0} sale orders recorded
+                  </span>
+                  <button
+                    onClick={() => setVendorLedger(vendor)}
+                    className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 text-[11px]"
+                  >
+                    <BookOpen size={13} /> खाता बही एवं लेज़र खोलें (Open Ledger)
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {vendorLedger && (
+        <VendorLedgerDialog
+          vendor={vendorLedger}
+          onClose={() => {
+            setVendorLedger(null);
+            vendorsSWR.mutate();
+          }}
+        />
+      )}
+    </>
   );
 }
