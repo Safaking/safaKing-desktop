@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '@/lib/data';
+import AttentionFeed from '@/components/AttentionFeed';
 import { 
   Calendar, 
   Package, 
@@ -46,28 +47,11 @@ interface DashboardStats {
   revenue?: number;
 }
 
-interface RentalActivity {
-  id: string;
-  customerName: string;
-  createdAt: string;
-  itemCount: number;
-  status: string;
-  totalAmount: number;
-  type?: 'OVERDUE' | 'TODAY' | 'RECENT';
-}
-
-interface DashboardActivity {
-  overdue: RentalActivity[];
-  todays: RentalActivity[];
-  recent: RentalActivity[];
-}
-
 export default function Dashboard() {
   const { language, setLanguage, t } = useLanguage();
   const { user, logout, isAdmin, isSuperOrAdmin, canManageVendors } = useAuth();
-  const { stats, activity, isLoading: loading } = useDashboard() as {
+  const { stats, isLoading: loading } = useDashboard() as {
     stats: DashboardStats | null;
-    activity: DashboardActivity | null;
     isLoading: boolean;
   };
 
@@ -78,12 +62,6 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  // Combine activity for display
-  const combinedActivity = [
-    ...(activity?.overdue?.map(r => ({ ...r, type: 'OVERDUE' as const })) || []),
-    ...(activity?.todays?.map(r => ({ ...r, type: 'TODAY' as const })) || []),
-    ...(activity?.recent?.map(r => ({ ...r, type: 'RECENT' as const })) || [])
-  ].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i).slice(0, 10);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -188,7 +166,6 @@ export default function Dashboard() {
                     {t('welcome')}
                     {user?.name ? `, ${user.name}` : ''}
                   </h2>
-                  <p className="text-slate-500">{t('dashboard_subtitle')}</p>
                   {now && (
                     <p className="text-sm font-bold text-slate-600 mt-1.5 flex items-center gap-2">
                       <Clock size={14} className="text-indigo-600" />
@@ -294,70 +271,7 @@ export default function Dashboard() {
               />
             </section>
 
-            {/* Recent Activity Mini-Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Clock size={20} className="text-indigo-600" /> Recent Activity
-                </h3>
-                <Link href="/rentals" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 flex items-center gap-1 group">
-                  View All <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50/50">
-                    <tr className="text-sm font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="px-6 py-4">Customer</th>
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4 text-center">Qty</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {combinedActivity.length === 0 ? (
-                      <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-400">No recent activity</td></tr>
-                    ) : combinedActivity.map(rental => (
-                      <tr 
-                        key={rental.id} 
-                        className="hover:bg-slate-50 transition-colors cursor-pointer group/row"
-                        onClick={() => window.location.href = `/rentals`}
-                      >
-                        <td className="px-6 py-4 font-bold text-slate-800">
-                          {rental.customerName}
-                        </td>
-                        <td className="px-6 py-4 font-bold text-slate-700">
-                          {format(new Date(rental.createdAt), 'MM/dd/yyyy')}
-                        </td>
-                        <td className="px-6 py-4 text-center text-slate-600 font-medium">
-                          {rental.itemCount}
-                        </td>
-                        <td className="px-6 py-4">
-                          {rental.type === 'OVERDUE' ? (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-tighter">
-                              Overdue
-                            </span>
-                          ) : rental.type === 'TODAY' ? (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-tighter">
-                              Today
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-tighter">
-                              {rental.status}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 font-black text-slate-900 flex items-center justify-between">
-                          ₹{rental.totalAmount.toLocaleString()}
-                          <ChevronRight size={16} className="text-slate-300 opacity-0 group-hover/row:opacity-100 group-hover/row:translate-x-1 transition-all" />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AttentionFeed />
           </>
         )}
       </main>

@@ -79,14 +79,16 @@ export function useRentals(status?: string) {
   return useSWR(KEYS.rentals(status), defaultConfig);
 }
 
+/**
+ * Dashboard headline figures. The activity list it used to fetch alongside
+ * these was replaced by the attention feed, which loads its own data.
+ */
 export function useDashboard() {
   const stats = useSWR(KEYS.dashboardStats, defaultConfig);
-  const activity = useSWR(KEYS.dashboardActivity, defaultConfig);
   return {
     stats: stats.data,
-    activity: activity.data,
-    isLoading: stats.isLoading || activity.isLoading,
-    error: stats.error || activity.error,
+    isLoading: stats.isLoading,
+    error: stats.error,
   };
 }
 
