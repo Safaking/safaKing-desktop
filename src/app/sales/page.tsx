@@ -20,7 +20,8 @@ import {
   LayoutGrid,
   MapPin,
   Calendar,
-  Minus
+  Minus,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
@@ -85,6 +86,30 @@ export default function SalesPage() {
       setProducts(productData.filter((p: any) => p.isSellable));
     }
   }, [productData]);
+
+  // Read ?vendorId= from URL search params on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const vId = params.get('vendorId');
+      if (vId) handleVendorSelect(vId);
+    }
+  }, [vendors]);
+
+  const handleVendorSelect = (id: string) => {
+    setVendorId(id);
+    if (id) {
+      const v = vendors.find(x => x.id === id);
+      if (v) {
+        setCustomer(prev => ({
+          ...prev,
+          name: v.name || prev.name,
+          phone: v.phone || prev.phone,
+          address: v.address || prev.address,
+        }));
+      }
+    }
+  };
 
   // Stock ceiling for a product, same guard the booking catalog uses so a sale
   // cannot be rung up for more than is actually on the shelf.
@@ -302,26 +327,76 @@ export default function SalesPage() {
                 </div>
               </div>
 
-              {vendors.length > 0 && (
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Bulk Order (Vendor)
+              {/* Wholesale / Retail Toggle Button Bar */}
+              <div className="bg-slate-100 p-1 rounded-xl flex gap-1 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => handleVendorSelect('')}
+                  className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    !vendorId ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <User size={14} /> रिटेल (Walk-in)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (vendors.length > 0) handleVendorSelect(vendors[0].id);
+                  }}
+                  className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    vendorId ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Building2 size={14} /> होलसेल (व्यापारी)
+                </button>
+              </div>
+
+              {/* Vendor Selection Card */}
+              {vendorId ? (
+                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3 space-y-2">
+                  <label className="block text-[11px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                    <Building2 size={14} className="text-indigo-600" /> व्यापारी चुनें (Select Vendor) *
                   </label>
                   <select
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs font-bold"
+                    className="w-full px-3 py-2.5 bg-white border border-indigo-300 rounded-xl outline-none focus:border-indigo-600 font-bold text-xs text-indigo-950 shadow-sm"
                     value={vendorId}
-                    onChange={e => setVendorId(e.target.value)}
+                    onChange={e => handleVendorSelect(e.target.value)}
                   >
-                    <option value="">Walk-in customer</option>
+                    <option value="">-- व्यापारी चुनें (Select Vendor) --</option>
                     {vendors
                       .filter(v => v.isActive)
                       .map(v => (
                         <option key={v.id} value={v.id}>
-                          {v.name}{v.phone ? ` — ${v.phone}` : ''}
+                          {v.name}{v.phone ? ` (${v.phone})` : ''}
                         </option>
                       ))}
                   </select>
+                  <p className="text-[10px] text-indigo-700 font-bold">
+                    ✓ यह बिल व्यापारी के खाते (Ledger) में खुद-ब-खुद जुड़ जाएगा!
+                  </p>
                 </div>
+              ) : (
+                vendors.length > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      होलसेल / व्यापारी (Optional Vendor Tag)
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold"
+                      value={vendorId}
+                      onChange={e => handleVendorSelect(e.target.value)}
+                    >
+                      <option value="">Walk-in Customer (कोई व्यापारी नहीं)</option>
+                      {vendors
+                        .filter(v => v.isActive)
+                        .map(v => (
+                          <option key={v.id} value={v.id}>
+                            {v.name}{v.phone ? ` — ${v.phone}` : ''}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )
               )}
 
               <div className="relative">
@@ -581,9 +656,17 @@ export default function SalesPage() {
                   </div>
                   
                   {vendorId && (
-                    <div className="pt-3 border-t border-white/10 space-y-2">
+                    <div className="pt-3 border-t border-white/10 space-y-2 bg-indigo-950/60 -mx-4 px-4 py-3 border-l-4 border-l-indigo-400">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1">
+                          <Building2 size={12} /> व्यापारी बिल (Wholesale Order)
+                        </label>
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                          Auto-Adjusts in Ledger
+                        </span>
+                      </div>
                       <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                        Amount Paid Now
+                        अभी प्राप्त राशि / Paid Now (blank = full)
                       </label>
                       <input
                         type="number"
@@ -593,10 +676,10 @@ export default function SalesPage() {
                         value={paidAmount}
                         onChange={e => setPaidAmount(e.target.value)}
                       />
-                      <p className="text-[10px] font-bold text-slate-400">
+                      <p className="text-[10px] font-bold text-slate-300">
                         {paidAmount === ''
-                          ? 'Blank means paid in full.'
-                          : `Outstanding ₹${Math.max(0, calculateTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)}`}
+                          ? '✓ पूरा भुगतान (Paid in Full)'
+                          : `बकाया ₹${Math.max(0, calculateTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)} व्यापारी के खाते में जुड़ेगा`}
                       </p>
                     </div>
                   )}

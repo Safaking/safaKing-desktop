@@ -125,9 +125,17 @@ export default function VendorLedgerDialog({ vendor, onClose }: Props) {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-lg text-slate-400">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/sales?vendorId=${vendor.id}`}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              <ShoppingBag size={14} /> नया सेल (New Sale)
+            </a>
+            <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-lg text-slate-400">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
