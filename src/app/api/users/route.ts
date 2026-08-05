@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDbSchema } from '@/lib/db-init';
 
 export async function GET() {
+  await ensureDbSchema();
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -30,6 +32,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  await ensureDbSchema();
   try {
     const { email, username, password, name, role, storeId } = await req.json();
 
@@ -90,6 +93,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  await ensureDbSchema();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -115,6 +119,7 @@ export async function DELETE(req: Request) {
  * reset without touching the database directly.
  */
 export async function PUT(req: Request) {
+  await ensureDbSchema();
   try {
     const body = await req.json();
     const { id, username, password, name, role, storeId, canManageVendors } = body || {};

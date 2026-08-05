@@ -1,0 +1,165 @@
+import { prisma } from '@/lib/prisma';
+
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Idempotent auto-migration: ensures all columns and tables that are in the
+ * Prisma schema exist in the live Supabase database.
+ *
+ * Each statement runs individually so a single failure does not abort the rest.
+ * Uses IF NOT EXISTS / IF EXISTS everywhere so it is always safe to re-run.
+ */
+export async function ensureDbSchema() {
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    const statements = [
+      // ── SafaOption ────────────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "SafaOption" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "price" DOUBLE PRECISION NOT NULL DEFAULT 50,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "SafaOption_pkey" PRIMARY KEY ("id")
+      );`,
+
+      // ── Artist ────────────────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "Artist" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "ratePerPiece" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "phone" TEXT,
+        "address" TEXT,
+        "notes" TEXT,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Artist_pkey" PRIMARY KEY ("id")
+      );`,
+
+      // ── Vendor ────────────────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "Vendor" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "phone" TEXT,
+        "address" TEXT,
+        "gstNumber" TEXT,
+        "notes" TEXT,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Vendor_pkey" PRIMARY KEY ("id")
+      );`,
+
+      // ── CashBook ──────────────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "CashBook" (
+        "id" TEXT NOT NULL,
+        "storeId" TEXT NOT NULL,
+        "date" TIMESTAMP(3) NOT NULL,
+        "openingBalance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "submitted" BOOLEAN NOT NULL DEFAULT false,
+        "submittedAt" TIMESTAMP(3),
+        "submittedBy" TEXT,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CashBook_pkey" PRIMARY KEY ("id")
+      );`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "CashBook_storeId_date_key" ON "CashBook"("storeId", "date");`,
+
+      // ── CashEntry ─────────────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "CashEntry" (
+        "id" TEXT NOT NULL,
+        "cashBookId" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "reference" TEXT,
+        "notes" TEXT,
+        "createdBy" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CashEntry_pkey" PRIMARY KEY ("id")
+      );`,
+
+      // ── WorkSession ───────────────────────────────────────────────────────
+      `CREATE TABLE IF NOT EXISTS "WorkSession" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "username" TEXT NOT NULL,
+        "storeId" TEXT,
+        "loggedInAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "loggedOutAt" TIMESTAMP(3),
+        "logoutReason" TEXT,
+        CONSTRAINT "WorkSession_pkey" PRIMARY KEY ("id")
+      );`,
+      `CREATE INDEX IF NOT EXISTS "WorkSession_userId_loggedInAt_idx" ON "WorkSession"("userId", "loggedInAt");`,
+
+      // ── User — new columns ────────────────────────────────────────────────
+      `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "canManageVendors" BOOLEAN NOT NULL DEFAULT false;`,
+
+      // ── Product — new columns ─────────────────────────────────────────────
+      `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "discount" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "productType" TEXT;`,
+
+      // ── Rental — new columns ──────────────────────────────────────────────
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingCount" INTEGER DEFAULT 1;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "tieSafa" BOOLEAN DEFAULT false;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaShape" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingStyles" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingName" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingAddress" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingTime" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaTyingDate" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "tieSafaCharge" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "discount" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "pickupName" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "pickupPhone" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "pickupDate" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "damageCharge" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "fatherName" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "customerAltPhone" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "weddingDate" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "safaSize" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "readyAt" TIMESTAMP(3);`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "readyBy" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "artistId" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "artistRate" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "artistPaid" BOOLEAN DEFAULT false;`,
+
+      // ── Sale — new columns ────────────────────────────────────────────────
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "tieSafa" BOOLEAN DEFAULT false;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaShape" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaTyingCount" INTEGER DEFAULT 1;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaTyingStyles" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaTyingName" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaTyingAddress" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaTyingTime" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaTyingDate" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "tieSafaCharge" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "vendorId" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "paidAmount" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "fatherName" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "customerAltPhone" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "weddingDate" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaSize" TEXT;`,
+
+      // ── Invoice — new columns ─────────────────────────────────────────────
+      `ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';`,
+    ];
+
+    for (const sql of statements) {
+      try {
+        await prisma.$executeRawUnsafe(sql);
+      } catch (err: any) {
+        // Ignore "already exists" errors — everything else is worth logging.
+        if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
+          console.error('[db-init] statement failed:', err.message);
+        }
+      }
+    }
+  })();
+
+  return initPromise;
+}
