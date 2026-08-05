@@ -94,6 +94,9 @@ export async function GET(request: Request) {
         feeTotal: 0,
         feePaid: 0,
         feeDue: 0,
+        // The artist report lists the orders behind the totals, so they can be
+        // checked line by line when settling up.
+        orders: [] as any[],
       };
       entry.orderCount += 1;
       entry.safasTied += r.safaTyingCount || 0;
@@ -102,6 +105,17 @@ export async function GET(request: Request) {
       entry.feeTotal += owed;
       if (r.artistPaid) entry.feePaid += owed;
       else entry.feeDue += owed;
+      entry.orders.push({
+        id: r.id,
+        orderNumber: r.orderNumber,
+        customerName: r.customerName,
+        createdAt: r.createdAt,
+        startDate: r.startDate,
+        safaTyingCount: r.safaTyingCount,
+        artistRate: r.artistRate,
+        artistPaid: r.artistPaid,
+        earned: owed,
+      });
       byArtist.set(r.artistId, entry);
     }
 

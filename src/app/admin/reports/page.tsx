@@ -63,6 +63,10 @@ export default function ReportsPage() {
   const [from, setFrom] = useState(isoDay(30));
   const [to, setTo] = useState(isoDay(0));
   const [kind, setKind] = useState<'ALL' | 'RENTAL' | 'SALE'>('ALL');
+  // Revenue and artist dues answer different questions, so they are separate
+  // reports over the same date range rather than one long page.
+  const [report, setReport] = useState<'REVENUE' | 'ARTISTS'>('REVENUE');
+  const [openArtist, setOpenArtist] = useState<string | null>(null);
 
   const { data, isLoading, error } = useSWR(
     `/api/reports?from=${from}&to=${to}`,
@@ -75,6 +79,17 @@ export default function ReportsPage() {
   const artists: any[] = Array.isArray(data?.artists) ? data.artists : [];
 
   const visibleOrders = orders.filter(o => kind === 'ALL' || o.kind === kind);
+
+  const artistTotals = artists.reduce(
+    (t, a) => ({
+      orders: t.orders + (a.orderCount || 0),
+      safas: t.safas + (a.safasTied || 0),
+      payable: t.payable + (a.feeTotal || 0),
+      paid: t.paid + (a.feePaid || 0),
+      due: t.due + (a.feeDue || 0),
+    }),
+    { orders: 0, safas: 0, payable: 0, paid: 0, due: 0 }
+  );
 
   /**
    * Print what is on screen. A separate window keeps the app chrome out of the
@@ -127,7 +142,7 @@ export default function ReportsPage() {
       .card b{display:block;font-size:15px} .card span{font-size:10px;color:#64748b;text-transform:uppercase}
     </style></head><body>
       <h1>Joshi Safa House</h1>
-      <p class="sub">Report ${from} to ${to} &middot; printed ${format(new Date(), 'MM/dd/yyyy')}</p>
+      <p class="sub">${report === 'ARTISTS' ? 'Artist payments' : 'Revenue report'} ${from} to ${to} &middot; printed ${format(new Date(), 'MM/dd/yyyy')}</p>
       <div class="cards">
         <div class="card"><span>Revenue</span><b>${money(summary?.revenue)}</b></div>
         <div class="card"><span>Collected</span><b>${money(summary?.collected)}</b></div>
@@ -143,11 +158,15 @@ export default function ReportsPage() {
              <th style="text-align:right">Due</th></tr></thead><tbody>${artistRows}</tbody></table>`
           : ''
       }
-      <h2>Orders (${visibleOrders.length})</h2>
-      <table><thead><tr><th>Order</th><th>Customer &amp; items</th><th>Taken</th><th>Status</th>
+      ${report === 'ARTISTS' ? '' : `<h2>Orders (${visibleOrders.length})</h2>`}
+      ${
+        report === 'ARTISTS'
+          ? ''
+          : `<table><thead><tr><th>Order</th><th>Customer &amp; items</th><th>Taken</th><th>Status</th>
         <th style="text-align:right">Total</th><th style="text-align:right">Paid</th>
         <th style="text-align:right">Due</th><th>Ready</th><th>Artist</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="9">No orders in this range.</td></tr>'}</tbody></table>
+        <tbody>${rows || '<tr><td colspan="9">No orders in this range.</td></tr>'}</tbody></table>`
+      }
     </body></html>`);
     w.document.close();
     w.focus();
@@ -179,6 +198,23 @@ export default function ReportsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 w-fit">
+          {([
+            { key: 'REVENUE', label: 'Revenue' },
+            { key: 'ARTISTS', label: 'Artists' },
+          ] as const).map(r => (
+            <button
+              key={r.key}
+              onClick={() => setReport(r.key)}
+              className={`px-5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                report === r.key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
         {/* Date range */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col lg:flex-row lg:items-end gap-4">
           <div>
@@ -222,7 +258,8 @@ export default function ReportsPage() {
             >
               <Printer size={14} /> Print
             </button>
-            {(['ALL', 'RENTAL', 'SALE'] as const).map(k => (
+            {report === 'REVENUE' &&
+              (['ALL', 'RENTAL', 'SALE'] as const).map(k => (
               <button
                 key={k}
                 onClick={() => setKind(k)}
@@ -233,8 +270,8 @@ export default function ReportsPage() {
                 }`}
               >
                 {k === 'ALL' ? 'All orders' : k === 'RENTAL' ? 'Rentals' : 'Sales'}
-              </button>
-            ))}
+                </button>
+              ))}
           </div>
         </div>
 
@@ -244,6 +281,8 @@ export default function ReportsPage() {
           </div>
         )}
 
+        {report === 'REVENUE' ? (
+          <>
         {/* Money summary */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Stat
@@ -275,58 +314,6 @@ export default function ReportsPage() {
             tone={(summary?.notReadyCount ?? 0) > 0 ? 'rose' : 'slate'}
             hint="rentals still to prepare"
           />
-        </div>
-
-        {/* Artist workload */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Palette size={16} className="text-violet-600" /> Artist workload &amp; dues
-            </h2>
-            {(data?.unallocatedTying ?? 0) > 0 && (
-              <span className="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-1 rounded-lg">
-                {data.unallocatedTying} tying order{data.unallocatedTying === 1 ? '' : 's'} unallocated
-              </span>
-            )}
-          </div>
-          {artists.length === 0 ? (
-            <p className="p-6 text-center text-slate-400 font-medium text-sm">
-              No tying orders allocated in this period.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm min-w-[560px]">
-              <thead className="bg-slate-50/70 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-2">Artist</th>
-                  <th className="px-4 py-2 text-right">Orders</th>
-                  <th className="px-4 py-2 text-right">Safas tied</th>
-                  <th className="px-4 py-2 text-right">Earned</th>
-                  <th className="px-4 py-2 text-right">Paid</th>
-                  <th className="px-4 py-2 text-right">Due</th>
-                </tr>
-              </thead>
-              <tbody>
-                {artists.map(a => (
-                  <tr key={a.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2.5 font-bold text-slate-800">{a.name}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-slate-600">{a.orderCount}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-slate-600">{a.safasTied}</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-slate-800">{money(a.feeTotal)}</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{money(a.feePaid)}</td>
-                    <td
-                      className={`px-4 py-2.5 text-right font-black ${
-                        a.feeDue > 0 ? 'text-rose-600' : 'text-slate-400'
-                      }`}
-                    >
-                      {money(a.feeDue)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-          )}
         </div>
 
         {/* Orders */}
@@ -438,6 +425,111 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+          </>
+        ) : (
+          <>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Stat label="Artists" value={String(artists.length)} hint={`${artistTotals.orders} orders`} />
+          <Stat label="Safas tied" value={String(artistTotals.safas)} />
+          <Stat label="Total payable" value={money(artistTotals.payable)} tone="indigo" />
+          <Stat
+            label="Still to pay"
+            value={money(artistTotals.due)}
+            tone={artistTotals.due > 0 ? 'rose' : 'slate'}
+            hint={`${money(artistTotals.paid)} already paid`}
+          />
+        </div>
+
+        {/* Artist workload */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <Palette size={16} className="text-violet-600" /> Artist workload &amp; dues
+            </h2>
+            {(data?.unallocatedTying ?? 0) > 0 && (
+              <span className="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-1 rounded-lg">
+                {data.unallocatedTying} tying order{data.unallocatedTying === 1 ? '' : 's'} unallocated
+              </span>
+            )}
+          </div>
+          {artists.length === 0 ? (
+            <p className="p-6 text-center text-slate-400 font-medium text-sm">
+              No tying orders allocated in this period.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[560px]">
+              <thead className="bg-slate-50/70 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-2">Artist</th>
+                  <th className="px-4 py-2 text-right">Orders</th>
+                  <th className="px-4 py-2 text-right">Safas tied</th>
+                  <th className="px-4 py-2 text-right">Earned</th>
+                  <th className="px-4 py-2 text-right">Paid</th>
+                  <th className="px-4 py-2 text-right">Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {artists.map(a => (
+                  <React.Fragment key={a.id}>
+                  <tr
+                    className="border-t border-slate-100 hover:bg-slate-50/60 cursor-pointer"
+                    onClick={() => setOpenArtist(openArtist === a.id ? null : a.id)}
+                  >
+                    <td className="px-4 py-2.5 font-bold text-slate-800">
+                      {a.name}
+                      <span className="ml-2 text-[10px] font-bold text-slate-400">
+                        {openArtist === a.id ? 'hide orders' : 'view orders'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-slate-600">{a.orderCount}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-slate-600">{a.safasTied}</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-slate-800">{money(a.feeTotal)}</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{money(a.feePaid)}</td>
+                    <td
+                      className={`px-4 py-2.5 text-right font-black ${
+                        a.feeDue > 0 ? 'text-rose-600' : 'text-slate-400'
+                      }`}
+                    >
+                      {money(a.feeDue)}
+                    </td>
+                  </tr>
+
+                  {openArtist === a.id &&
+                    (a.orders ?? []).map((o: any) => (
+                      <tr key={o.id} className="bg-slate-50/60 border-t border-slate-100 text-[11px]">
+                        <td className="px-4 py-1.5 pl-8">
+                          <span className="font-black text-indigo-600">{o.orderNumber}</span>
+                          <span className="ml-2 font-semibold text-slate-500">{o.customerName}</span>
+                        </td>
+                        <td className="px-4 py-1.5 font-semibold text-slate-500">{fmtDate(o.startDate)}</td>
+                        <td className="px-4 py-1.5 text-right font-bold text-slate-600">{o.safaTyingCount}</td>
+                        <td className="px-4 py-1.5 text-right font-semibold text-slate-500">
+                          {money(o.artistRate)}/safa
+                        </td>
+                        <td className="px-4 py-1.5 text-right font-black text-slate-700">{money(o.earned)}</td>
+                        <td className="px-4 py-1.5 text-right">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
+                              o.artistPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            {o.artistPaid ? 'PAID' : 'DUE'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          )}
+        </div>
+
+          </>
+        )}
+
       </main>
     </div>
   );
