@@ -71,6 +71,13 @@ export default function Dashboard() {
     isLoading: boolean;
   };
 
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // Combine activity for display
   const combinedActivity = [
     ...(activity?.overdue?.map(r => ({ ...r, type: 'OVERDUE' as const })) || []),
@@ -125,7 +132,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <button 
-                  onClick={logout}
+                  onClick={() => logout()}
                   className="p-1 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors ml-1"
                   title="Sign Out"
                 >
@@ -177,8 +184,19 @@ export default function Dashboard() {
             <section className="mb-8">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-3xl font-bold text-slate-800">{t('welcome')}</h2>
+                  <h2 className="text-3xl font-bold text-slate-800">
+                    {t('welcome')}
+                    {user?.name ? `, ${user.name}` : ''}
+                  </h2>
                   <p className="text-slate-500">{t('dashboard_subtitle')}</p>
+                  {now && (
+                    <p className="text-sm font-bold text-slate-600 mt-1.5 flex items-center gap-2">
+                      <Clock size={14} className="text-indigo-600" />
+                      <span>{format(now, 'EEEE, MM/dd/yyyy')}</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="tabular-nums text-indigo-700">{format(now, 'hh:mm:ss a')}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* The POS terminal was only reachable by going into Sales

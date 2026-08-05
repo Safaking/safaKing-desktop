@@ -21,11 +21,13 @@ import {
   Edit3,
   Palette,
   Building2,
-  BarChart3
+  BarChart3,
+  Clock
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import EditUserDialog from '@/components/EditUserDialog';
 import VendorsPanel from '@/components/VendorsPanel';
+import WorkingHoursPanel from '@/components/WorkingHoursPanel';
 import { useAuth } from '@/lib/AuthContext';
 
 interface StoreData {
@@ -62,7 +64,7 @@ interface UserData {
 
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing' | 'artists' | 'vendors'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing' | 'artists' | 'vendors' | 'hours'>('inventory');
   
   // Stores state
   const [stores, setStores] = useState<StoreData[]>([]);
@@ -426,6 +428,16 @@ export default function AdminPage() {
                 }`}
               >
                 <Palette size={16} /> Artists
+              </button>
+              <button
+                onClick={() => setActiveTab('hours')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  activeTab === 'hours'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Clock size={16} /> Hours
               </button>
               <Link
                 href="/admin/reports"
@@ -1008,6 +1020,8 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'vendors' && <VendorsPanel />}
+
+        {activeTab === 'hours' && <WorkingHoursPanel />}
 
         {activeTab === 'safa_pricing' && (
           <div className="max-w-4xl mx-auto space-y-6">

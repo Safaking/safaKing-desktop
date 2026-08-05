@@ -54,7 +54,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email/username or password' }, { status: 401 });
     }
 
+    // Opening the session here means working hours start at the moment of a
+    // successful login, with no extra round-trip the client could skip.
+    const session = await prisma.workSession.create({
+      data: {
+        userId: user.id,
+        username: user.username || user.email || user.name,
+        storeId: user.storeId,
+      },
+    });
+
     return NextResponse.json({
+      sessionId: session.id,
       id: user.id,
       email: user.email,
       username: user.username || user.email,

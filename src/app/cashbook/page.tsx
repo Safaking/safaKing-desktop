@@ -117,7 +117,7 @@ export default function CashBookPage() {
     // action rather than something staff have to remember separately.
     if (ok) {
       alert(`Account submitted for ${displayDate(date)}. Closing ${money(data?.closing)} carries to tomorrow.`);
-      logout();
+      logout('CASHBOOK');
       router.replace('/login');
     }
   };

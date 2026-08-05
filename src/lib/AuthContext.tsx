@@ -8,6 +8,8 @@ export interface User {
   email?: string | null;
   name: string;
   role: 'ADMIN' | 'SUPER' | 'USER';
+  /** Work session opened at login, closed on sign out. */
+  sessionId?: string;
   canManageVendors?: boolean;
   storeId?: string | null;
   store?: {
@@ -20,7 +22,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (userData: User) => void;
-  logout: () => void;
+  logout: (reason?: 'MANUAL' | 'CASHBOOK') => void;
   isAdmin: boolean;
   isSuperOrAdmin: boolean;
   /** Admin always; a SUPER only when granted the vendor permission. */
@@ -59,7 +61,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('jsh_user', JSON.stringify(userData));
   };
 
-  const logout = () => {
+  const logout = (reason: 'MANUAL' | 'CASHBOOK' = 'MANUAL') => {
+    // Close the work session before clearing local state, so the logout time
+    // is recorded even though the request is fire-and-forget.
+    const sessionId = user?.sessionId;
+    if (sessionId) {
+      const body = JSON.stringify({ action: 'close', sessionId, reason });
+      // keepalive lets it survive the navigation that follows.
+      fetch('/api/work-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {
+        /* hours are best-effort; never block signing out */
+      });
+    }
     setUser(null);
     localStorage.removeItem('jsh_user');
   };

@@ -186,6 +186,7 @@ model User {
   canManageVendors Boolean @default(false)
   storeId   String?
   store     Store?   @relation(fields: [storeId], references: [id])
+  sessions  WorkSession[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -264,4 +265,21 @@ model CashEntry {
   createdBy  String?
   createdAt  DateTime @default(now())
   cashBook   CashBook @relation(fields: [cashBookId], references: [id], onDelete: Cascade)
+}
+
+/// One login-to-logout stretch, used to report staff working hours.
+/// A session with no loggedOutAt is someone still on shift.
+model WorkSession {
+  id           String    @id @default(uuid())
+  userId       String
+  /// Copied so the report still reads correctly if a user is renamed.
+  username     String
+  storeId      String?
+  loggedInAt   DateTime  @default(now())
+  loggedOutAt  DateTime?
+  /// MANUAL — pressed sign out. CASHBOOK — closed the day's account.
+  logoutReason String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedInAt])
 }
