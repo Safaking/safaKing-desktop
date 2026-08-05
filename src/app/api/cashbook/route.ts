@@ -125,6 +125,37 @@ export async function POST(request: Request) {
       return NextResponse.json(entry);
     }
 
+    if (action === 'editEntry') {
+      // Corrections are an admin job: a super records the day, an admin fixes
+      // a wrong figure afterwards.
+      if (body.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Only an admin can edit a cash entry' }, { status: 403 });
+      }
+      if (!body.entryId) {
+        return NextResponse.json({ error: 'entryId is required' }, { status: 400 });
+      }
+
+      const data: any = {};
+      if ('amount' in body) {
+        const amount = parseFloat(body.amount?.toString() ?? '');
+        if (!Number.isFinite(amount) || amount <= 0) {
+          return NextResponse.json({ error: 'Amount must be greater than zero' }, { status: 400 });
+        }
+        data.amount = amount;
+      }
+      if ('reference' in body) data.reference = body.reference?.trim() || null;
+      if ('type' in body) {
+        const type = String(body.type || '').toUpperCase();
+        if (!['BANK', 'OFFICE', 'ADJUSTMENT'].includes(type)) {
+          return NextResponse.json({ error: 'type must be BANK, OFFICE or ADJUSTMENT' }, { status: 400 });
+        }
+        data.type = type;
+      }
+
+      const updated = await prisma.cashEntry.update({ where: { id: body.entryId }, data });
+      return NextResponse.json(updated);
+    }
+
     if (action === 'submit') {
       const collections = await collectionsFor(storeId, date);
       const fresh = await prisma.cashBook.findUnique({

@@ -12,6 +12,7 @@ import {
   Lock,
   CheckCircle2,
   Trash2,
+  Pencil,
   AlertCircle,
 } from 'lucide-react';
 import DateInput from '@/components/DateInput';
@@ -125,6 +126,18 @@ export default function CashBookPage() {
   const reopenDay = async () => {
     if (!window.confirm('Reopen this day for editing?')) return;
     await post({ action: 'reopen', role: user?.role });
+  };
+
+  const editEntry = async (entry: any) => {
+    const amount = window.prompt(`New amount for ${entry.reference || entry.type}`, String(entry.amount));
+    if (amount === null) return;
+    const parsed = parseFloat(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      alert('Enter an amount greater than zero.');
+      return;
+    }
+    const reference = window.prompt('Reference (optional)', entry.reference || '');
+    await post({ action: 'editEntry', entryId: entry.id, amount: parsed, reference: reference ?? entry.reference });
   };
 
   const removeEntry = async (entryId: string) => {
@@ -320,6 +333,15 @@ export default function CashBookPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-black text-rose-600">− {money(e.amount)}</span>
+                    {!locked && isAdmin && (
+                      <button
+                        onClick={() => editEntry(e)}
+                        title="Correct this entry"
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
                     {!locked && dayEditable && (
                       <button
                         onClick={() => removeEntry(e.id)}

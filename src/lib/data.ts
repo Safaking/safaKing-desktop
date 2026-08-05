@@ -63,8 +63,8 @@ export function useSafaOptions() {
   return useSWR(KEYS.safaOptions, defaultConfig);
 }
 
-export function useArtists() {
-  return useSWR(KEYS.artists, defaultConfig);
+export function useArtists(withWork = false) {
+  return useSWR(withWork ? `${KEYS.artists}?withWork=true` : KEYS.artists, defaultConfig);
 }
 
 export function useVendors(withOrders = false) {

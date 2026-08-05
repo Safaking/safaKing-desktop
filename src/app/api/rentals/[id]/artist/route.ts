@@ -4,7 +4,10 @@ import { prisma } from '@/lib/prisma';
 /**
  * Allocate (or clear) the tying artist on a rental order.
  *
- * Body: { artistId: string | null, artistRate?: number, artistPaid?: boolean }
+ * Body: { artistId, artistRate?, artistPaid?, role? }
+ *
+ * A super may allocate the artist but not touch money: rate and paid are
+ * admin-only, and are preserved as-is when anyone else saves.
  * artistRate is per safa; the amount owed is rate * safaTyingCount.
  * Clearing the artist also resets the rate and paid flag so an unallocated
  * order never carries a stray amount owed to nobody.
@@ -36,10 +39,16 @@ export async function POST(request: Request, { params }: { params: any }) {
     const parsedRate = parseFloat(body?.artistRate?.toString() ?? '');
     const rate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate : 0;
 
+    const isAdmin = body?.role === 'ADMIN';
+
     const updated = await prisma.rental.update({
       where: { id },
       data: artistId
-        ? { artistId, artistRate: rate, artistPaid: !!body?.artistPaid }
+        ? {
+            artistId,
+            // A super's save must not move the rate or the paid flag.
+            ...(isAdmin ? { artistRate: rate, artistPaid: !!body?.artistPaid } : {}),
+          }
         : { artistId: null, artistRate: 0, artistPaid: false },
       include: { artist: true },
     });

@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         include: {
           artist: { select: { id: true, name: true } },
           invoice: { select: { status: true, invoiceNumber: true } },
-          items: { select: { quantity: true } },
+          items: { select: { quantity: true, product: { select: { name: true } } } },
         },
       }),
       prisma.sale.findMany({
@@ -49,10 +49,16 @@ export async function GET(request: Request) {
         include: {
           vendor: { select: { id: true, name: true } },
           invoice: { select: { status: true, invoiceNumber: true } },
-          items: { select: { quantity: true } },
+          items: { select: { quantity: true, product: { select: { name: true } } } },
         },
       }),
     ]);
+
+    /** "Red x10, Pink s x5" — what was actually on the order. */
+    const itemNames = (items: any[]) =>
+      items
+        .map(i => `${i.product?.name ?? 'Item'}${i.quantity > 1 ? ` x${i.quantity}` : ''}`)
+        .join(', ');
 
     const sum = (xs: any[], pick: (x: any) => number) => xs.reduce((s, x) => s + (pick(x) || 0), 0);
 
@@ -116,6 +122,7 @@ export async function GET(request: Request) {
         paidAmount: r.paidAmount,
         remainingAmount: r.remainingAmount,
         itemCount: r.items.reduce((s, i) => s + (i.quantity || 0), 0),
+        itemNames: itemNames(r.items),
         readyAt: r.readyAt,
         readyBy: r.readyBy,
         tieSafa: r.tieSafa,
@@ -139,6 +146,7 @@ export async function GET(request: Request) {
         paidAmount: s.paidAmount,
         remainingAmount: s.remainingAmount,
         itemCount: s.items.reduce((acc, i) => acc + (i.quantity || 0), 0),
+        itemNames: itemNames(s.items),
         readyAt: null,
         readyBy: null,
         tieSafa: s.tieSafa,

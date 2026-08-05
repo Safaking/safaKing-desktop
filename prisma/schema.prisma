@@ -210,6 +210,9 @@ model SafaOption {
 model Artist {
   id        String   @id @default(uuid())
   name      String
+  /// Their usual rate per safa tied. Allocation pre-fills from this, and an
+  /// admin can still override it on an individual order.
+  ratePerPiece Float @default(0)
   phone     String?
   address   String?
   notes     String?

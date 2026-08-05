@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Palette, IndianRupee, Check } from 'lucide-react';
 import { useArtists, invalidateAfterArtistChange } from '@/lib/data';
+import { useAuth } from '@/lib/AuthContext';
 
 interface Props {
   rental: any | null;
@@ -15,6 +16,7 @@ interface Props {
  * Only reachable by admins and owners — the rentals list gates the entry point.
  */
 export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Props) {
+  const { user, isAdmin } = useAuth();
   const { data: artistData } = useArtists();
   const artists: any[] = Array.isArray(artistData) ? artistData : [];
 
@@ -38,6 +40,15 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
   const safas = rental.safaTyingCount || 0;
   const owed = (parseFloat(rate || '0') || 0) * safas;
 
+  // Picking an artist pulls in their usual rate, unless this order already
+  // carries one an admin set deliberately.
+  React.useEffect(() => {
+    if (!artistId) return;
+    if (rental.artistId === artistId && (rental.artistRate ?? 0) > 0) return;
+    const picked = artists.find(a => a.id === artistId);
+    if (picked) setRate((picked.ratePerPiece ?? 0).toString());
+  }, [artistId, artists, rental]);
+
   const save = async (clear = false) => {
     setSaving(true);
     try {
@@ -46,8 +57,13 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           clear
-            ? { artistId: null }
-            : { artistId: artistId || null, artistRate: parseFloat(rate || '0') || 0, artistPaid: paid }
+            ? { artistId: null, role: user?.role }
+            : {
+                artistId: artistId || null,
+                artistRate: parseFloat(rate || '0') || 0,
+                artistPaid: paid,
+                role: user?.role,
+              }
         ),
       });
       if (res.ok) {
@@ -125,7 +141,7 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
                 className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-violet-500 font-bold text-sm"
                 value={rate}
                 onChange={e => setRate(e.target.value)}
-                disabled={!artistId}
+                disabled={!artistId || !isAdmin}
               />
             </div>
             <p className="text-[11px] font-semibold text-slate-500 mt-1">
@@ -137,7 +153,7 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
           <button
             type="button"
             onClick={() => setPaid(p => !p)}
-            disabled={!artistId}
+            disabled={!artistId || !isAdmin}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all disabled:opacity-50 ${
               paid ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
             }`}
@@ -151,6 +167,12 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
               <Check size={13} strokeWidth={4} />
             </span>
           </button>
+
+          {!isAdmin && (
+            <p className="text-[11px] font-semibold text-slate-400">
+              A super allocates the artist; only an admin changes the rate or marks it paid.
+            </p>
+          )}
         </div>
 
         <div className="shrink-0 border-t border-slate-100 p-5 flex flex-col gap-2">

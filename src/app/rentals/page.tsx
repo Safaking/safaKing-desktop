@@ -70,7 +70,7 @@ interface Rental {
 }
 
 export default function RentalsPage() {
-  const { user, isSuperOrAdmin } = useAuth();
+  const { user, isSuperOrAdmin, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);

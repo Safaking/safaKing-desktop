@@ -12,6 +12,7 @@ import {
   Palette,
   AlertCircle,
   CheckCircle2,
+  Printer,
 } from 'lucide-react';
 import DateInput from '@/components/DateInput';
 import { fetcher } from '@/lib/data';
@@ -75,6 +76,84 @@ export default function ReportsPage() {
 
   const visibleOrders = orders.filter(o => kind === 'ALL' || o.kind === kind);
 
+  /**
+   * Print what is on screen. A separate window keeps the app chrome out of the
+   * printout rather than fighting it with print-only stylesheets.
+   */
+  const printReport = () => {
+    const rows = visibleOrders
+      .map(
+        o => `<tr>
+          <td>${o.orderNumber} <span class="k">${o.kind}</span></td>
+          <td>${o.customerName ?? ''}${o.vendorName ? `<br><span class="k">${o.vendorName}</span>` : ''}${
+            o.itemNames ? `<br><span class="k">${o.itemNames}</span>` : ''
+          }</td>
+          <td>${fmtDate(o.createdAt)}</td>
+          <td>${o.status}</td>
+          <td style="text-align:right">${money(o.totalAmount)}</td>
+          <td style="text-align:right">${money(o.paidAmount)}</td>
+          <td style="text-align:right">${money(o.remainingAmount)}</td>
+          <td>${o.kind === 'SALE' ? '' : o.readyAt ? 'Ready' : 'Not ready'}</td>
+          <td>${o.artistName ?? ''}</td>
+        </tr>`
+      )
+      .join('');
+
+    const artistRows = artists
+      .map(
+        a => `<tr><td>${a.name}</td><td style="text-align:right">${a.orderCount}</td>
+          <td style="text-align:right">${a.safasTied}</td>
+          <td style="text-align:right">${money(a.feeTotal)}</td>
+          <td style="text-align:right">${money(a.feePaid)}</td>
+          <td style="text-align:right">${money(a.feeDue)}</td></tr>`
+      )
+      .join('');
+
+    const w = window.open('', '_blank', 'width=1000,height=760');
+    if (!w) {
+      alert('Allow pop-ups to print this report.');
+      return;
+    }
+    w.document.write(`<!doctype html><html><head><title>Report ${from} to ${to}</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;padding:24px;color:#1e293b}
+      h1{font-size:20px;margin:0} h2{font-size:14px;margin:22px 0 8px}
+      .sub{color:#64748b;font-size:12px;margin:2px 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}
+      th{text-align:left;background:#f1f5f9;padding:6px;border-bottom:1px solid #cbd5e1}
+      td{padding:6px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+      .k{color:#94a3b8;font-size:10px}
+      .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+      .card{border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;min-width:118px}
+      .card b{display:block;font-size:15px} .card span{font-size:10px;color:#64748b;text-transform:uppercase}
+    </style></head><body>
+      <h1>Joshi Safa House</h1>
+      <p class="sub">Report ${from} to ${to} &middot; printed ${format(new Date(), 'MM/dd/yyyy')}</p>
+      <div class="cards">
+        <div class="card"><span>Revenue</span><b>${money(summary?.revenue)}</b></div>
+        <div class="card"><span>Collected</span><b>${money(summary?.collected)}</b></div>
+        <div class="card"><span>Outstanding</span><b>${money(summary?.outstanding)}</b></div>
+        <div class="card"><span>Orders</span><b>${summary?.orderCount ?? 0}</b></div>
+        <div class="card"><span>Not ready</span><b>${summary?.notReadyCount ?? 0}</b></div>
+      </div>
+      ${
+        artistRows
+          ? `<h2>Artist workload &amp; dues</h2><table><thead><tr><th>Artist</th>
+             <th style="text-align:right">Orders</th><th style="text-align:right">Safas</th>
+             <th style="text-align:right">Earned</th><th style="text-align:right">Paid</th>
+             <th style="text-align:right">Due</th></tr></thead><tbody>${artistRows}</tbody></table>`
+          : ''
+      }
+      <h2>Orders (${visibleOrders.length})</h2>
+      <table><thead><tr><th>Order</th><th>Customer &amp; items</th><th>Taken</th><th>Status</th>
+        <th style="text-align:right">Total</th><th style="text-align:right">Paid</th>
+        <th style="text-align:right">Due</th><th>Ready</th><th>Artist</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="9">No orders in this range.</td></tr>'}</tbody></table>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
   const setRange = (days: number) => {
     setFrom(isoDay(days));
     setTo(isoDay(0));
@@ -137,6 +216,12 @@ export default function ReportsPage() {
           </div>
 
           <div className="lg:ml-auto flex gap-2">
+            <button
+              onClick={printReport}
+              className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5"
+            >
+              <Printer size={14} /> Print
+            </button>
             {(['ALL', 'RENTAL', 'SALE'] as const).map(k => (
               <button
                 key={k}
@@ -290,6 +375,14 @@ export default function ReportsPage() {
                         {o.customerName}
                         {o.vendorName && (
                           <span className="block text-[10px] font-bold text-violet-600">{o.vendorName}</span>
+                        )}
+                        {o.itemNames && (
+                          <span
+                            className="block text-[10px] font-semibold text-slate-400 max-w-[220px] truncate"
+                            title={o.itemNames}
+                          >
+                            {o.itemNames}
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 font-semibold text-slate-500">{fmtDate(o.createdAt)}</td>

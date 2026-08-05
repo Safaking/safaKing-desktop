@@ -2,12 +2,56 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 /** Registered safa-tying artists. Admin manages these; tying orders allocate one. */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const withWork = searchParams.get('withWork') === 'true';
+
     const artists = await prisma.artist.findMany({
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      ...(withWork
+        ? {
+            include: {
+              rentals: {
+                orderBy: { startDate: 'desc' },
+                select: {
+                  id: true,
+                  orderNumber: true,
+                  customerName: true,
+                  startDate: true,
+                  safaTyingCount: true,
+                  artistRate: true,
+                  artistPaid: true,
+                  status: true,
+                },
+              },
+            },
+          }
+        : {}),
     });
-    return NextResponse.json(artists);
+
+    if (!withWork) return NextResponse.json(artists);
+
+    // Earnings are rate x safas tied, so they are derived rather than stored.
+    const withTotals = artists.map((a: any) => {
+      const orders = a.rentals.map((r: any) => ({
+        ...r,
+        earned: (r.artistRate || 0) * (r.safaTyingCount || 0),
+      }));
+      const earned = orders.reduce((s: number, o: any) => s + o.earned, 0);
+      const paid = orders.filter((o: any) => o.artistPaid).reduce((s: number, o: any) => s + o.earned, 0);
+      return {
+        ...a,
+        rentals: orders,
+        orderCount: orders.length,
+        safasTied: orders.reduce((s: number, o: any) => s + (o.safaTyingCount || 0), 0),
+        totalEarned: earned,
+        totalPaid: paid,
+        totalDue: Math.max(0, earned - paid),
+      };
+    });
+
+    return NextResponse.json(withTotals);
   } catch (error: any) {
     console.error('GET /api/artists error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -25,6 +69,7 @@ export async function POST(request: Request) {
     const artist = await prisma.artist.create({
       data: {
         name,
+        ratePerPiece: Math.max(0, parseFloat(body.ratePerPiece?.toString() ?? '') || 0),
         phone: body.phone?.trim() || null,
         address: body.address?.trim() || null,
         notes: body.notes?.trim() || null,
@@ -46,6 +91,10 @@ export async function PUT(request: Request) {
 
     const data: any = {};
     if (typeof body.name === 'string' && body.name.trim()) data.name = body.name.trim();
+    if ('ratePerPiece' in body) {
+      const parsed = parseFloat(body.ratePerPiece?.toString() ?? '');
+      data.ratePerPiece = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    }
     if ('phone' in body) data.phone = body.phone?.trim() || null;
     if ('address' in body) data.address = body.address?.trim() || null;
     if ('notes' in body) data.notes = body.notes?.trim() || null;
