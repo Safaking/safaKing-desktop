@@ -155,6 +155,11 @@ export async function ensureDbSchema() {
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "customerAltPhone" TEXT;`,
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "weddingDate" TEXT;`,
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "safaSize" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "readyAt" TIMESTAMP(3);`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "readyBy" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistId" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistRate" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistPaid" BOOLEAN DEFAULT false;`,
 
       // ── Invoice — new columns ─────────────────────────────────────────────
       `ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';`,

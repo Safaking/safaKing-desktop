@@ -7,15 +7,16 @@ import { useAuth } from '@/lib/AuthContext';
 
 interface Props {
   rental: any | null;
+  type?: 'RENTAL' | 'SALE';
   onClose: () => void;
   onSuccess: () => void;
 }
 
 /**
  * Allocate a registered artist to a tying order, with their per-safa rate.
- * Only reachable by admins and owners — the rentals list gates the entry point.
+ * Supports both rental and sale orders.
  */
-export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Props) {
+export default function AllocateArtistDialog({ rental, type = 'RENTAL', onClose, onSuccess }: Props) {
   const { user, isAdmin } = useAuth();
   const { data: artistData } = useArtists();
   const artists: any[] = Array.isArray(artistData) ? artistData : [];
@@ -40,8 +41,6 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
   const safas = rental.safaTyingCount || 0;
   const owed = (parseFloat(rate || '0') || 0) * safas;
 
-  // Picking an artist pulls in their usual rate, unless this order already
-  // carries one an admin set deliberately.
   React.useEffect(() => {
     if (!artistId) return;
     if (rental.artistId === artistId && (rental.artistRate ?? 0) > 0) return;
@@ -52,7 +51,8 @@ export default function AllocateArtistDialog({ rental, onClose, onSuccess }: Pro
   const save = async (clear = false) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/rentals/${rental.id}/artist`, {
+      const endpoint = type === 'SALE' ? `/api/sales/${rental.id}/artist` : `/api/rentals/${rental.id}/artist`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(

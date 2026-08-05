@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDbSchema } from '@/lib/db-init';
 
 export async function GET() {
+  await ensureDbSchema();
   try {
     const sales = await prisma.sale.findMany({
       include: {
@@ -10,7 +12,9 @@ export async function GET() {
             product: true
           }
         },
-        invoice: true
+        invoice: true,
+        artist: { select: { id: true, name: true } },
+        vendor: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -21,6 +25,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  await ensureDbSchema();
   const body = await request.json();
   const { 
     customerName, 
