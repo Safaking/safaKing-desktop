@@ -8,7 +8,8 @@ import { prisma } from '@/lib/prisma';
  * thinks about it — not a sum of individual sessions, since stepping away and
  * signing back in does not shorten the day worked.
  *
- * GET                          → the last `days` days (default 30)
+ * GET ?date=yyyy-mm-dd         → everyone who worked that day
+ * GET                          → today by default
  * GET ?userId=&date=yyyy-mm-dd → what that person did on that day
  * POST { action: 'close', sessionId, reason }
  */
@@ -18,6 +19,7 @@ const dayKey = (d: Date) => {
   return local.toISOString().slice(0, 10);
 };
 const dayStart = (iso: string) => new Date(`${iso}T00:00:00`);
+const dayEnd = (iso: string) => new Date(`${iso}T23:59:59.999`);
 
 /** No heartbeat for this long means the app is gone, not idle. */
 const STALE_MINUTES = 10;
@@ -49,7 +51,6 @@ async function closeStaleSessions() {
 
   return stale.length;
 }
-const dayEnd = (iso: string) => new Date(`${iso}T23:59:59.999`);
 
 /** What a person actually did on a day, drawn from the records they touched. */
 async function activityFor(userId: string, date: string) {
@@ -146,13 +147,15 @@ export async function GET(request: Request) {
     // Self-healing: anything abandoned is settled before the figures are read.
     await closeStaleSessions();
 
-    const days = Math.min(Math.max(Number(searchParams.get('days')) || 30, 1), 120);
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    since.setHours(0, 0, 0, 0);
+    // One day at a time: the shop asks "who worked today", not "who worked
+    // some time this month".
+    const day = date || dayKey(new Date());
+    if (isNaN(dayStart(day).getTime())) {
+      return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+    }
 
     const sessions = await prisma.workSession.findMany({
-      where: { loggedInAt: { gte: since } },
+      where: { loggedInAt: { gte: dayStart(day), lte: dayEnd(day) } },
       orderBy: { loggedInAt: 'asc' },
       include: { user: { select: { id: true, name: true, role: true } } },
     });
@@ -205,7 +208,7 @@ export async function GET(request: Request) {
       })
       .sort((a, b) => (a.date === b.date ? a.name.localeCompare(b.name) : b.date.localeCompare(a.date)));
 
-    return NextResponse.json({ days, rows });
+    return NextResponse.json({ date: day, rows });
   } catch (error: any) {
     console.error('GET /api/work-sessions error:', error);
     return NextResponse.json({ error: error.message || 'Failed to load working hours' }, { status: 500 });

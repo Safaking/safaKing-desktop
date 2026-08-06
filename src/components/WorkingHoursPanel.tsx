@@ -12,7 +12,10 @@ import {
   CalendarPlus,
   CheckCircle2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import DateInput from '@/components/DateInput';
 import { fetcher } from '@/lib/data';
 
 /** Minutes as "7h 20m", which reads faster than a decimal for a shift. */
@@ -28,9 +31,26 @@ const clock = (v?: string | Date | null) => {
   return isNaN(d.getTime()) ? '—' : format(d, 'HH:mm');
 };
 
-const dayLabel = (iso: string) => {
+const isoDay = (offsetDays = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() - offsetDays);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+const shiftDay = (iso: string, by: number) => {
   const d = new Date(`${iso}T00:00:00`);
-  return isNaN(d.getTime()) ? iso : format(d, 'EEE, MM/dd/yyyy');
+  d.setDate(d.getDate() + by);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+/** "Today" and "Yesterday" read faster than a date when that is what it is. */
+const dayLabel = (iso: string) => {
+  if (iso === isoDay(0)) return 'Today';
+  if (iso === isoDay(1)) return 'Yesterday';
+  const d = new Date(`${iso}T00:00:00`);
+  return isNaN(d.getTime()) ? iso : format(d, 'EEEE, MM/dd/yyyy');
 };
 
 const ICON: Record<string, { icon: React.ReactNode; tone: string }> = {
@@ -76,9 +96,7 @@ function DayActivity({ userId, date }: { userId: string; date: string }) {
             <span className={`shrink-0 pt-0.5 ${meta.tone}`}>{meta.icon}</span>
             <span className="min-w-0">
               <span className="text-[11px] font-bold text-slate-700">{e.label}</span>
-              {e.detail && (
-                <span className="ml-2 text-[11px] font-medium text-slate-400">{e.detail}</span>
-              )}
+              {e.detail && <span className="ml-2 text-[11px] font-medium text-slate-400">{e.detail}</span>}
             </span>
           </div>
         );
@@ -88,122 +106,166 @@ function DayActivity({ userId, date }: { userId: string; date: string }) {
 }
 
 /**
- * Working hours, one row per person per day.
+ * Working hours for one day at a time.
  *
- * The shift is the day's first login to its last sign-out — stepping away and
- * signing back in does not shorten the day worked, so summing individual
- * sessions would understate it. A day still open reports no hours rather than
- * a guessed figure.
+ * A month of rows answered "who worked recently"; the question actually asked
+ * is "who worked today, and until when" — so the day is the unit, and the view
+ * shows one at a time.
+ *
+ * The shift runs from the day's first login to its last sign-out: stepping
+ * away and back does not shorten the day worked, so summing sessions would
+ * understate it.
  */
 export default function WorkingHoursPanel() {
   const [open, setOpen] = useState<string | null>(null);
-  const { data, isLoading } = useSWR('/api/work-sessions?days=30', fetcher, { keepPreviousData: true });
+  const [date, setDate] = useState(isoDay(0));
+
+  const { data, isLoading } = useSWR(`/api/work-sessions?date=${date}`, fetcher, {
+    keepPreviousData: true,
+  });
 
   const rows: any[] = Array.isArray(data?.rows) ? data.rows : [];
-
-  // Group by day so the newest day reads as a block rather than a flat list.
-  const byDate = rows.reduce<Record<string, any[]>>((acc, r) => {
-    (acc[r.date] ||= []).push(r);
-    return acc;
-  }, {});
-  const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
+  const isToday = date === isoDay(0);
 
   return (
     <div className="space-y-5">
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
             <Clock size={16} className="text-indigo-600" /> Working hours
           </h2>
           <span className="text-[11px] font-bold text-slate-400">
-            {isLoading ? 'Loading…' : `last 30 days · ${rows.length} days worked`}
+            {isLoading ? 'Loading…' : `${rows.length} staff worked`}
           </span>
         </div>
 
-        {dates.length === 0 && !isLoading ? (
-          <p className="p-8 text-center text-slate-400 font-medium text-sm">No logins recorded yet.</p>
+        {/* One day at a time — step with the arrows or pick a date. */}
+        <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setDate(d => shiftDay(d, -1))}
+            className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+            title="Previous day"
+          >
+            <ChevronLeft size={15} />
+          </button>
+
+          <p className="px-2 text-sm font-black text-slate-800 min-w-[160px] text-center">
+            {dayLabel(date)}
+          </p>
+
+          <button
+            onClick={() => setDate(d => shiftDay(d, 1))}
+            disabled={isToday}
+            className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100"
+            title="Next day"
+          >
+            <ChevronRight size={15} />
+          </button>
+
+          <div className="flex gap-2 ml-1">
+            {[
+              { label: 'Today', days: 0 },
+              { label: 'Yesterday', days: 1 },
+            ].map(q => {
+              const target = isoDay(q.days);
+              return (
+                <button
+                  key={q.label}
+                  onClick={() => setDate(target)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+                    date === target
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {q.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <DateInput
+            value={date}
+            onChange={setDate}
+            className="ml-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 text-xs font-bold w-36"
+          />
+        </div>
+
+        {rows.length === 0 && !isLoading ? (
+          <p className="p-10 text-center text-slate-400 font-medium text-sm">
+            Nobody logged in on this day.
+          </p>
         ) : (
-          dates.map(date => (
-            <div key={date}>
-              <div className="px-4 py-2 bg-slate-50/80 border-y border-slate-100">
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
-                  {dayLabel(date)}
-                </p>
-              </div>
-
-              {byDate[date].map(r => {
-                const isOpen = open === r.key;
-                return (
-                  <div key={r.key} className="border-b border-slate-100 last:border-0">
-                    <button
-                      onClick={() => setOpen(isOpen ? null : r.key)}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50/70 transition-colors text-left"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-slate-800 truncate">
-                          {r.name}
-                          <span className="ml-2 text-[11px] font-mono font-normal text-slate-400">
-                            @{r.username}
-                          </span>
-                          {r.open && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-700">
-                              ON SHIFT
-                            </span>
-                          )}
-                          {r.overnight && (
-                            <span
-                              className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700"
-                              title="Signed out the next day — the browser was left open, so this is not a shift length"
-                            >
-                              LEFT OPEN
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                          {r.role} · {r.sessionCount} session{r.sessionCount === 1 ? '' : 's'}
-                        </p>
-                      </div>
-
-                      <div className="hidden sm:flex items-center gap-6 shrink-0 text-center">
-                        <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">In</p>
-                          <p className="text-xs font-bold text-emerald-600">{clock(r.firstLogin)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Out</p>
-                          <p className="text-xs font-bold text-slate-600">{clock(r.lastLogout)}</p>
-                        </div>
-                      </div>
-
-                      <div className="w-20 text-right shrink-0">
-                        <p className="text-sm font-black text-indigo-600">
-                          {r.open || r.overnight ? '—' : asHours(r.minutes)}
-                        </p>
-                        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">
-                          {isOpen ? 'hide' : 'activity'}
-                        </p>
-                      </div>
-                    </button>
-
-                    {isOpen && (
-                      <div className="bg-slate-50/60 border-t border-slate-100">
-                        <DayActivity userId={r.userId} date={r.date} />
-                      </div>
-                    )}
+          rows.map(r => {
+            const isOpen = open === r.key;
+            return (
+              <div key={r.key} className="border-b border-slate-100 last:border-0">
+                <button
+                  onClick={() => setOpen(isOpen ? null : r.key)}
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50/70 transition-colors text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-800 truncate">
+                      {r.name}
+                      <span className="ml-2 text-[11px] font-mono font-normal text-slate-400">
+                        @{r.username}
+                      </span>
+                      {r.open && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-700">
+                          ON SHIFT
+                        </span>
+                      )}
+                      {r.overnight && (
+                        <span
+                          className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700"
+                          title="Signed out the next day — the app was left open, so this is not a shift length"
+                        >
+                          LEFT OPEN
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                      {r.role} · {r.sessionCount} session{r.sessionCount === 1 ? '' : 's'}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-          ))
+
+                  <div className="hidden sm:flex items-center gap-6 shrink-0 text-center">
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">In</p>
+                      <p className="text-xs font-bold text-emerald-600">{clock(r.firstLogin)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Out</p>
+                      <p className="text-xs font-bold text-slate-600">{clock(r.lastLogout)}</p>
+                    </div>
+                  </div>
+
+                  <div className="w-20 text-right shrink-0">
+                    <p className="text-sm font-black text-indigo-600">
+                      {r.open || r.overnight ? '—' : asHours(r.minutes)}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">
+                      {isOpen ? 'hide' : 'activity'}
+                    </p>
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="bg-slate-50/60 border-t border-slate-100">
+                    <DayActivity userId={r.userId} date={r.date} />
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
       <p className="text-[11px] font-semibold text-slate-400">
         A day runs from the first login to the last sign-out. Closing the cash book signs a user
-        out, so that is normally their end of day. A day left open — a browser simply closed —
-        shows as on shift and reports no hours, since inventing a sign-out time would overstate
-        them. A day marked LEFT OPEN was signed out the following day, so its span is not a shift
-        length either. Click a row to see what that person did.
+        out, so that is normally their end of day. A day still open shows as on shift and reports
+        no hours; one marked LEFT OPEN was signed out the following day, so its span is not a
+        shift length either. Click a row to see what that person did.
       </p>
     </div>
   );
