@@ -29,19 +29,32 @@ const daysAway = (v?: string | null) => {
 
 type Tone = 'rose' | 'amber' | 'blue' | 'violet';
 
-const TONE: Record<Tone, { chip: string; bar: string; icon: string; ring: string }> = {
-  rose: { chip: 'bg-rose-100 text-rose-700', bar: 'bg-rose-500', icon: 'text-rose-600', ring: 'border-rose-100' },
-  amber: { chip: 'bg-amber-100 text-amber-700', bar: 'bg-amber-500', icon: 'text-amber-600', ring: 'border-amber-100' },
-  blue: { chip: 'bg-blue-100 text-blue-700', bar: 'bg-blue-500', icon: 'text-blue-600', ring: 'border-blue-100' },
-  violet: { chip: 'bg-violet-100 text-violet-700', bar: 'bg-violet-500', icon: 'text-violet-600', ring: 'border-violet-100' },
+const TONE: Record<Tone, { chip: string; bar: string; icon: string; iconBg: string }> = {
+  rose: { chip: 'bg-rose-100 text-rose-700', bar: 'bg-rose-500', icon: 'text-rose-600', iconBg: 'bg-rose-50' },
+  amber: { chip: 'bg-amber-100 text-amber-700', bar: 'bg-amber-500', icon: 'text-amber-600', iconBg: 'bg-amber-50' },
+  blue: { chip: 'bg-blue-100 text-blue-700', bar: 'bg-blue-500', icon: 'text-blue-600', iconBg: 'bg-blue-50' },
+  violet: {
+    chip: 'bg-violet-100 text-violet-700',
+    bar: 'bg-violet-500',
+    icon: 'text-violet-600',
+    iconBg: 'bg-violet-50',
+  },
 };
 
+/**
+ * One attention group.
+ *
+ * Empty groups still render. A card that vanishes when it empties leaves a
+ * hole in the grid and hides the fact that the check happened at all — an
+ * empty one says so instead.
+ */
 function Group({
   title,
   subtitle,
   tone,
   icon,
   items,
+  emptyLabel,
   renderMeta,
 }: {
   title: string;
@@ -49,52 +62,74 @@ function Group({
   tone: Tone;
   icon: React.ReactNode;
   items: any[];
+  emptyLabel: string;
   renderMeta: (r: any) => React.ReactNode;
 }) {
-  const t = TONE[tone];
-  if (!items?.length) return null;
+  const c = TONE[tone];
+  const empty = !items?.length;
 
   return (
-    <div className={`bg-white border ${t.ring} rounded-2xl overflow-hidden shadow-xs`}>
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-        <span className={`w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center ${t.icon}`}>{icon}</span>
+    <div
+      className={`bg-white border rounded-2xl overflow-hidden ${
+        empty ? 'border-slate-100' : 'border-slate-200 shadow-sm'
+      }`}
+    >
+      <div className="flex items-center gap-3 px-5 py-4">
+        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${c.iconBg} ${c.icon}`}>
+          {icon}
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-black text-slate-800 leading-tight">{title}</p>
-          <p className="text-[11px] font-semibold text-slate-400">{subtitle}</p>
+          <p className={`text-sm font-black leading-tight ${empty ? 'text-slate-400' : 'text-slate-800'}`}>
+            {title}
+          </p>
+          <p className="text-[11px] font-medium text-slate-400 mt-0.5 leading-snug">{subtitle}</p>
         </div>
-        <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${t.chip}`}>{items.length}</span>
+        <span
+          className={`px-2.5 py-1 rounded-lg text-xs font-black shrink-0 ${
+            empty ? 'bg-slate-100 text-slate-400' : c.chip
+          }`}
+        >
+          {items?.length ?? 0}
+        </span>
       </div>
 
-      <div>
-        {items.map(r => (
-          <Link
-            key={r.id}
-            href="/rentals"
-            className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors group"
-          >
-            <span className={`w-1 h-8 rounded-full ${t.bar} shrink-0`} />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-black text-slate-800 truncate">
-                {r.customerName}
-                <span className="ml-2 font-mono text-[10px] font-bold text-slate-400">{r.orderNumber}</span>
-              </p>
-              <p className="text-[11px] font-semibold text-slate-500 truncate">{renderMeta(r)}</p>
-            </div>
-            <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 shrink-0" />
-          </Link>
-        ))}
-      </div>
+      {empty ? (
+        <div className="px-5 pb-5 pt-1">
+          <div className="rounded-xl border border-dashed border-slate-200 py-5 text-center">
+            <p className="text-[11px] font-bold text-slate-300">{emptyLabel}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t border-slate-100">
+          {items.map(r => (
+            <Link
+              key={r.id}
+              href="/rentals"
+              className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors group"
+            >
+              <span className={`w-1 self-stretch min-h-[34px] rounded-full ${c.bar} shrink-0`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <p className="text-sm font-bold text-slate-800 truncate">{r.customerName}</p>
+                  <span className="font-mono text-[10px] font-bold text-slate-400 shrink-0">{r.orderNumber}</span>
+                </div>
+                <p className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">{renderMeta(r)}</p>
+              </div>
+              <ChevronRight size={15} className="text-slate-300 group-hover:text-slate-500 shrink-0" />
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * What still needs doing, replacing the list of recent orders.
+ * What still needs doing, in place of a list of recent orders.
  *
- * Recent activity was a record of what had already happened, which nobody
- * needed to act on. These four groups are the things that go wrong if they
- * are missed: overdue returns, orders going out unpacked, and tying booked
- * with nobody assigned to do it.
+ * Recent activity recorded what had already happened, which nobody had to act
+ * on. These four groups are the things that go wrong when missed: overdue
+ * returns, orders going out unpacked, and tying booked with nobody assigned.
  */
 export default function AttentionFeed() {
   const { t } = useLanguage();
@@ -109,44 +144,56 @@ export default function AttentionFeed() {
   const unallocated: any[] = data?.unallocated ?? [];
   const total = overdue.length + dueToday.length + upcoming.length + unallocated.length;
 
+  /** "2 safas" / "1 safa", in whichever language is on. */
+  const safas = (n: number) => `${n} ${n === 1 ? t('safa_one') : t('safas')}`;
+
+  /** "tomorrow" / "in 5 days", reading naturally in both languages. */
+  const when = (n: number) => {
+    if (n <= 0) return t('today');
+    if (n === 1) return t('tomorrow');
+    return [t('in_days'), n, t('days')].filter(Boolean).join(' ');
+  };
+
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-end justify-between mb-5 gap-4">
+        <div className="min-w-0">
           <h3 className="text-xl font-black text-slate-800">{t('needs_attention')}</h3>
-          <p className="text-xs font-semibold text-slate-500">{t('needs_attention_sub')}</p>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('needs_attention_sub')}</p>
         </div>
         <Link
           href="/rentals"
-          className="text-xs font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+          className="text-xs font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1 shrink-0"
         >
           {t('all_orders')} <ChevronRight size={14} />
         </Link>
       </div>
 
-      {isLoading && total === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
-          <p className="text-xs font-bold text-slate-400">{t('loading')}</p>
-        </div>
-      ) : total === 0 ? (
+      {total === 0 && !isLoading ? (
         <div className="bg-white border border-emerald-100 rounded-2xl p-10 text-center">
           <CheckCircle2 size={28} className="text-emerald-500 mx-auto mb-2" />
           <p className="text-sm font-black text-slate-800">{t('nothing_pending')}</p>
-          <p className="text-xs font-semibold text-slate-500 mt-0.5">{t('nothing_pending_sub')}</p>
+          <p className="text-xs font-medium text-slate-500 mt-1">{t('nothing_pending_sub')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           <Group
             title={t('attn_overdue')}
             subtitle={t('attn_overdue_sub')}
             tone="rose"
-            icon={<AlertCircle size={16} />}
+            icon={<AlertCircle size={17} />}
             items={overdue}
+            emptyLabel={t('none_here')}
             renderMeta={r => {
               const late = Math.abs(daysAway(r.endDate));
-              return `${late} day${late === 1 ? '' : 's'} late · due ${day(r.endDate)} · ${r.itemCount} safa${
-                r.itemCount === 1 ? '' : 's'
-              }${r.remainingAmount > 0 ? ` · ${money(r.remainingAmount)} due` : ''}`;
+              return [
+                `${late} ${late === 1 ? t('day_late') : t('days_late')}`,
+                `${t('due_on')} ${day(r.endDate)}`,
+                safas(r.itemCount),
+                r.remainingAmount > 0 ? `${money(r.remainingAmount)} ${t('due').toLowerCase()}` : '',
+              ]
+                .filter(Boolean)
+                .join(' · ');
             }}
           />
 
@@ -154,12 +201,17 @@ export default function AttentionFeed() {
             title={t('attn_today')}
             subtitle={t('attn_today_sub')}
             tone="amber"
-            icon={<Clock size={16} />}
+            icon={<Clock size={17} />}
             items={dueToday}
+            emptyLabel={t('none_here')}
             renderMeta={r =>
-              `${r.itemCount} safa${r.itemCount === 1 ? '' : 's'}${
-                r.tieSafa ? ` · tying ${r.safaTyingCount}` : ''
-              }${r.safaTyingTime ? ` at ${r.safaTyingTime}` : ''}`
+              [
+                safas(r.itemCount),
+                r.tieSafa ? `${t('tying')} ${r.safaTyingCount}` : '',
+                r.safaTyingTime ? `${t('at_time')} ${r.safaTyingTime}` : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')
             }
           />
 
@@ -167,28 +219,30 @@ export default function AttentionFeed() {
             title={t('attn_week')}
             subtitle={t('attn_week_sub')}
             tone="blue"
-            icon={<CalendarDays size={16} />}
+            icon={<CalendarDays size={17} />}
             items={upcoming}
-            renderMeta={r => {
-              const away = daysAway(r.startDate);
-              return `${away === 1 ? 'tomorrow' : `in ${away} days`} · ${day(r.startDate)} · ${
-                r.itemCount
-              } safa${r.itemCount === 1 ? '' : 's'}`;
-            }}
+            emptyLabel={t('none_here')}
+            renderMeta={r =>
+              [when(daysAway(r.startDate)), day(r.startDate), safas(r.itemCount)].filter(Boolean).join(' · ')
+            }
           />
 
           <Group
             title={t('attn_artist')}
             subtitle={t('attn_artist_sub')}
             tone="violet"
-            icon={<Palette size={16} />}
+            icon={<Palette size={17} />}
             items={unallocated}
-            renderMeta={r => {
-              const away = daysAway(r.startDate);
-              return `${r.safaTyingCount} safa${r.safaTyingCount === 1 ? '' : 's'} to tie · ${
-                away <= 0 ? 'today' : away === 1 ? 'tomorrow' : `in ${away} days`
-              }${r.safaTyingTime ? ` at ${r.safaTyingTime}` : ''}`;
-            }}
+            emptyLabel={t('none_here')}
+            renderMeta={r =>
+              [
+                `${safas(r.safaTyingCount)} ${t('to_tie')}`,
+                when(daysAway(r.startDate)),
+                r.safaTyingTime ? `${t('at_time')} ${r.safaTyingTime}` : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            }
           />
         </div>
       )}
