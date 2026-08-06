@@ -18,6 +18,7 @@ import {
 import DateInput from '@/components/DateInput';
 import { fetcher, useStores } from '@/lib/data';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const money = (n?: number | null) =>
   `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -35,12 +36,13 @@ const todayISO = () => {
 };
 
 const TYPES = [
-  { key: 'BANK', label: 'Bank Remittance', icon: Landmark },
-  { key: 'OFFICE', label: 'Cash to Office', icon: Building2 },
-  { key: 'ADJUSTMENT', label: 'Adjustment', icon: AlertCircle },
+  { key: 'BANK', label: 'bank_remittance', icon: Landmark },
+  { key: 'OFFICE', label: 'cash_to_office', icon: Building2 },
+  { key: 'ADJUSTMENT', label: 'adjustment', icon: AlertCircle },
 ] as const;
 
 export default function CashBookPage() {
+  const { t } = useLanguage();
   const { user, isAdmin, isSuperOrAdmin, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const { data: storeData } = useStores();
@@ -158,7 +160,7 @@ export default function CashBookPage() {
       <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-6">
         <div className="bg-white border border-slate-200 rounded-xl p-12 text-center max-w-sm">
           <Lock size={32} className="text-slate-300 mx-auto mb-3" />
-          <p className="font-bold text-slate-700">Cash book is for super and admin only</p>
+          <p className="font-bold text-slate-700">{t('cashbook_only_super')}</p>
           <Link href="/" className="text-xs font-bold text-indigo-600 mt-2 inline-block">
             Back to dashboard
           </Link>
@@ -181,8 +183,8 @@ export default function CashBookPage() {
               <Wallet size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800">Cash Book</h1>
-              <p className="text-xs text-slate-500 font-medium">Opening, collections, remittance and day close</p>
+              <h1 className="text-xl font-bold text-slate-800">{t('cashbook_title')}</h1>
+              <p className="text-xs text-slate-500 font-medium">{t('cashbook_sub')}</p>
             </div>
           </div>
         </div>
@@ -192,7 +194,7 @@ export default function CashBookPage() {
         {/* Day + store */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Date</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('date')}</label>
             <DateInput
               value={date}
               onChange={setDate}
@@ -200,7 +202,7 @@ export default function CashBookPage() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Store</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('store')}</label>
             <select
               value={storeId}
               onChange={e => setStoreId(e.target.value)}
@@ -236,21 +238,21 @@ export default function CashBookPage() {
         {/* The day's arithmetic */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-5 py-4 space-y-2.5">
-            <Line label="Opening balance" hint="carried from the previous day" value={money(data?.openingBalance)} />
+            <Line label={t('opening_balance')} hint={t('opening_hint')} value={money(data?.openingBalance)} />
             <Line
-              label="Collections"
+              label={t('collections')}
               hint={`${data?.rentalCount ?? 0} rental${data?.rentalCount === 1 ? '' : 's'} · ${data?.saleCount ?? 0} sale${data?.saleCount === 1 ? '' : 's'}`}
               value={`+ ${money(data?.collected)}`}
               tone="emerald"
             />
             {(data?.entries ?? []).length > 0 && (
-              <Line label="Paid out" hint="bank, office and adjustments" value={`− ${money(data?.paidOut)}`} tone="rose" />
+              <Line label={t('paid_out')} hint={t('paid_out_hint')} value={`− ${money(data?.paidOut)}`} tone="rose" />
             )}
           </div>
           <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Closing balance</p>
-              <p className="text-[11px] font-semibold text-slate-400">becomes tomorrow&apos;s opening</p>
+              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{t('closing_balance')}</p>
+              <p className="text-[11px] font-semibold text-slate-400">{t('closing_hint')}</p>
             </div>
             <p className="text-3xl font-black text-emerald-400">{money(data?.closing)}</p>
           </div>
@@ -259,34 +261,32 @@ export default function CashBookPage() {
         {/* Money out */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="font-bold text-slate-800 text-sm">Send cash out</h2>
+            <h2 className="font-bold text-slate-800 text-sm">{t('send_cash_out')}</h2>
           </div>
 
           {locked ? (
-            <p className="px-5 py-4 text-xs font-semibold text-slate-400">
-              This day is submitted and locked.
-            </p>
+            <p className="px-5 py-4 text-xs font-semibold text-slate-400">{t('day_locked')}</p>
           ) : !dayEditable ? (
             <p className="px-5 py-4 text-xs font-semibold text-amber-600">
-              Only today&apos;s cash book can be edited. Ask an admin to change a past day.
+              {t('only_today')}
             </p>
           ) : (
             <form onSubmit={addEntry} className="px-5 py-4 space-y-3">
               <div className="flex flex-wrap gap-2">
-                {TYPES.map(t => {
-                  const Icon = t.icon;
+                {TYPES.map(entry => {
+                  const Icon = entry.icon;
                   return (
                     <button
-                      key={t.key}
+                      key={entry.key}
                       type="button"
-                      onClick={() => setType(t.key)}
+                      onClick={() => setType(entry.key)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                        type === t.key
+                        type === entry.key
                           ? 'bg-emerald-600 text-white'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
-                      <Icon size={14} /> {t.label}
+                      <Icon size={14} /> {t(entry.label as any)}
                     </button>
                   );
                 })}
@@ -303,7 +303,7 @@ export default function CashBookPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Reference (slip no, person)"
+                  placeholder={t('reference_hint')}
                   className="flex-1 min-w-[180px] px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 text-sm font-medium"
                   value={reference}
                   onChange={e => setReference(e.target.value)}
@@ -325,7 +325,7 @@ export default function CashBookPage() {
                 <div key={e.id} className="px-5 py-2.5 flex items-center justify-between border-b border-slate-50 last:border-0">
                   <div>
                     <p className="text-xs font-bold text-slate-800">
-                      {TYPES.find(t => t.key === e.type)?.label || e.type}
+                      {(() => { const m = TYPES.find(x => x.key === e.type); return m ? t(m.label as any) : e.type; })()}
                     </p>
                     <p className="text-[11px] font-semibold text-slate-400">
                       {[e.reference, e.createdBy].filter(Boolean).join(' · ') || '—'}
@@ -365,9 +365,7 @@ export default function CashBookPage() {
                 onClick={reopenDay}
                 disabled={busy}
                 className="flex-1 py-3.5 rounded-2xl bg-white border border-slate-200 text-slate-700 font-black text-sm hover:border-slate-300"
-              >
-                Reopen this day
-              </button>
+              >{t('reopen_day')}</button>
             ) : (
               <p className="flex-1 text-center text-xs font-semibold text-slate-400 py-3.5">
                 Submitted — ask an admin to reopen if something is wrong.
@@ -379,7 +377,7 @@ export default function CashBookPage() {
               disabled={busy || isLoading}
               className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-sm shadow-lg shadow-emerald-600/20"
             >
-              Submit account for {displayDate(date)} &amp; sign out
+              {t('submit_account')} {displayDate(date)} {t('and_sign_out')}
             </button>
           ) : (
             <p className="flex-1 text-center text-xs font-semibold text-amber-600 py-3.5">

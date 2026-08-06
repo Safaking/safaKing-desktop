@@ -124,21 +124,15 @@ export default function Dashboard() {
             )}
 
             {isSuperOrAdmin && (
-              <Link href="/cashbook" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">
-                Cash Book
-              </Link>
+              <Link href="/cashbook" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">{t('cash_book')}</Link>
             )}
 
             {!isAdmin && canManageVendors && (
-              <Link href="/vendors" className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">
-                Vyapari
-              </Link>
+              <Link href="/vendors" className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">{t('vyapari')}</Link>
             )}
 
             {isAdmin && (
-              <Link href="/admin" className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">
-                Admin
-              </Link>
+              <Link href="/admin" className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-bold text-xs shadow-md active:scale-95">{t('admin')}</Link>
             )}
           </div>
         </div>
@@ -152,7 +146,7 @@ export default function Dashboard() {
               <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute" />
             </div>
             <div className="text-center space-y-1">
-              <p className="text-xs font-black text-slate-800 tracking-widest uppercase">Loading Dashboard...</p>
+              <p className="text-xs font-black text-slate-800 tracking-widest uppercase">{t('loading')}</p>
               <p className="text-xs font-medium text-slate-400">Fetching live inventory, order counts & stats</p>
             </div>
           </div>
@@ -197,7 +191,7 @@ export default function Dashboard() {
                     <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <ShoppingCart size={20} className="stroke-[3]" />
                     </div>
-                    <span className="uppercase tracking-wider text-sm">New Sell</span>
+                    <span className="uppercase tracking-wider text-sm">{t('new_sell')}</span>
                   </Link>
                 </div>
               </div>
@@ -207,7 +201,7 @@ export default function Dashboard() {
             <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               <QuickAction 
                 title={t('rentals')} 
-                desc="Manage orders, pickups & returns" 
+                desc={t('manage_orders')} 
                 href="/rentals"
                 icon={<Calendar className="text-blue-600" />}
                 bgColor="bg-blue-50"
@@ -235,7 +229,7 @@ export default function Dashboard() {
               />
               <QuickAction 
                 title={t('sales')} 
-                desc="Direct sales and POS terminal" 
+                desc={t('direct_sales')} 
                 href="/sales/history"
                 icon={<ShoppingCart className="text-indigo-600" />}
                 bgColor="bg-indigo-50"
@@ -253,7 +247,7 @@ export default function Dashboard() {
               />
               <QuickAction 
                 title={t('inventory')} 
-                desc="Stock levels and product settings" 
+                desc={t('stock_levels')} 
                 href="/products"
                 icon={<Package className="text-amber-600" />}
                 bgColor="bg-amber-50"

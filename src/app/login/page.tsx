@@ -4,8 +4,10 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { Lock, User, KeyRound, ArrowRight } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function LoginPage() {
+  const { t } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -54,7 +56,7 @@ export default function LoginPage() {
             <Lock size={32} />
           </div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Joshi Safa House</h1>
-          <p className="text-xs text-slate-500 font-medium mt-1">Sign in to access POS & Management System</p>
+          <p className="text-xs text-slate-500 font-medium mt-1">{t('sign_in_sub')}</p>
         </div>
 
         {error && (
@@ -85,7 +87,7 @@ export default function LoginPage() {
               <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="password"
-                placeholder="Enter password"
+                placeholder={t('enter_password')}
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white text-slate-900 text-sm font-semibold transition-all"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

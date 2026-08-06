@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { format } from 'date-fns';
 import { AlertCircle, Clock, CalendarDays, Palette, CheckCircle2, ChevronRight } from 'lucide-react';
 import { fetcher } from '@/lib/data';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const money = (n?: number | null) =>
   `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -96,6 +97,7 @@ function Group({
  * with nobody assigned to do it.
  */
 export default function AttentionFeed() {
+  const { t } = useLanguage();
   const { data, isLoading } = useSWR('/api/dashboard/attention', fetcher, {
     keepPreviousData: true,
     refreshInterval: 60_000,
@@ -111,36 +113,32 @@ export default function AttentionFeed() {
     <section>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-xl font-black text-slate-800">Needs your attention</h3>
-          <p className="text-xs font-semibold text-slate-500">
-            Orders to prepare, return or allocate
-          </p>
+          <h3 className="text-xl font-black text-slate-800">{t('needs_attention')}</h3>
+          <p className="text-xs font-semibold text-slate-500">{t('needs_attention_sub')}</p>
         </div>
         <Link
           href="/rentals"
           className="text-xs font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
         >
-          All orders <ChevronRight size={14} />
+          {t('all_orders')} <ChevronRight size={14} />
         </Link>
       </div>
 
       {isLoading && total === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
-          <p className="text-xs font-bold text-slate-400">Checking what needs doing…</p>
+          <p className="text-xs font-bold text-slate-400">{t('loading')}</p>
         </div>
       ) : total === 0 ? (
         <div className="bg-white border border-emerald-100 rounded-2xl p-10 text-center">
           <CheckCircle2 size={28} className="text-emerald-500 mx-auto mb-2" />
-          <p className="text-sm font-black text-slate-800">Nothing pending</p>
-          <p className="text-xs font-semibold text-slate-500 mt-0.5">
-            No overdue returns, everything going out is packed, and every tying order has an artist.
-          </p>
+          <p className="text-sm font-black text-slate-800">{t('nothing_pending')}</p>
+          <p className="text-xs font-semibold text-slate-500 mt-0.5">{t('nothing_pending_sub')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Group
-            title="Overdue returns"
-            subtitle="Past the return date and still out"
+            title={t('attn_overdue')}
+            subtitle={t('attn_overdue_sub')}
             tone="rose"
             icon={<AlertCircle size={16} />}
             items={overdue}
@@ -153,8 +151,8 @@ export default function AttentionFeed() {
           />
 
           <Group
-            title="Going out today — not ready"
-            subtitle="Pack these before the customer arrives"
+            title={t('attn_today')}
+            subtitle={t('attn_today_sub')}
             tone="amber"
             icon={<Clock size={16} />}
             items={dueToday}
@@ -166,8 +164,8 @@ export default function AttentionFeed() {
           />
 
           <Group
-            title="Coming up this week"
-            subtitle="Booked in the next 7 days, not yet packed"
+            title={t('attn_week')}
+            subtitle={t('attn_week_sub')}
             tone="blue"
             icon={<CalendarDays size={16} />}
             items={upcoming}
@@ -180,8 +178,8 @@ export default function AttentionFeed() {
           />
 
           <Group
-            title="Tying without an artist"
-            subtitle="Allocate someone before the date"
+            title={t('attn_artist')}
+            subtitle={t('attn_artist_sub')}
             tone="violet"
             icon={<Palette size={16} />}
             items={unallocated}

@@ -29,6 +29,7 @@ import RentalDetailsDialog from '@/components/RentalDetailsDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
 import EditRentalDialog from '@/components/EditRentalDialog';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 
 interface Rental {
   id: string;
@@ -70,6 +71,7 @@ interface Rental {
 }
 
 export default function RentalsPage() {
+  const { t } = useLanguage();
   const { user, isSuperOrAdmin, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,14 +184,13 @@ export default function RentalsPage() {
                 <RotateCcw size={20} />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">Rentals & Orders</h1>
-                <p className="text-xs text-slate-500 font-medium">Manage bookings, delivery activations & returns</p>
+                <h1 className="text-xl font-bold text-slate-800">{t('rentals_title')}</h1>
+                <p className="text-xs text-slate-500 font-medium">{t('rentals_sub')}</p>
               </div>
             </div>
           </div>
           <Link href="/bookings/new" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2">
-            <Plus size={16} /> New Booking
-          </Link>
+            <Plus size={16} />{t('new_booking')}</Link>
         </div>
       </header>
 
@@ -197,7 +198,13 @@ export default function RentalsPage() {
         {/* Filter Tabs & Search */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-xs overflow-x-auto max-w-full [&>*]:shrink-0">
-            {['ALL', 'BOOKED', 'ACTIVE', 'RETURNED', 'OVERDUE'].map(tab => (
+            {([
+              ['ALL', 'all'],
+              ['BOOKED', 'booked'],
+              ['ACTIVE', 'active'],
+              ['RETURNED', 'returned'],
+              ['OVERDUE', 'overdue'],
+            ] as const).map(([tab, key]) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -207,7 +214,7 @@ export default function RentalsPage() {
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}
               >
-                {tab}
+                {t(key)}
               </button>
             ))}
           </div>
@@ -230,13 +237,13 @@ export default function RentalsPage() {
           <table className="w-full text-left min-w-[900px]">
             <thead className="bg-slate-50/70 border-b border-slate-200">
               <tr className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="px-6 py-4">Order</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Dates</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Payment</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">{t('order')}</th>
+                <th className="px-6 py-4">{t('customer')}</th>
+                <th className="px-6 py-4">{t('dates')}</th>
+                <th className="px-6 py-4">{t('amount')}</th>
+                <th className="px-6 py-4">{t('status')}</th>
+                <th className="px-6 py-4">{t('payment')}</th>
+                <th className="px-6 py-4 text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -305,7 +312,7 @@ export default function RentalsPage() {
                             : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                         }`}
                       >
-                        {rental.readyAt ? 'Ready' : 'Mark Ready'}
+                        {rental.readyAt ? t('ready') : t('mark_ready')}
                       </button>
 
                       {rental.tieSafa && isSuperOrAdmin && (
@@ -322,14 +329,14 @@ export default function RentalsPage() {
                               : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                           }`}
                         >
-                          {rental.artist ? rental.artist.name.split(' ')[0] : 'Allocate'}
+                          {rental.artist ? rental.artist.name.split(' ')[0] : t('allocate')}
                         </button>
                       )}
 
                       <button
                         onClick={() => setViewRental(rental)}
                         className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
-                        title="View order details"
+                        title={t('view_details')}
                       >
                         <Eye size={18} />
                       </button>
@@ -337,7 +344,7 @@ export default function RentalsPage() {
                       <button
                         onClick={() => generateInvoicePDF(rental)}
                         className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
-                        title="Download Invoice"
+                        title={t('download_invoice')}
                       >
                         <Download size={18} />
                       </button>
