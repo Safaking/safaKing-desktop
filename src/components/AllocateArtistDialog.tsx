@@ -33,6 +33,19 @@ export default function AllocateArtistDialog({ rental, type = 'RENTAL', onClose,
     setPaid(!!rental.artistPaid);
   }, [rental]);
 
+  // Picking an artist pulls in their usual rate, unless this order already
+  // carries one an admin set deliberately.
+  //
+  // Every hook must run on every render, so this sits above the early return
+  // below. Placed after it, the closed dialog ran five hooks and the open one
+  // six, and React aborted the whole page the moment Allocate was clicked.
+  React.useEffect(() => {
+    if (!rental || !artistId) return;
+    if (rental.artistId === artistId && (rental.artistRate ?? 0) > 0) return;
+    const picked = artists.find(a => a.id === artistId);
+    if (picked) setRate((picked.ratePerPiece ?? 0).toString());
+  }, [artistId, artists, rental]);
+
   if (!rental) return null;
 
   const selectable = artists.filter(a => a.isActive || a.id === rental.artistId);
@@ -40,13 +53,6 @@ export default function AllocateArtistDialog({ rental, type = 'RENTAL', onClose,
   // The rate is per safa, so the amount owed follows the tied count.
   const safas = rental.safaTyingCount || 0;
   const owed = (parseFloat(rate || '0') || 0) * safas;
-
-  React.useEffect(() => {
-    if (!artistId) return;
-    if (rental.artistId === artistId && (rental.artistRate ?? 0) > 0) return;
-    const picked = artists.find(a => a.id === artistId);
-    if (picked) setRate((picked.ratePerPiece ?? 0).toString());
-  }, [artistId, artists, rental]);
 
   const save = async (clear = false) => {
     setSaving(true);

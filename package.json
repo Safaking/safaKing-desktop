@@ -11,7 +11,7 @@
     "next-dev": "PRISMA_CLIENT_ENGINE_TYPE=library next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src",
     "electron": "electron .",
     "dist:win": "electron-builder --win nsis --publish never",
     "postinstall": "prisma generate"
@@ -41,6 +41,7 @@
     "electron-builder": "^26.4.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prisma": "5.10.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
