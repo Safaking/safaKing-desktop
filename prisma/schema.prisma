@@ -190,6 +190,9 @@ model User {
   role      String   @default("USER")
   // Admin can grant an individual SUPER access to the vendor register.
   canManageVendors Boolean @default(false)
+  /// Preferred UI language, so the choice follows the person rather than the
+  /// browser they happen to be sitting at.
+  language  String   @default("en")
   storeId   String?
   store     Store?   @relation(fields: [storeId], references: [id])
   sessions  WorkSession[]

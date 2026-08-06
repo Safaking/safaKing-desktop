@@ -73,6 +73,8 @@ export async function POST(req: Request) {
       role: user.role,
       // Drives whether a SUPER sees the vendor register.
       canManageVendors: user.canManageVendors,
+      // Restores their language choice on this and any other machine.
+      language: user.language,
       storeId: user.storeId,
       store: user.store,
     });

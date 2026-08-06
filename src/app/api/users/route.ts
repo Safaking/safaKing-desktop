@@ -11,6 +11,7 @@ export async function GET() {
         name: true,
         role: true,
         canManageVendors: true,
+        language: true,
         storeId: true,
         store: {
           select: {
@@ -164,6 +165,7 @@ export async function PUT(req: Request) {
 
     if ('storeId' in body) data.storeId = storeId || null;
     if (typeof canManageVendors === 'boolean') data.canManageVendors = canManageVendors;
+    if (body.language === 'en' || body.language === 'hi') data.language = body.language;
 
     const updated = await prisma.user.update({
       where: { id },

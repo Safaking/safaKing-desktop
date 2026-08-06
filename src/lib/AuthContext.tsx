@@ -11,6 +11,7 @@ export interface User {
   /** Work session opened at login, closed on sign out. */
   sessionId?: string;
   canManageVendors?: boolean;
+  language?: 'en' | 'hi';
   storeId?: string | null;
   store?: {
     id: string;
