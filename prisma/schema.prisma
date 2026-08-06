@@ -323,7 +323,12 @@ model WorkSession {
   storeId      String?
   loggedInAt   DateTime  @default(now())
   loggedOutAt  DateTime?
+  /// Last heartbeat from the open app. If it stops — the window was closed,
+  /// the machine slept, the power went — the session is auto-closed at this
+  /// time rather than being left open and reporting nothing.
+  lastSeenAt   DateTime  @default(now())
   /// MANUAL — pressed sign out. CASHBOOK — closed the day's account.
+  /// CLOSED — the app window was closed. AUTO — heartbeat stopped.
   logoutReason String?
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 

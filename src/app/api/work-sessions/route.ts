@@ -18,6 +18,37 @@ const dayKey = (d: Date) => {
   return local.toISOString().slice(0, 10);
 };
 const dayStart = (iso: string) => new Date(`${iso}T00:00:00`);
+
+/** No heartbeat for this long means the app is gone, not idle. */
+const STALE_MINUTES = 10;
+
+/**
+ * Close sessions whose heartbeat stopped, at the moment it stopped.
+ *
+ * The app cannot observe its own window being closed reliably — a crash, a
+ * flat battery or a pulled plug leave nothing behind. Rather than leaving
+ * those sessions open forever (reporting no hours at all), they are closed at
+ * the last time the app was known to be running, which is the closest honest
+ * answer available.
+ */
+async function closeStaleSessions() {
+  const cutoff = new Date(Date.now() - STALE_MINUTES * 60_000);
+  const stale = await prisma.workSession.findMany({
+    where: { loggedOutAt: null, lastSeenAt: { lt: cutoff } },
+    select: { id: true, lastSeenAt: true },
+  });
+
+  await Promise.all(
+    stale.map(s =>
+      prisma.workSession.update({
+        where: { id: s.id },
+        data: { loggedOutAt: s.lastSeenAt, logoutReason: 'AUTO' },
+      })
+    )
+  );
+
+  return stale.length;
+}
 const dayEnd = (iso: string) => new Date(`${iso}T23:59:59.999`);
 
 /** What a person actually did on a day, drawn from the records they touched. */
@@ -63,7 +94,14 @@ async function activityFor(userId: string, date: string) {
       .map(s => ({
         at: s.loggedOutAt as Date,
         kind: 'LOGOUT' as const,
-        label: s.logoutReason === 'CASHBOOK' ? 'Signed out — cash book closed' : 'Signed out',
+        label:
+          s.logoutReason === 'CASHBOOK'
+            ? 'Signed out — cash book closed'
+            : s.logoutReason === 'CLOSED'
+            ? 'App closed'
+            : s.logoutReason === 'AUTO'
+            ? 'Auto signed out — app stopped responding'
+            : 'Signed out',
         detail: '',
       })),
     ...rentals.map(r => ({
@@ -104,6 +142,9 @@ export async function GET(request: Request) {
     if (userId && date) {
       return NextResponse.json(await activityFor(userId, date));
     }
+
+    // Self-healing: anything abandoned is settled before the figures are read.
+    await closeStaleSessions();
 
     const days = Math.min(Math.max(Number(searchParams.get('days')) || 30, 1), 120);
     const since = new Date();
@@ -175,6 +216,59 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    if (body?.action === 'resume') {
+      // A refresh fires the same "window is going away" event as a real close,
+      // so the session gets shut and the person carries on working untracked.
+      // On load the app checks in: if its session is still open this is just a
+      // heartbeat, and if it was closed a fresh one is opened for the rest of
+      // the shift. The day is measured first-login to last-sign-out, so the
+      // extra row does not change the hours reported.
+      const { sessionId, userId } = body;
+      if (!userId) {
+        return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+      }
+
+      if (sessionId) {
+        const alive = await prisma.workSession.findFirst({
+          where: { id: sessionId, loggedOutAt: null },
+        });
+        if (alive) {
+          await prisma.workSession.update({
+            where: { id: alive.id },
+            data: { lastSeenAt: new Date() },
+          });
+          return NextResponse.json({ sessionId: alive.id, resumed: false });
+        }
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      const fresh = await prisma.workSession.create({
+        data: {
+          userId: user.id,
+          username: user.username || user.email || user.name,
+          storeId: user.storeId,
+        },
+      });
+      return NextResponse.json({ sessionId: fresh.id, resumed: true });
+    }
+
+    if (body?.action === 'heartbeat') {
+      if (!body.sessionId) {
+        return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
+      }
+      // updateMany rather than update: a session already closed simply matches
+      // nothing, instead of throwing.
+      await prisma.workSession.updateMany({
+        where: { id: body.sessionId, loggedOutAt: null },
+        data: { lastSeenAt: new Date() },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     if (body?.action === 'close') {
       const sessionId = body.sessionId;
       if (!sessionId) {
@@ -192,7 +286,9 @@ export async function POST(request: Request) {
         where: { id: sessionId },
         data: {
           loggedOutAt: new Date(),
-          logoutReason: body.reason === 'CASHBOOK' ? 'CASHBOOK' : 'MANUAL',
+          logoutReason: ['CASHBOOK', 'CLOSED', 'AUTO'].includes(body.reason)
+            ? body.reason
+            : 'MANUAL',
         },
       });
       return NextResponse.json(closed);
