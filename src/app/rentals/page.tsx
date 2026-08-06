@@ -27,6 +27,8 @@ import ReturnDialog from '@/components/ReturnDialog';
 import ActivateRentalDialog from '@/components/ActivateRentalDialog';
 import RentalDetailsDialog from '@/components/RentalDetailsDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
+import { needsArtist } from '@/lib/barati';
+import DeliveryLine from '@/components/DeliveryLine';
 import EditRentalDialog from '@/components/EditRentalDialog';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -264,7 +266,7 @@ export default function RentalsPage() {
                   <td className="px-6 py-4 font-mono text-indigo-600 font-semibold">{rental.orderNumber}</td>
                   <td className="px-6 py-4">
                     <p className="font-medium text-slate-800">{rental.customerName}</p>
-                    {rental.pickupName && <p className="text-[11px] text-slate-400 font-semibold">To: {rental.pickupName}</p>}
+                    <DeliveryLine order={rental} />
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {format(new Date(rental.startDate), 'dd-MM-yy')} - {format(new Date(rental.endDate), 'dd-MM-yy')}
@@ -315,7 +317,9 @@ export default function RentalsPage() {
                         {rental.readyAt ? t('ready') : t('mark_ready')}
                       </button>
 
-                      {rental.tieSafa && isSuperOrAdmin && (
+                      {/* Only barati tying sends artists out to the event; the rest is
+                          tied at the counter, so it has nobody to allot. */}
+                      {needsArtist(rental) && isSuperOrAdmin && (
                         <button
                           onClick={() => setArtistRental(rental)}
                           title={

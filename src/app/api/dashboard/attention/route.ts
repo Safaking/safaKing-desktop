@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { needsArtist } from '@/lib/barati';
 import { startOfDay, endOfDay, addDays } from 'date-fns';
 
 /**
@@ -33,6 +34,8 @@ export async function GET() {
         remainingAmount: true,
         readyAt: true,
         tieSafa: true,
+        safaShape: true,
+        safaTyingStyles: true,
         safaTyingCount: true,
         safaTyingTime: true,
         artistId: true,
@@ -68,6 +71,9 @@ export async function GET() {
         take: 8,
         ...shape,
       }),
+      // Barati is the only tying that sends artists out, and it cannot be
+      // filtered in SQL (the styles live in a JSON column), so this reads wider
+      // and narrows below rather than capping at 8 before the filter runs.
       prisma.rental.findMany({
         where: {
           tieSafa: true,
@@ -76,7 +82,7 @@ export async function GET() {
           startDate: { gte: today },
         },
         orderBy: { startDate: 'asc' },
-        take: 8,
+        take: 60,
         ...shape,
       }),
     ]);
@@ -91,12 +97,12 @@ export async function GET() {
       overdue: overdue.map(format),
       dueToday: dueToday.map(format),
       upcoming: upcoming.map(format),
-      unallocated: unallocated.map(format),
+      unallocated: unallocated.filter(needsArtist).slice(0, 8).map(format),
       counts: {
         overdue: overdue.length,
         dueToday: dueToday.length,
         upcoming: upcoming.length,
-        unallocated: unallocated.length,
+        unallocated: unallocated.filter(needsArtist).length,
       },
     });
   } catch (error: any) {

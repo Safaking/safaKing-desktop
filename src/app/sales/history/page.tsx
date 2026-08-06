@@ -21,6 +21,8 @@ import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import SaleDetailsDialog from '@/components/SaleDetailsDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
+import { needsArtist } from '@/lib/barati';
+import DeliveryLine from '@/components/DeliveryLine';
 
 export default function SalesHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +144,7 @@ export default function SalesHistoryPage() {
                       <User size={14} className="text-slate-400 shrink-0" />
                       <div>
                         <p className="font-bold text-slate-800 text-xs">{sale.customerName}</p>
+                        <DeliveryLine order={sale} />
                         {sale.customerPhone && (
                           <p className="text-[11px] text-slate-400 font-medium">{sale.customerPhone}</p>
                         )}
@@ -193,7 +196,9 @@ export default function SalesHistoryPage() {
                       )}
 
                       {/* Allocate Artist Badge for Safa Tying */}
-                      {sale.tieSafa && isSuperOrAdmin && (
+                      {/* Only barati tying sends artists out to the event; the rest is
+                          tied at the counter, so it has nobody to allot. */}
+                      {needsArtist(sale) && isSuperOrAdmin && (
                         <button
                           onClick={() => setArtistSale(sale)}
                           title={

@@ -24,6 +24,8 @@ import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import BillPreviewDialog from '@/components/BillPreviewDialog';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
+import TyingLoadDialog from '@/components/TyingLoadDialog';
+import { isBaratiStyle } from '@/lib/barati';
 import DateInput from '@/components/DateInput';
 import { isMeterBased, unitLabel, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -78,6 +80,8 @@ export default function OdooBookingPage() {
   // styleId -> number of safas tied in that style (0 / absent means unselected)
   const [tyingQuantities, setTyingQuantities] = useState<Record<string, number>>({});
   const [tyingDialogOpen, setTyingDialogOpen] = useState(false);
+  // Barati orders pause here first, to show what that date already carries.
+  const [showLoadCheck, setShowLoadCheck] = useState(false);
   // True once staff type a tying quantity themselves, which pins it.
   const [tyingCountEdited, setTyingCountEdited] = useState(false);
   const [safaOptions, setSafaOptions] = useState<any[]>([]);
@@ -243,12 +247,35 @@ export default function OdooBookingPage() {
     return Math.max(0, sum - discountVal);
   };
 
+  // Barati tying is the only kind that sends artists out to the event, so it is
+  // the only kind whose date has a capacity worth checking before the order is
+  // taken.
+  const baratiSafas = React.useMemo(
+    () =>
+      tieSafa
+        ? selectedStyles
+            .filter(s => isBaratiStyle(s.name))
+            .reduce((sum, s) => sum + (Number(s.quantity) || 0), 0)
+        : 0,
+    [tieSafa, selectedStyles]
+  );
+
+  const needsLoadCheck =
+    baratiSafas > 0 && /^\d{4}-\d{2}-\d{2}$/.test(safaTyingDetails.marriageDate || '');
+
   const handleBooking = async () => {
     if (!customer.name || !customer.phone || !dates.start || !dates.end || items.length === 0) {
       alert('Please fill in Name, Phone, and select Dates');
       return;
     }
-    
+
+    // Show what that date already carries first; the order is placed from the
+    // sheet's confirm button.
+    if (needsLoadCheck && !showLoadCheck) {
+      setShowLoadCheck(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/rentals', {
@@ -305,6 +332,7 @@ export default function OdooBookingPage() {
     } catch (error) {
       alert('Network error during checkout');
     }
+    setShowLoadCheck(false);
     setLoading(false);
   };
 
@@ -927,6 +955,15 @@ export default function OdooBookingPage() {
         bookedSafaQty={bookedSafaQty}
         details={safaTyingDetails}
         setDetails={setSafaTyingDetails}
+      />
+      <TyingLoadDialog
+        open={showLoadCheck}
+        date={safaTyingDetails.marriageDate}
+        time={safaTyingDetails.time}
+        safas={baratiSafas}
+        saving={loading}
+        onCancel={() => setShowLoadCheck(false)}
+        onConfirm={handleBooking}
       />
       <BillPreviewDialog order={previewBill} type='RENTAL' onClose={() => setPreviewBill(null)} />
     </div>

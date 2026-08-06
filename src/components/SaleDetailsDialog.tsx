@@ -99,6 +99,20 @@ export default function SaleDetailsDialog({ sale, onClose }: SaleDetailsDialogPr
             </div>
           </div>
 
+          {/* Who is collecting, and when. Often not the buyer. */}
+          {(sale.pickupName || sale.pickupPhone || sale.pickupDate) && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
+              <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                <Truck size={14} className="text-slate-500" /> Delivery
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 font-medium">
+                {sale.pickupName && <p>Collected by: <strong>{sale.pickupName}</strong></p>}
+                {sale.pickupPhone && <p>Phone: <strong>{sale.pickupPhone}</strong></p>}
+                {sale.pickupDate && <p className="col-span-2">Date: <strong>{sale.pickupDate}</strong></p>}
+              </div>
+            </div>
+          )}
+
           {/* Safa Tying Details (if any) */}
           {sale.tieSafa && (
             <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-2">

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useProducts, useSafaOptions, useVendors, invalidateAfterSale } from '@/lib/data';
 import { isMeterBased, rateSuffix } from '@/lib/product-types';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
+import TyingLoadDialog from '@/components/TyingLoadDialog';
+import { isBaratiStyle } from '@/lib/barati';
 import DateInput from '@/components/DateInput';
 import { 
   Plus, 
@@ -71,6 +73,12 @@ export default function SalesPage() {
   const [tieSafa, setTieSafa] = useState(false);
   const [tyingQuantities, setTyingQuantities] = useState<Record<string, number>>({});
   const [tyingDialogOpen, setTyingDialogOpen] = useState(false);
+  // Who is collecting the goods and when. A rental records this when the order
+  // is activated at the counter; a sale has no such later step, so it is asked
+  // for here.
+  const [pickup, setPickup] = useState({ name: '', phone: '', date: '' });
+  // Barati orders pause here first, to show what that date already carries.
+  const [showLoadCheck, setShowLoadCheck] = useState(false);
   const [tyingCountEdited, setTyingCountEdited] = useState(false);
   // Bulk buyers order through this same screen; the sale is tagged to them and
   // can be part-paid, unlike a counter sale which settles in full.
@@ -212,9 +220,31 @@ export default function SalesPage() {
     return items.reduce((s, i) => s + (i.price * i.quantity), 0) + getSafaCharge();
   };
 
+  // Barati tying is the only kind that sends artists out to the event, so it is
+  // the only kind whose date has a capacity worth checking before the sale.
+  const baratiSafas = React.useMemo(
+    () =>
+      tieSafa
+        ? selectedStyles
+            .filter(st => isBaratiStyle(st.name))
+            .reduce((sum, st) => sum + (Number(st.quantity) || 0), 0)
+        : 0,
+    [tieSafa, selectedStyles]
+  );
+
+  const needsLoadCheck =
+    baratiSafas > 0 && /^\d{4}-\d{2}-\d{2}$/.test(safaTyingDetails.marriageDate || '');
+
   const handleSale = async () => {
     if (!customer.name || !customer.phone || items.length === 0) {
       alert('Please fill in Customer Name and Phone');
+      return;
+    }
+
+    // Show what that date already carries first; the sale is placed from the
+    // sheet's confirm button.
+    if (needsLoadCheck && !showLoadCheck) {
+      setShowLoadCheck(true);
       return;
     }
 
@@ -244,6 +274,9 @@ export default function SalesPage() {
           tieSafaCharge: getSafaCharge(),
           createdBy: user?.username || user?.name || null,
           vendorId: vendorId || null,
+          pickupName: pickup.name,
+          pickupPhone: pickup.phone,
+          pickupDate: pickup.date,
           // Blank means settled in full, which is the counter-sale default.
           paidAmount: vendorId && paidAmount !== '' ? parseFloat(paidAmount) || 0 : undefined,
         })
@@ -264,10 +297,12 @@ export default function SalesPage() {
         setTyingCountEdited(false);
         setVendorId('');
         setPaidAmount('');
+        setPickup({ name: '', phone: '', date: '' });
       }
     } catch (error) {
       alert('Network error');
     }
+    setShowLoadCheck(false);
     setLoading(false);
   };
 
@@ -444,6 +479,41 @@ export default function SalesPage() {
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none h-16 text-xs resize-none"
                   value={customer.address}
                   onChange={e => setCustomer({...customer, address: e.target.value})}
+                />
+              </div>
+
+              {/* Collection — often somebody other than the buyer turns up for
+                  the goods, and the counter needs to know who to hand them to. */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  {t('delivery')}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input
+                      type="text"
+                      placeholder={`${t('collected_by')}${t('optional')}`}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
+                      value={pickup.name}
+                      onChange={e => setPickup({ ...pickup, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input
+                      type="tel"
+                      placeholder={`${t('phone')}${t('optional')}`}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
+                      value={pickup.phone}
+                      onChange={e => setPickup({ ...pickup, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <DateInput
+                  className="mt-2 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
+                  value={pickup.date}
+                  onChange={v => setPickup({ ...pickup, date: v })}
                 />
               </div>
 
@@ -764,6 +834,15 @@ export default function SalesPage() {
         bookedSafaQty={soldSafaQty}
         details={safaTyingDetails}
         setDetails={setSafaTyingDetails}
+      />
+      <TyingLoadDialog
+        open={showLoadCheck}
+        date={safaTyingDetails.marriageDate}
+        time={safaTyingDetails.time}
+        safas={baratiSafas}
+        saving={loading}
+        onCancel={() => setShowLoadCheck(false)}
+        onConfirm={handleSale}
       />
       <BillPreviewDialog order={previewBill} type='SALE' onClose={() => setPreviewBill(null)} />
     </div>

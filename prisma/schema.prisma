@@ -133,6 +133,12 @@ model Sale {
   remainingAmount  Float      @default(0)
   readyAt          DateTime?
   readyBy          String?
+  // Who is coming to collect the goods and when. Mirrors the same three fields
+  // on Rental so both order lists can show delivery the same way; on a sale the
+  // buyer often sends somebody else, so the customer's own name is not enough.
+  pickupName       String?
+  pickupPhone      String?
+  pickupDate       String?
   /// Who rang up the sale, for the admin report.
   createdBy        String?
   artistId         String?

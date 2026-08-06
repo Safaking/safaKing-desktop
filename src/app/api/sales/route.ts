@@ -22,6 +22,28 @@ export async function GET() {
   }
 }
 
+/**
+ * Whether Sale carries the pickup columns yet.
+ *
+ * Schema changes here are applied by hand through /api/admin/migrate rather
+ * than on boot, so a deploy can land minutes before the migration does. Asked
+ * once per process and remembered.
+ */
+let salePickupColumns: boolean | null = null;
+
+async function hasSalePickupColumns() {
+  if (salePickupColumns !== null) return salePickupColumns;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok FROM information_schema.columns
+      WHERE table_name = 'Sale' AND column_name = 'pickupName' LIMIT 1`;
+    salePickupColumns = rows.length > 0;
+  } catch {
+    salePickupColumns = false;
+  }
+  return salePickupColumns;
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
   const { 
@@ -47,12 +69,17 @@ export async function POST(request: Request) {
     tieSafaCharge,
     vendorId,
     paidAmount,
+    pickupName,
+    pickupPhone,
+    pickupDate,
     createdBy,
   } = body;
 
   if (!customerName || !customerPhone || !items || items.length === 0) {
     return NextResponse.json({ error: 'Name and Phone are required' }, { status: 400 });
   }
+
+  const pickupReady = await hasSalePickupColumns();
 
   try {
     const total = parseFloat(totalAmount?.toString() || '0') || 0;
@@ -95,6 +122,16 @@ export async function POST(request: Request) {
           paidAmount: paid,
           remainingAmount: remaining,
           createdBy: createdBy?.trim() || null,
+          // Only written once the columns are actually there. A deploy reaches
+          // Vercel before anyone runs the migration, and a sale that fails at
+          // the till in that window is worse than a sale with no pickup name.
+          ...(pickupReady
+            ? {
+                pickupName: pickupName?.trim() || null,
+                pickupPhone: pickupPhone?.trim() || null,
+                pickupDate: pickupDate?.trim() || null,
+              }
+            : {}),
           tieSafa: !!tieSafa,
           safaShape: tieSafa ? (safaShape || null) : null,
           safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,
