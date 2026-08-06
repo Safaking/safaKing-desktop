@@ -69,12 +69,14 @@ function Group({
   const empty = !items?.length;
 
   return (
+    // Fixed height on purpose: a card that grows with its row count makes the
+    // whole grid jump every time the data refreshes. Overflow scrolls inside.
     <div
-      className={`bg-white border rounded-2xl overflow-hidden ${
+      className={`bg-white border rounded-2xl overflow-hidden h-[340px] flex flex-col ${
         empty ? 'border-slate-100' : 'border-slate-200 shadow-sm'
       }`}
     >
-      <div className="flex items-center gap-3 px-5 py-4">
+      <div className="flex items-center gap-3 px-5 py-4 shrink-0">
         <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${c.iconBg} ${c.icon}`}>
           {icon}
         </span>
@@ -94,13 +96,13 @@ function Group({
       </div>
 
       {empty ? (
-        <div className="px-5 pb-5 pt-1">
-          <div className="rounded-xl border border-dashed border-slate-200 py-5 text-center">
+        <div className="flex-1 px-5 pb-5 pt-1 flex">
+          <div className="flex-1 rounded-xl border border-dashed border-slate-200 flex items-center justify-center">
             <p className="text-[11px] font-bold text-slate-300">{emptyLabel}</p>
           </div>
         </div>
       ) : (
-        <div className="border-t border-slate-100">
+        <div className="flex-1 overflow-y-auto border-t border-slate-100">
           {items.map(r => (
             <Link
               key={r.id}
@@ -169,14 +171,17 @@ export default function AttentionFeed() {
         </Link>
       </div>
 
-      {total === 0 && !isLoading ? (
-        <div className="bg-white border border-emerald-100 rounded-2xl p-10 text-center">
-          <CheckCircle2 size={28} className="text-emerald-500 mx-auto mb-2" />
-          <p className="text-sm font-black text-slate-800">{t('nothing_pending')}</p>
-          <p className="text-xs font-medium text-slate-500 mt-1">{t('nothing_pending_sub')}</p>
+      {/* The four cards are always rendered. Swapping them for a single
+          "all clear" panel when everything is empty was itself a layout jump,
+          and each card already says it is empty. */}
+      {total === 0 && !isLoading && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-2.5">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          <p className="text-xs font-bold text-emerald-800">{t('nothing_pending')}</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Group
             title={t('attn_overdue')}
             subtitle={t('attn_overdue_sub')}
@@ -245,7 +250,6 @@ export default function AttentionFeed() {
             }
           />
         </div>
-      )}
     </section>
   );
 }
