@@ -72,6 +72,9 @@ model Rental {
   // readyBy holds the username so the report can show who marked it.
   readyAt          DateTime?
   readyBy          String?
+  /// Who took the order, for the admin report. Stored as a name rather than a
+  /// relation so history survives a user being renamed or removed.
+  createdBy        String?
   // Tying jobs are allocated to a registered artist by an admin or owner.
   // artistRate is per safa — what they earn for each one tied — so the amount
   // owed on an order is artistRate * safaTyingCount.
@@ -130,6 +133,8 @@ model Sale {
   remainingAmount  Float      @default(0)
   readyAt          DateTime?
   readyBy          String?
+  /// Who rang up the sale, for the admin report.
+  createdBy        String?
   artistId         String?
   artistRate       Float      @default(0)
   artistPaid       Boolean    @default(false)

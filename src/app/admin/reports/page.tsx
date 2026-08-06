@@ -104,6 +104,7 @@ export default function ReportsPage() {
             o.itemNames ? `<br><span class="k">${o.itemNames}</span>` : ''
           }</td>
           <td>${fmtDate(o.createdAt)}</td>
+          <td>${o.createdBy ?? ''}</td>
           <td>${o.status}</td>
           <td style="text-align:right">${money(o.totalAmount)}</td>
           <td style="text-align:right">${money(o.paidAmount)}</td>
@@ -162,10 +163,10 @@ export default function ReportsPage() {
       ${
         report === 'ARTISTS'
           ? ''
-          : `<table><thead><tr><th>Order</th><th>Customer &amp; items</th><th>Taken</th><th>Status</th>
+          : `<table><thead><tr><th>Order</th><th>Customer &amp; items</th><th>Taken</th><th>By</th><th>Status</th>
         <th style="text-align:right">Total</th><th style="text-align:right">Paid</th>
         <th style="text-align:right">Due</th><th>Ready</th><th>Artist</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="9">No orders in this range.</td></tr>'}</tbody></table>`
+        <tbody>${rows || '<tr><td colspan="10">No orders in this range.</td></tr>'}</tbody></table>`
       }
     </body></html>`);
     w.document.close();
@@ -339,6 +340,7 @@ export default function ReportsPage() {
                     <th className="px-4 py-2">Order</th>
                     <th className="px-4 py-2">Customer</th>
                     <th className="px-4 py-2">Taken</th>
+                    <th className="px-4 py-2">By</th>
                     <th className="px-4 py-2">Status</th>
                     <th className="px-4 py-2 text-right">Total</th>
                     <th className="px-4 py-2 text-right">Paid</th>
@@ -375,6 +377,9 @@ export default function ReportsPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 font-semibold text-slate-500">{fmtDate(o.createdAt)}</td>
+                      <td className="px-4 py-2.5 text-[11px] font-bold text-slate-600">
+                        {o.createdBy || <span className="text-slate-300">—</span>}
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className="text-[10px] font-black text-slate-600">{o.status}</span>
                       </td>

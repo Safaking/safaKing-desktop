@@ -25,7 +25,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
+import BillPreviewDialog from '@/components/BillPreviewDialog';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 
 interface Product {
   id: string;
@@ -48,6 +50,7 @@ interface SaleItem {
 
 export default function SalesPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,6 +65,7 @@ export default function SalesPage() {
     notes: ''
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [previewBill, setPreviewBill] = useState<any | null>(null);
   // Safa tying, same model as the booking page: styles are multi-select and
   // each carries its own quantity.
   const [tieSafa, setTieSafa] = useState(false);
@@ -238,6 +242,7 @@ export default function SalesPage() {
           safaTyingTime: tieSafa ? safaTyingDetails.time : null,
           safaTyingDate: tieSafa ? safaTyingDetails.marriageDate : null,
           tieSafaCharge: getSafaCharge(),
+          createdBy: user?.username || user?.name || null,
           vendorId: vendorId || null,
           // Blank means settled in full, which is the counter-sale default.
           paidAmount: vendorId && paidAmount !== '' ? parseFloat(paidAmount) || 0 : undefined,
@@ -718,6 +723,13 @@ export default function SalesPage() {
             <h2 className="text-2xl font-black text-slate-800 mb-1">{t('sale_complete')}</h2>
             <p className="text-xs text-slate-500 mb-6 font-medium">Order <span className="font-mono font-black text-emerald-600">{recentSale?.orderNumber}</span> created.</p>
             
+            <button
+              onClick={() => setPreviewBill(recentSale)}
+              className="w-full mb-2 py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-800 transition-all"
+            >
+              {t('view_bill')}
+            </button>
+
             <div className="grid grid-cols-2 gap-2 mb-4">
               <button onClick={() => generateInvoicePDF(recentSale, 'SALE', 'download')} className="py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all border border-emerald-200">
                 {t('download_bill')}
@@ -753,6 +765,7 @@ export default function SalesPage() {
         details={safaTyingDetails}
         setDetails={setSafaTyingDetails}
       />
+      <BillPreviewDialog order={previewBill} type='SALE' onClose={() => setPreviewBill(null)} />
     </div>
   );
 }

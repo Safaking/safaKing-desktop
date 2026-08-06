@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
+import BillPreviewDialog from '@/components/BillPreviewDialog';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
 import DateInput from '@/components/DateInput';
 import { isMeterBased, unitLabel, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
@@ -66,6 +67,7 @@ export default function OdooBookingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCatalogTypes, setSelectedCatalogTypes] = useState<string[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [previewBill, setPreviewBill] = useState<any | null>(null);
   const [recentBooking, setRecentBooking] = useState<any>(null);
   const [paidAmount, setPaidAmount] = useState('0');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH');
@@ -277,6 +279,7 @@ export default function OdooBookingPage() {
           safaTyingTime: tieSafa ? safaTyingDetails.time : null,
           safaTyingDate: tieSafa ? safaTyingDetails.marriageDate : null,
           tieSafaCharge: getSafaCharge(),
+          createdBy: user?.username || user?.name || null,
           discount: parseFloat(discount || '0'),
           paymentMethod,
         })
@@ -883,6 +886,13 @@ export default function OdooBookingPage() {
             <h2 className="text-2xl font-black text-slate-800 mb-1">{t('booking_complete')}</h2>
             <p className="text-xs text-slate-500 mb-6 font-medium">Order <span className="font-mono font-black text-indigo-600">{recentBooking?.orderNumber}</span> created.</p>
             
+            <button
+              onClick={() => setPreviewBill(recentBooking)}
+              className="w-full mb-2 py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-800 transition-all"
+            >
+              {t('view_bill')}
+            </button>
+
             <div className="grid grid-cols-2 gap-2 mb-4">
               <button onClick={() => generateInvoicePDF(recentBooking, 'RENTAL', 'download')} className="py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all border border-emerald-200">
                 {t('download_bill')}
@@ -918,6 +928,7 @@ export default function OdooBookingPage() {
         details={safaTyingDetails}
         setDetails={setSafaTyingDetails}
       />
+      <BillPreviewDialog order={previewBill} type='RENTAL' onClose={() => setPreviewBill(null)} />
     </div>
   );
 }

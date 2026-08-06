@@ -82,7 +82,8 @@ export async function POST(request: Request) {
     safaTyingDate,
     tieSafaCharge,
     discount,
-    paymentMethod
+    paymentMethod,
+    createdBy,
   } = body;
 
   if (!customerName || !customerPhone || !startDate || !endDate || !items || items.length === 0) {
@@ -163,6 +164,7 @@ export async function POST(request: Request) {
           tieSafaCharge: parseFloat(tieSafaCharge?.toString() || '0') || 0,
           discount: parseFloat(discount?.toString() || '0') || 0,
           paymentMethod: paymentMethod || 'CASH',
+          createdBy: createdBy?.trim() || null,
           items: {
             create: items.map((item: any) => ({
               productId: item.productId,

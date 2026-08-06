@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     tieSafaCharge,
     vendorId,
     paidAmount,
+    createdBy,
   } = body;
 
   if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -93,6 +94,7 @@ export async function POST(request: Request) {
           vendorId: vendorId || null,
           paidAmount: paid,
           remainingAmount: remaining,
+          createdBy: createdBy?.trim() || null,
           tieSafa: !!tieSafa,
           safaShape: tieSafa ? (safaShape || null) : null,
           safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,

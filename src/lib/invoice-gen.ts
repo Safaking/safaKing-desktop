@@ -2,7 +2,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 
-export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'RENTAL', action: 'download' | 'print' = 'download') {
+export async function generateInvoicePDF(
+  data: any,
+  type: 'RENTAL' | 'SALE' = 'RENTAL',
+  action: 'download' | 'print' | 'view' = 'download'
+): Promise<string | void> {
   const doc = new jsPDF();
   const primaryColor: [number, number, number] = [30, 96, 122]; // Teal #1e607a
   const secondaryColor: [number, number, number] = [240, 240, 240]; // Light Grey
@@ -315,10 +319,41 @@ export async function generateInvoicePDF(data: any, type: 'RENTAL' | 'SALE' = 'R
   doc.setFontSize(8);
   doc.text('Computer Generated Invoice', 105, pageHeight - 10, { align: 'center' });
 
-  if (action === 'print') {
-    doc.autoPrint();
-    window.open(doc.output('bloburl'), '_blank');
-  } else {
-    doc.save(`invoice-${data.orderNumber || 'new'}.pdf`);
+  // 'view' hands the caller a blob URL to show in a preview.
+  if (action === 'view') {
+    return doc.output('bloburl') as unknown as string;
   }
+
+  if (action === 'print') {
+    // window.open on a blob URL is blocked by pop-up blockers and by the
+    // Electron shell, which is why Print appeared to do nothing. Printing
+    // through a hidden iframe needs no new window.
+    const url = doc.output('bloburl') as unknown as string;
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.src = url;
+
+    frame.onload = () => {
+      try {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      } catch {
+        // Some viewers refuse to be driven; fall back to a tab so the user
+        // still gets the bill rather than nothing at all.
+        window.open(url, '_blank');
+      }
+      // Leave it long enough for the print dialog to take the document.
+      setTimeout(() => frame.remove(), 60_000);
+    };
+
+    document.body.appendChild(frame);
+    return;
+  }
+
+  doc.save(`invoice-${data.orderNumber || 'new'}.pdf`);
 }
