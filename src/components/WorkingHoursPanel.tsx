@@ -3,8 +3,16 @@
 import React, { useState } from 'react';
 import useSWR from 'swr';
 import { format } from 'date-fns';
-import { Clock, LogIn, LogOut, Wallet } from 'lucide-react';
-import DateInput from '@/components/DateInput';
+import {
+  Clock,
+  LogIn,
+  LogOut,
+  Wallet,
+  ShoppingCart,
+  CalendarPlus,
+  CheckCircle2,
+  Loader2,
+} from 'lucide-react';
 import { fetcher } from '@/lib/data';
 
 /** Minutes as "7h 20m", which reads faster than a decimal for a shift. */
@@ -14,174 +22,188 @@ const asHours = (minutes: number) => {
   return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
 };
 
-const isoDay = (offsetDays = 0) => {
-  const d = new Date();
-  d.setDate(d.getDate() - offsetDays);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+const clock = (v?: string | Date | null) => {
+  if (!v) return '—';
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? '—' : format(d, 'HH:mm');
 };
 
-const stamp = (value?: string | null) => {
-  if (!value) return '—';
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? '—' : format(d, 'dd-MM-yy HH:mm');
+const dayLabel = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return isNaN(d.getTime()) ? iso : format(d, 'EEE, MM/dd/yyyy');
 };
+
+const ICON: Record<string, { icon: React.ReactNode; tone: string }> = {
+  LOGIN: { icon: <LogIn size={13} />, tone: 'text-emerald-600' },
+  LOGOUT: { icon: <LogOut size={13} />, tone: 'text-slate-400' },
+  RENTAL: { icon: <CalendarPlus size={13} />, tone: 'text-blue-600' },
+  SALE: { icon: <ShoppingCart size={13} />, tone: 'text-emerald-600' },
+  READY: { icon: <CheckCircle2 size={13} />, tone: 'text-amber-600' },
+  CASHBOOK: { icon: <Wallet size={13} />, tone: 'text-violet-600' },
+};
+
+/** The day's activity for one person, loaded only when the row is opened. */
+function DayActivity({ userId, date }: { userId: string; date: string }) {
+  const { data, isLoading } = useSWR(`/api/work-sessions?userId=${userId}&date=${date}`, fetcher);
+  const events: any[] = data?.events ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 px-5 py-3 text-slate-400">
+        <Loader2 size={14} className="animate-spin" />
+        <span className="text-[11px] font-bold">Loading…</span>
+      </div>
+    );
+  }
+
+  if (!events.length) {
+    return (
+      <p className="px-5 py-3 text-[11px] font-semibold text-slate-400">
+        Nothing recorded for this day beyond signing in.
+      </p>
+    );
+  }
+
+  return (
+    <div className="px-5 py-2">
+      {events.map((e, i) => {
+        const meta = ICON[e.kind] ?? { icon: <Clock size={13} />, tone: 'text-slate-400' };
+        return (
+          <div key={i} className="flex items-start gap-3 py-1.5">
+            <span className="text-[11px] font-mono font-bold text-slate-400 w-11 shrink-0 pt-0.5">
+              {clock(e.at)}
+            </span>
+            <span className={`shrink-0 pt-0.5 ${meta.tone}`}>{meta.icon}</span>
+            <span className="min-w-0">
+              <span className="text-[11px] font-bold text-slate-700">{e.label}</span>
+              {e.detail && (
+                <span className="ml-2 text-[11px] font-medium text-slate-400">{e.detail}</span>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
- * Staff working hours for a date range, from login to sign-out.
+ * Working hours, one row per person per day.
  *
- * A session with no sign-out is someone still on shift — those are shown as
- * "on shift" and contribute nothing to the total, because the app never sees
- * a browser simply being closed and guessing would inflate the hours.
+ * The shift is the day's first login to its last sign-out — stepping away and
+ * signing back in does not shorten the day worked, so summing individual
+ * sessions would understate it. A day still open reports no hours rather than
+ * a guessed figure.
  */
 export default function WorkingHoursPanel() {
-  const [from, setFrom] = useState(isoDay(7));
-  const [to, setTo] = useState(isoDay(0));
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const { data, isLoading } = useSWR('/api/work-sessions?days=30', fetcher, { keepPreviousData: true });
 
-  const { data, isLoading } = useSWR(`/api/work-sessions?from=${from}&to=${to}`, fetcher, {
-    keepPreviousData: true,
-  });
+  const rows: any[] = Array.isArray(data?.rows) ? data.rows : [];
 
-  const users: any[] = Array.isArray(data?.users) ? data.users : [];
-  const sessions: any[] = Array.isArray(data?.sessions) ? data.sessions : [];
+  // Group by day so the newest day reads as a block rather than a flat list.
+  const byDate = rows.reduce<Record<string, any[]>>((acc, r) => {
+    (acc[r.date] ||= []).push(r);
+    return acc;
+  }, {});
+  const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
 
   return (
     <div className="space-y-5">
-      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-end gap-4">
-        <div>
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">From</label>
-          <DateInput
-            value={from}
-            onChange={setFrom}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold w-40"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">To</label>
-          <DateInput
-            value={to}
-            onChange={setTo}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold w-40"
-          />
-        </div>
-        <div className="flex gap-2">
-          {[
-            { label: 'Today', days: 0 },
-            { label: '7 days', days: 7 },
-            { label: '30 days', days: 30 },
-          ].map(r => (
-            <button
-              key={r.label}
-              onClick={() => {
-                setFrom(isoDay(r.days));
-                setTo(isoDay(0));
-              }}
-              className="px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200"
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
             <Clock size={16} className="text-indigo-600" /> Working hours
           </h2>
           <span className="text-[11px] font-bold text-slate-400">
-            {isLoading ? 'Loading…' : `${users.length} staff · ${sessions.length} sessions`}
+            {isLoading ? 'Loading…' : `last 30 days · ${rows.length} days worked`}
           </span>
         </div>
 
-        {users.length === 0 && !isLoading ? (
-          <p className="p-8 text-center text-slate-400 font-medium text-sm">
-            No logins in this date range.
-          </p>
+        {dates.length === 0 && !isLoading ? (
+          <p className="p-8 text-center text-slate-400 font-medium text-sm">No logins recorded yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm min-w-[720px]">
-            <thead className="bg-slate-50/70 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-2">Staff</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2 text-right">Sessions</th>
-                <th className="px-4 py-2">Last login</th>
-                <th className="px-4 py-2">Last sign out</th>
-                <th className="px-4 py-2 text-right">Total hours</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <React.Fragment key={u.userId}>
-                  <tr
-                    className="border-t border-slate-100 hover:bg-slate-50/50 cursor-pointer"
-                    onClick={() => setExpanded(expanded === u.userId ? null : u.userId)}
-                  >
-                    <td className="px-4 py-2.5">
-                      <span className="font-bold text-slate-800">{u.name}</span>
-                      <span className="ml-2 text-[11px] font-mono text-slate-400">@{u.username}</span>
-                      {u.openCount > 0 && (
-                        <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-700">
-                          ON SHIFT
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-[11px] font-black text-slate-500">{u.role}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-slate-600">{u.sessionCount}</td>
-                    <td className="px-4 py-2.5 text-[11px] font-semibold text-slate-500">{stamp(u.lastLogin)}</td>
-                    <td className="px-4 py-2.5 text-[11px] font-semibold text-slate-500">{stamp(u.lastLogout)}</td>
-                    <td className="px-4 py-2.5 text-right font-black text-indigo-600">{asHours(u.totalMinutes)}</td>
-                  </tr>
+          dates.map(date => (
+            <div key={date}>
+              <div className="px-4 py-2 bg-slate-50/80 border-y border-slate-100">
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                  {dayLabel(date)}
+                </p>
+              </div>
 
-                  {expanded === u.userId &&
-                    sessions
-                      .filter(s => s.userId === u.userId)
-                      .map(s => (
-                        <tr key={s.id} className="bg-slate-50/60 border-t border-slate-100">
-                          <td className="px-4 py-1.5 pl-8 text-[11px] font-semibold text-slate-500" colSpan={2}>
-                            <LogIn size={11} className="inline mr-1 text-emerald-600" />
-                            {stamp(s.loggedInAt)}
-                          </td>
-                          <td className="px-4 py-1.5 text-[11px] font-semibold text-slate-500" colSpan={2}>
-                            {s.open ? (
-                              <span className="text-amber-600 font-bold">still on shift</span>
-                            ) : (
-                              <>
-                                <LogOut size={11} className="inline mr-1 text-slate-400" />
-                                {stamp(s.loggedOutAt)}
-                              </>
-                            )}
-                          </td>
-                          <td className="px-4 py-1.5 text-[11px] font-semibold text-slate-500">
-                            {s.logoutReason === 'CASHBOOK' ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-700">
-                                <Wallet size={11} /> cash book closed
-                              </span>
-                            ) : s.logoutReason === 'MANUAL' ? (
-                              'signed out'
-                            ) : (
-                              ''
-                            )}
-                          </td>
-                          <td className="px-4 py-1.5 text-right text-[11px] font-bold text-slate-600">
-                            {s.open ? '—' : asHours(s.minutes)}
-                          </td>
-                        </tr>
-                      ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-          </div>
+              {byDate[date].map(r => {
+                const isOpen = open === r.key;
+                return (
+                  <div key={r.key} className="border-b border-slate-100 last:border-0">
+                    <button
+                      onClick={() => setOpen(isOpen ? null : r.key)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50/70 transition-colors text-left"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-800 truncate">
+                          {r.name}
+                          <span className="ml-2 text-[11px] font-mono font-normal text-slate-400">
+                            @{r.username}
+                          </span>
+                          {r.open && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-700">
+                              ON SHIFT
+                            </span>
+                          )}
+                          {r.overnight && (
+                            <span
+                              className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-700"
+                              title="Signed out the next day — the browser was left open, so this is not a shift length"
+                            >
+                              LEFT OPEN
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                          {r.role} · {r.sessionCount} session{r.sessionCount === 1 ? '' : 's'}
+                        </p>
+                      </div>
+
+                      <div className="hidden sm:flex items-center gap-6 shrink-0 text-center">
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">In</p>
+                          <p className="text-xs font-bold text-emerald-600">{clock(r.firstLogin)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Out</p>
+                          <p className="text-xs font-bold text-slate-600">{clock(r.lastLogout)}</p>
+                        </div>
+                      </div>
+
+                      <div className="w-20 text-right shrink-0">
+                        <p className="text-sm font-black text-indigo-600">
+                          {r.open || r.overnight ? '—' : asHours(r.minutes)}
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">
+                          {isOpen ? 'hide' : 'activity'}
+                        </p>
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="bg-slate-50/60 border-t border-slate-100">
+                        <DayActivity userId={r.userId} date={r.date} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))
         )}
       </div>
 
       <p className="text-[11px] font-semibold text-slate-400">
-        Hours count from login to sign out. Closing the cash book signs a user out, so that is
-        normally their end of day. A session left open — a browser simply closed — shows as on
-        shift and adds nothing to the total.
+        A day runs from the first login to the last sign-out. Closing the cash book signs a user
+        out, so that is normally their end of day. A day left open — a browser simply closed —
+        shows as on shift and reports no hours, since inventing a sign-out time would overstate
+        them. A day marked LEFT OPEN was signed out the following day, so its span is not a shift
+        length either. Click a row to see what that person did.
       </p>
     </div>
   );
