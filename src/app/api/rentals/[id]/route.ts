@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureDbSchema } from '@/lib/db-init';
 
 export async function DELETE(
   request: Request,
   { params }: { params: any }
 ) {
-  await ensureDbSchema();
   try {
     const resolvedParams = await params;
     const id = resolvedParams?.id;
@@ -49,7 +47,6 @@ export async function PUT(
   request: Request,
   { params }: { params: any }
 ) {
-  await ensureDbSchema();
   try {
     const resolvedParams = await params;
     const id = resolvedParams?.id;

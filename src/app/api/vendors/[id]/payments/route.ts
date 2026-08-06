@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureDbSchema } from '@/lib/db-init';
 
 /**
  * Vendor ledger payments for a single vendor (bulk buyer).
@@ -11,7 +10,6 @@ import { ensureDbSchema } from '@/lib/db-init';
  */
 
 export async function GET(request: Request, { params }: { params: any }) {
-  await ensureDbSchema();
   try {
     const { id } = await params;
     if (!id) return NextResponse.json({ error: 'Vendor ID required' }, { status: 400 });
@@ -72,7 +70,6 @@ export async function GET(request: Request, { params }: { params: any }) {
 }
 
 export async function POST(request: Request, { params }: { params: any }) {
-  await ensureDbSchema();
   try {
     const { id } = await params;
     if (!id) return NextResponse.json({ error: 'Vendor ID required' }, { status: 400 });
@@ -104,7 +101,6 @@ export async function POST(request: Request, { params }: { params: any }) {
 }
 
 export async function DELETE(request: Request, { params }: { params: any }) {
-  await ensureDbSchema();
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);

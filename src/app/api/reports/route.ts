@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureDbSchema } from '@/lib/db-init';
 
 /**
  * Reporting data for a date range.
@@ -13,7 +12,6 @@ import { ensureDbSchema } from '@/lib/db-init';
  * fast as the order history grows.
  */
 export async function GET(request: Request) {
-  await ensureDbSchema();
   try {
     const { searchParams } = new URL(request.url);
     const fromRaw = searchParams.get('from');

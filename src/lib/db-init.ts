@@ -8,9 +8,17 @@ let initPromise: Promise<void> | null = null;
  *
  * Each statement runs individually so a single failure does not abort the rest.
  * Uses IF NOT EXISTS / IF EXISTS everywhere so it is always safe to re-run.
+ *
+ * This is NOT called from request handlers. Running ~58 DDL statements before
+ * every cold-start response cost 48 seconds on /api/rentals, near the 60s
+ * function timeout, and achieved nothing once the columns existed. Deploy a
+ * schema change, then POST /api/admin/migrate once.
+ *
+ * @param force re-run even if it already ran in this process, so the manual
+ *              endpoint is not silently a no-op on a warm instance.
  */
-export async function ensureDbSchema() {
-  if (initPromise) return initPromise;
+export async function ensureDbSchema(force = false) {
+  if (initPromise && !force) return initPromise;
 
   initPromise = (async () => {
     const statements = [

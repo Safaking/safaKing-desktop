@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { checkMultiProductAvailability } from '@/lib/inventory';
-import { ensureDbSchema } from '@/lib/db-init';
 
 export async function GET(request: Request) {
-  await ensureDbSchema();
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
 
@@ -56,7 +54,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  await ensureDbSchema();
   console.log('RENTAL POST API HIT');
   const body = await request.json();
   console.log('BODY:', JSON.stringify(body, null, 2));
