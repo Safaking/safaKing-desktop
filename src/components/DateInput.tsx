@@ -21,19 +21,19 @@ import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
  *
  * `value` and `onChange` speak ISO yyyy-mm-dd so all call sites are unchanged.
  * Clicking the field or the calendar icon opens a month-view popup.
- * The text input still accepts mm/dd/yyyy typing as a fallback.
+ * The text input still accepts dd/mm/yyyy typing as a fallback.
  */
 
 const isoToDisplay = (iso: string): string => {
   if (!iso) return '';
   const d = parse(iso, 'yyyy-MM-dd', new Date());
-  return isValid(d) ? format(d, 'MM/dd/yyyy') : '';
+  return isValid(d) ? format(d, 'dd/MM/yyyy') : '';
 };
 
 const displayToIso = (display: string): string | null => {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(display);
   if (!m) return null;
-  const [, mo, d, y] = m;
+  const [, d, mo, y] = m;
   const month = Number(mo);
   const day = Number(d);
   const year = Number(y);
@@ -70,7 +70,7 @@ export default function DateInput({
   value = '',
   onChange,
   className = '',
-  placeholder = 'mm/dd/yyyy',
+  placeholder = 'dd/mm/yyyy',
   required,
   id,
 }: Props) {
@@ -131,7 +131,7 @@ export default function DateInput({
   const selectDay = (day: Date) => {
     const iso = format(day, 'yyyy-MM-dd');
     onChange(iso);
-    setText(format(day, 'MM/dd/yyyy'));
+    setText(format(day, 'dd/MM/yyyy'));
     setOpen(false);
   };
 

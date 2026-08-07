@@ -15,7 +15,7 @@ const money = (n?: number | null) =>
 const day = (v?: string | null) => {
   if (!v) return '—';
   const d = new Date(v);
-  return isNaN(d.getTime()) ? '—' : format(d, 'MM/dd/yyyy');
+  return isNaN(d.getTime()) ? '—' : format(d, 'dd/MM/yyyy');
 };
 
 /**
@@ -72,7 +72,7 @@ export default function ArtistDetailsDialog({ artist, onClose }: Props) {
       <h1>Joshi Safa House</h1>
       <p class="sub">Safa tying statement — <strong>${artist.name}</strong>${
         artist.phone ? ` · ${artist.phone}` : ''
-      } · printed ${format(new Date(), 'MM/dd/yyyy')}</p>
+      } · printed ${format(new Date(), 'dd/MM/yyyy')}</p>
       <table>
         <thead><tr>
           <th>Order</th><th>Customer</th><th>Date</th>

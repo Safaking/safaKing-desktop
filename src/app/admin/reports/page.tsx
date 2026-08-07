@@ -143,7 +143,7 @@ export default function ReportsPage() {
       .card b{display:block;font-size:15px} .card span{font-size:10px;color:#64748b;text-transform:uppercase}
     </style></head><body>
       <h1>Joshi Safa House</h1>
-      <p class="sub">${report === 'ARTISTS' ? 'Artist payments' : 'Revenue report'} ${from} to ${to} &middot; printed ${format(new Date(), 'MM/dd/yyyy')}</p>
+      <p class="sub">${report === 'ARTISTS' ? 'Artist payments' : 'Revenue report'} ${from} to ${to} &middot; printed ${format(new Date(), 'dd/MM/yyyy')}</p>
       <div class="cards">
         <div class="card"><span>Revenue</span><b>${money(summary?.revenue)}</b></div>
         <div class="card"><span>Collected</span><b>${money(summary?.collected)}</b></div>

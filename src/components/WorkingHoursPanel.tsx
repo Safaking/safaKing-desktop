@@ -50,7 +50,7 @@ const dayLabel = (iso: string) => {
   if (iso === isoDay(0)) return 'Today';
   if (iso === isoDay(1)) return 'Yesterday';
   const d = new Date(`${iso}T00:00:00`);
-  return isNaN(d.getTime()) ? iso : format(d, 'EEEE, MM/dd/yyyy');
+  return isNaN(d.getTime()) ? iso : format(d, 'EEEE, dd/MM/yyyy');
 };
 
 const ICON: Record<string, { icon: React.ReactNode; tone: string }> = {

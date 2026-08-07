@@ -469,7 +469,7 @@ export default function OdooBookingPage() {
                 <div className="relative">
                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <DateInput
-                     placeholder={`${t('wedding_date')} (mm/dd/yyyy)`}
+                     placeholder={`${t('wedding_date')} (dd/mm/yyyy)`}
                      className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded focus:border-indigo-500 outline-none text-sm"
                      value={customer.weddingDate}
                      onChange={v => setCustomer({...customer, weddingDate: v})}

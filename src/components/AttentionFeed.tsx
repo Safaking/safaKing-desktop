@@ -14,7 +14,7 @@ const money = (n?: number | null) =>
 const day = (v?: string | null) => {
   if (!v) return '';
   const d = new Date(v);
-  return isNaN(d.getTime()) ? '' : format(d, 'MM/dd');
+  return isNaN(d.getTime()) ? '' : format(d, 'dd/MM');
 };
 
 /** Whole days between today and a date — negative means it is already past. */

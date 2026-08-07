@@ -163,7 +163,7 @@ export default function Dashboard() {
                   {now && (
                     <p className="text-sm font-bold text-slate-600 mt-1.5 flex items-center gap-2">
                       <Clock size={14} className="text-indigo-600" />
-                      <span>{format(now, 'EEEE, MM/dd/yyyy')}</span>
+                      <span>{format(now, 'EEEE, dd/MM/yyyy')}</span>
                       <span className="text-slate-300">|</span>
                       <span className="tabular-nums text-indigo-700">{format(now, 'hh:mm:ss a')}</span>
                     </p>

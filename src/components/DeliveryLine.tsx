@@ -13,7 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
  * have no collection detail stay quiet rather than showing empty labels.
  *
  * pickupDate is a plain string: bookings activated at the counter store a full
- * timestamp, the sale form stores yyyy-mm-dd. Both are shown as mm/dd/yyyy.
+ * timestamp, the sale form stores yyyy-mm-dd. Both are shown as dd/mm/yyyy.
  */
 export default function DeliveryLine({ order }: { order: any }) {
   const { t } = useLanguage();
@@ -27,7 +27,7 @@ export default function DeliveryLine({ order }: { order: any }) {
   const parsed = raw ? new Date(raw) : null;
   const date =
     parsed && !isNaN(parsed.getTime())
-      ? `${String(parsed.getMonth() + 1).padStart(2, '0')}/${String(parsed.getDate()).padStart(2, '0')}/${parsed.getFullYear()}`
+      ? `${String(parsed.getDate()).padStart(2, '0')}/${String(parsed.getMonth() + 1).padStart(2, '0')}/${parsed.getFullYear()}`
       : raw;
 
   return (

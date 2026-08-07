@@ -23,10 +23,10 @@ import { useLanguage } from '@/lib/LanguageContext';
 const money = (n?: number | null) =>
   `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
-/** mm/dd/yyyy for display — matches every other date field in the app. */
+/** dd/mm/yyyy for display — matches every other date field in the app. */
 const displayDate = (iso: string) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-  return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 };
 
 const todayISO = () => {
