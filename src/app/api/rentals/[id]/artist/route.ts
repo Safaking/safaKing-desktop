@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { normaliseShares, validateShares, legacyMirror } from '@/lib/tying-split';
 
 /**
- * Allocate (or clear) the tying artist on a rental order.
+ * Allocate the tying on a rental order, split across one or more artists.
  *
- * Body: { artistId, artistRate?, artistPaid?, role? }
+ * Body: { shares: [{ artistId, quantity, rate?, paid? }, ...], role? }
  *
- * A super may allocate the artist but not touch money: rate and paid are
- * admin-only, and are preserved as-is when anyone else saves.
- * artistRate is per safa; the amount owed is rate * safaTyingCount.
- * Clearing the artist also resets the rate and paid flag so an unallocated
- * order never carries a stray amount owed to nobody.
+ * A big order is shared out — forty safas to one artist, sixty to another —
+ * so the whole split is sent at once and replaces whatever was there. An empty
+ * list clears the order.
+ *
+ * A super may set who ties and how many, but not money: rate and paid are
+ * admin-only and are carried over from what is already stored when anyone else
+ * saves, so a super rearranging the split cannot quietly reset a rate to zero.
  */
 export async function POST(request: Request, { params }: { params: any }) {
   try {
@@ -21,36 +24,79 @@ export async function POST(request: Request, { params }: { params: any }) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const artistId = body?.artistId || null;
 
-    const rental = await prisma.rental.findUnique({ where: { id } });
+    const rental = await prisma.rental.findUnique({
+      where: { id },
+      include: { tyingAssignments: true },
+    });
     if (!rental) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    if (artistId) {
-      const artist = await prisma.artist.findUnique({ where: { id: artistId } });
-      if (!artist) {
+    // Accept the older single-artist body too, so an out-of-date client (a
+    // desktop app that has not been restarted) keeps working.
+    const raw = Array.isArray(body?.shares)
+      ? body.shares
+      : body?.artistId
+      ? [
+          {
+            artistId: body.artistId,
+            quantity: rental.safaTyingCount || 0,
+            rate: body.artistRate,
+            paid: body.artistPaid,
+          },
+        ]
+      : [];
+
+    const shares = normaliseShares(raw);
+
+    if (shares.length) {
+      const found = await prisma.artist.findMany({
+        where: { id: { in: shares.map(s => s.artistId) } },
+        select: { id: true },
+      });
+      if (found.length !== shares.length) {
         return NextResponse.json({ error: 'Artist not found' }, { status: 400 });
       }
     }
 
-    // A real zero rate must stay zero, so parse explicitly rather than with `||`.
-    const parsedRate = parseFloat(body?.artistRate?.toString() ?? '');
-    const rate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate : 0;
+    const check = validateShares(shares, rental.safaTyingCount || 0);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: 400 });
+    }
 
+    // A super's save must not move rates or paid flags, so those come back off
+    // what is already stored for that artist.
     const isAdmin = body?.role === 'ADMIN';
+    const existing = new Map(rental.tyingAssignments.map(a => [a.artistId, a]));
+    const toStore = shares.map(s => {
+      const before = existing.get(s.artistId);
+      return isAdmin
+        ? s
+        : { ...s, rate: before?.rate ?? s.rate, paid: before?.paid ?? false };
+    });
 
-    const updated = await prisma.rental.update({
+    // Replace the whole split in one go: rewriting is far simpler to reason
+    // about than diffing rows, and the set is never more than a handful.
+    await prisma.$transaction([
+      prisma.tyingAssignment.deleteMany({ where: { rentalId: id } }),
+      ...toStore.map(s =>
+        prisma.tyingAssignment.create({
+          data: {
+            rentalId: id,
+            artistId: s.artistId,
+            quantity: s.quantity,
+            rate: s.rate,
+            paid: s.paid,
+          },
+        })
+      ),
+      prisma.rental.update({ where: { id }, data: legacyMirror(toStore) }),
+    ]);
+
+    const updated = await prisma.rental.findUnique({
       where: { id },
-      data: artistId
-        ? {
-            artistId,
-            // A super's save must not move the rate or the paid flag.
-            ...(isAdmin ? { artistRate: rate, artistPaid: !!body?.artistPaid } : {}),
-          }
-        : { artistId: null, artistRate: 0, artistPaid: false },
-      include: { artist: true },
+      include: { artist: true, tyingAssignments: { include: { artist: true } } },
     });
 
     return NextResponse.json(updated);

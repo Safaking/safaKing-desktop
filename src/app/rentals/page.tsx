@@ -28,6 +28,7 @@ import ActivateRentalDialog from '@/components/ActivateRentalDialog';
 import RentalDetailsDialog from '@/components/RentalDetailsDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
 import { needsArtist } from '@/lib/barati';
+import { artistLabel, artistTitle, isFullyAssigned } from '@/lib/tying-split';
 import DeliveryLine from '@/components/DeliveryLine';
 import EditRentalDialog from '@/components/EditRentalDialog';
 import { useAuth } from '@/lib/AuthContext';
@@ -322,18 +323,14 @@ export default function RentalsPage() {
                       {needsArtist(rental) && isSuperOrAdmin && (
                         <button
                           onClick={() => setArtistRental(rental)}
-                          title={
-                            rental.artist
-                              ? `Artist: ${rental.artist.name} — ₹${rental.artistRate ?? 0}/safa${rental.artistPaid ? ' (paid)' : ''}`
-                              : 'Allocate a tying artist'
-                          }
+                          title={artistTitle(rental)}
                           className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
-                            rental.artist
+                            isFullyAssigned(rental)
                               ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
                               : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                           }`}
                         >
-                          {rental.artist ? rental.artist.name.split(' ')[0] : t('allocate')}
+                          {artistLabel(rental, t('allocate'))}
                         </button>
                       )}
 

@@ -32,26 +32,26 @@ model Product {
 }
 
 model Rental {
-  id              String       @id @default(uuid())
-  orderNumber     String       @unique
-  customerName    String
-  customerPhone   String?
+  id               String            @id @default(uuid())
+  orderNumber      String            @unique
+  customerName     String
+  customerPhone    String?
   customerAltPhone String?
-  customerAddress String?
-  fatherName      String?
-  weddingDate     String?
-  safaSize        String?
-  notes           String?
-  startDate       DateTime
-  endDate         DateTime
-  status          String
-  totalAmount     Float
-  paidAmount      Float        @default(0)
-  remainingAmount Float        @default(0)
-  storeId         String?
-  tieSafa          Boolean      @default(false)
+  customerAddress  String?
+  fatherName       String?
+  weddingDate      String?
+  safaSize         String?
+  notes            String?
+  startDate        DateTime
+  endDate          DateTime
+  status           String
+  totalAmount      Float
+  paidAmount       Float             @default(0)
+  remainingAmount  Float             @default(0)
+  storeId          String?
+  tieSafa          Boolean           @default(false)
   safaShape        String?
-  safaTyingCount   Int          @default(1)
+  safaTyingCount   Int               @default(1)
   // JSON array of the tying styles chosen and how many safas each covers:
   // [{ "id": "...", "name": "Jodhpuri", "price": 50, "quantity": 10 }, ...]
   // safaShape and safaTyingCount stay populated (joined names / total count)
@@ -61,13 +61,13 @@ model Rental {
   safaTyingAddress String?
   safaTyingTime    String?
   safaTyingDate    String?
-  tieSafaCharge    Float        @default(0)
-  discount         Float        @default(0)
-  paymentMethod    String?      @default("CASH")
+  tieSafaCharge    Float             @default(0)
+  discount         Float             @default(0)
+  paymentMethod    String?           @default("CASH")
   pickupName       String?
   pickupPhone      String?
   pickupDate       String?
-  damageCharge     Float        @default(0)
+  damageCharge     Float             @default(0)
   // Set when staff confirm the order is packed and ready for handover.
   // readyBy holds the username so the report can show who marked it.
   readyAt          DateTime?
@@ -79,14 +79,17 @@ model Rental {
   // artistRate is per safa — what they earn for each one tied — so the amount
   // owed on an order is artistRate * safaTyingCount.
   artistId         String?
-  artistRate       Float        @default(0)
-  artistPaid       Boolean      @default(false)
-  artist           Artist?      @relation(fields: [artistId], references: [id])
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  invoice         Invoice?
-  items           RentalItem[]
-  store           Store?       @relation(fields: [storeId], references: [id])
+  artistRate       Float             @default(0)
+  artistPaid       Boolean           @default(false)
+  artist           Artist?           @relation(fields: [artistId], references: [id])
+  /// The real allocation, one row per artist. artistId above is kept in step
+  /// with the first of these so older reads still find an artist on the order.
+  tyingAssignments TyingAssignment[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  invoice          Invoice?
+  items            RentalItem[]
+  store            Store?            @relation(fields: [storeId], references: [id])
 }
 
 model RentalItem {
@@ -101,8 +104,8 @@ model RentalItem {
 }
 
 model Sale {
-  id               String     @id @default(uuid())
-  orderNumber      String     @unique
+  id               String            @id @default(uuid())
+  orderNumber      String            @unique
   customerName     String
   customerPhone    String?
   customerAltPhone String?
@@ -113,24 +116,24 @@ model Sale {
   notes            String?
   totalAmount      Float
   storeId          String?
-  discount         Float      @default(0)
+  discount         Float             @default(0)
   // Safa tying can be bought outright too, not just with a rental, so these
   // mirror the equivalent fields on Rental.
-  tieSafa          Boolean    @default(false)
+  tieSafa          Boolean           @default(false)
   safaShape        String?
-  safaTyingCount   Int        @default(1)
+  safaTyingCount   Int               @default(1)
   safaTyingStyles  String?
   safaTyingName    String?
   safaTyingAddress String?
   safaTyingTime    String?
   safaTyingDate    String?
-  tieSafaCharge    Float      @default(0)
+  tieSafaCharge    Float             @default(0)
   // Bulk buyers go through the same POS screen; the order is simply tagged to
   // a registered vendor. Sales previously had no part-payment tracking, which
   // bulk orders need.
   vendorId         String?
-  paidAmount       Float      @default(0)
-  remainingAmount  Float      @default(0)
+  paidAmount       Float             @default(0)
+  remainingAmount  Float             @default(0)
   readyAt          DateTime?
   readyBy          String?
   // Who is coming to collect the goods and when. Mirrors the same three fields
@@ -142,15 +145,16 @@ model Sale {
   /// Who rang up the sale, for the admin report.
   createdBy        String?
   artistId         String?
-  artistRate       Float      @default(0)
-  artistPaid       Boolean    @default(false)
-  artist           Artist?    @relation("SaleArtist", fields: [artistId], references: [id])
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  artistRate       Float             @default(0)
+  artistPaid       Boolean           @default(false)
+  artist           Artist?           @relation("SaleArtist", fields: [artistId], references: [id])
+  tyingAssignments TyingAssignment[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   invoice          Invoice?
   items            SaleItem[]
-  vendor           Vendor?    @relation(fields: [vendorId], references: [id])
-  store            Store?     @relation(fields: [storeId], references: [id])
+  vendor           Vendor?           @relation(fields: [vendorId], references: [id])
+  store            Store?            @relation(fields: [storeId], references: [id])
 }
 
 model SaleItem {
@@ -178,11 +182,11 @@ model Invoice {
 }
 
 model Store {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
   location  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   rentals   Rental[]
   sales     Sale[]
   users     User[]
@@ -190,25 +194,25 @@ model Store {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String?  @unique
-  username  String?  @unique
-  password  String
-  name      String
+  id               String        @id @default(uuid())
+  email            String?       @unique
+  username         String?       @unique
+  password         String
+  name             String
   // ADMIN — full access including the admin panel.
   // SUPER — shop floor lead: cash book, artist allocation.
   // USER  — POS and bookings only.
-  role      String   @default("USER")
+  role             String        @default("USER")
   // Admin can grant an individual SUPER access to the vendor register.
-  canManageVendors Boolean @default(false)
+  canManageVendors Boolean       @default(false)
   /// Preferred UI language, so the choice follows the person rather than the
   /// browser they happen to be sitting at.
-  language  String   @default("en")
-  storeId   String?
-  store     Store?   @relation(fields: [storeId], references: [id])
-  sessions  WorkSession[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  language         String        @default("en")
+  storeId          String?
+  store            Store?        @relation(fields: [storeId], references: [id])
+  sessions         WorkSession[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model SafaPricing {
@@ -228,46 +232,80 @@ model SafaOption {
 }
 
 model Artist {
-  id        String   @id @default(uuid())
-  name      String
+  id           String            @id @default(uuid())
+  name         String
   /// Their usual rate per safa tied. Allocation pre-fills from this, and an
   /// admin can still override it on an individual order.
-  ratePerPiece Float @default(0)
-  phone     String?
-  address   String?
-  notes     String?
-  isActive  Boolean  @default(true)
+  ratePerPiece Float             @default(0)
+  phone        String?
+  address      String?
+  notes        String?
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  rentals      Rental[]
+  sales        Sale[]            @relation("SaleArtist")
+  /// Cash payments actually made to this artist (ledger entries).
+  payments     ArtistPayment[]
+  /// Every share of an order this artist was given. Earnings are summed from
+  /// here, not from Rental.artistRate — a big order is split between several.
+  assignments  TyingAssignment[]
+}
+
+/// One artist's share of one order's tying.
+///
+/// A hundred safas is not one person's day, so the shop splits the job: forty
+/// to one artist, sixty to another. Each share carries its own count and its
+/// own rate, because artists are not paid the same, and its own paid flag, so
+/// one can be settled while the other waits.
+///
+/// The shares on an order may add up to less than the order needs — that is a
+/// job still being staffed, not an error — but never to more than it needs.
+model TyingAssignment {
+  id        String   @id @default(uuid())
+  /// Exactly one of rentalId / saleId is set.
+  rentalId  String?
+  saleId    String?
+  artistId  String
+  /// How many safas of this order this artist ties.
+  quantity  Int      @default(0)
+  /// Per safa, for this artist on this order.
+  rate      Float    @default(0)
+  paid      Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  rentals   Rental[]
-  sales     Sale[]   @relation("SaleArtist")
-  /// Cash payments actually made to this artist (ledger entries).
-  payments  ArtistPayment[]
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  rental    Rental?  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  sale      Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([rentalId])
+  @@index([saleId])
+  @@index([artistId])
 }
 
 /// A cash payment made to an artist — separate from marking individual orders
 /// as paid. The ledger lets admin record partial payments, keep running
 /// balances, and add notes (e.g. "advance", "UPI ref #123").
 model ArtistPayment {
-  id        String   @id @default(uuid())
-  artistId  String
-  amount    Float
-  note      String?
-  paidAt    DateTime @default(now())
-  paidBy    String?
-  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  id       String   @id @default(uuid())
+  artistId String
+  amount   Float
+  note     String?
+  paidAt   DateTime @default(now())
+  paidBy   String?
+  artist   Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 
 model Vendor {
-  id        String   @id @default(uuid())
+  id        String          @id @default(uuid())
   name      String
   phone     String?
   address   String?
   gstNumber String?
   notes     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
   sales     Sale[]
   /// Payments received from this vendor (ledger entries).
   payments  VendorPayment[]
@@ -275,13 +313,13 @@ model Vendor {
 
 /// Payments received from a vendor (bulk buyer) to clear running dues.
 model VendorPayment {
-  id        String   @id @default(uuid())
-  vendorId  String
-  amount    Float
-  note      String?
-  paidAt    DateTime @default(now())
-  paidBy    String?
-  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  id       String   @id @default(uuid())
+  vendorId String
+  amount   Float
+  note     String?
+  paidAt   DateTime @default(now())
+  paidBy   String?
+  vendor   Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
 
 /// One cash day per store. Opening balance is carried from the previous day's

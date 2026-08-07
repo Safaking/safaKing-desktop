@@ -12,17 +12,31 @@ export async function GET(request: Request) {
       ...(withWork
         ? {
             include: {
-              rentals: {
-                orderBy: { startDate: 'desc' },
-                select: {
-                  id: true,
-                  orderNumber: true,
-                  customerName: true,
-                  startDate: true,
-                  safaTyingCount: true,
-                  artistRate: true,
-                  artistPaid: true,
-                  status: true,
+              // Work comes from the shares, not the order: on a split order
+              // this artist tied forty of the hundred safas and is owed for
+              // forty.
+              assignments: {
+                orderBy: { createdAt: 'desc' },
+                include: {
+                  rental: {
+                    select: {
+                      id: true,
+                      orderNumber: true,
+                      customerName: true,
+                      startDate: true,
+                      safaTyingCount: true,
+                      status: true,
+                    },
+                  },
+                  sale: {
+                    select: {
+                      id: true,
+                      orderNumber: true,
+                      customerName: true,
+                      createdAt: true,
+                      safaTyingCount: true,
+                    },
+                  },
                 },
               },
             },
@@ -32,16 +46,35 @@ export async function GET(request: Request) {
 
     if (!withWork) return NextResponse.json(artists);
 
-    // Earnings are rate x safas tied, so they are derived rather than stored.
+    // Earnings are this artist's rate times this artist's share, so they are
+    // derived rather than stored.
     const withTotals = artists.map((a: any) => {
-      const orders = a.rentals.map((r: any) => ({
-        ...r,
-        earned: (r.artistRate || 0) * (r.safaTyingCount || 0),
-      }));
+      const orders = a.assignments
+        .filter((s: any) => s.rental || s.sale)
+        .map((s: any) => {
+          const order = s.rental ?? s.sale;
+          return {
+            id: order.id,
+            assignmentId: s.id,
+            kind: s.rental ? 'RENTAL' : 'SALE',
+            orderNumber: order.orderNumber,
+            customerName: order.customerName,
+            startDate: s.rental ? order.startDate : order.createdAt,
+            status: s.rental ? order.status : 'SOLD',
+            // What the order needed, against what this artist took on.
+            orderSafaCount: order.safaTyingCount || 0,
+            safaTyingCount: s.quantity,
+            artistRate: s.rate,
+            artistPaid: s.paid,
+            earned: (s.rate || 0) * (s.quantity || 0),
+          };
+        });
+
       const earned = orders.reduce((s: number, o: any) => s + o.earned, 0);
       const paid = orders.filter((o: any) => o.artistPaid).reduce((s: number, o: any) => s + o.earned, 0);
       return {
         ...a,
+        assignments: undefined,
         rentals: orders,
         orderCount: orders.length,
         safasTied: orders.reduce((s: number, o: any) => s + (o.safaTyingCount || 0), 0),
@@ -118,7 +151,7 @@ export async function DELETE(request: Request) {
 
     // Orders already allocated to this artist must keep their history, so an
     // artist with work against them is deactivated rather than deleted.
-    const allocated = await prisma.rental.count({ where: { artistId: id } });
+    const allocated = await prisma.tyingAssignment.count({ where: { artistId: id } });
     if (allocated > 0) {
       const artist = await prisma.artist.update({ where: { id }, data: { isActive: false } });
       return NextResponse.json({

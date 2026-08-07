@@ -39,6 +39,11 @@ export async function GET(request: Request) {
         invoice: true,
         // Needed so the list can show who a tying order is allocated to.
         artist: { select: { id: true, name: true, phone: true } },
+        // The real allocation: a big order is split between several artists,
+        // and both the list and the allocate dialog read the whole split.
+        tyingAssignments: {
+          include: { artist: { select: { id: true, name: true, phone: true } } },
+        },
       },
       orderBy: {
         createdAt: 'desc',

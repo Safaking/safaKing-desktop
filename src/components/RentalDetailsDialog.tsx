@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Phone, MapPin, Calendar, User, Package, IndianRupee, Clock, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { unitLabel, rateSuffix } from '@/lib/product-types';
+import { unassignedCount, orderOwed } from '@/lib/tying-split';
 
 interface Props {
   rental: any | null;
@@ -177,14 +178,23 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
               <Row label="Time" value={rental.safaTyingTime} />
               <Row label="Date" value={rental.safaTyingDate} />
               <Row label="Venue" value={rental.safaTyingAddress} />
-              <Row label="Artist" value={rental.artist?.name} />
-              {rental.artist && (
+              {/* A big order is shared out, so each artist gets their own
+                  line — one line with a single total would hide who tied what
+                  and who has already been paid. */}
+              {(rental.tyingAssignments ?? []).map((a: any) => (
                 <Row
-                  label="Artist Fee"
-                  value={`${money(rental.artistRate)}/safa × ${rental.safaTyingCount || 0} = ${money(
-                    (rental.artistRate || 0) * (rental.safaTyingCount || 0)
-                  )} ${rental.artistPaid ? '(paid)' : '(unpaid)'}`}
+                  key={a.id}
+                  label={a.artist?.name ?? 'Artist'}
+                  value={`${a.quantity} safa${a.quantity === 1 ? '' : 's'} × ${money(a.rate)} = ${money(
+                    (a.rate || 0) * (a.quantity || 0)
+                  )} ${a.paid ? '(paid)' : '(unpaid)'}`}
                 />
+              ))}
+              {unassignedCount(rental) > 0 && (
+                <Row label="Still to allocate" value={`${unassignedCount(rental)} safas`} />
+              )}
+              {(rental.tyingAssignments ?? []).length > 1 && (
+                <Row label="Artist Total" value={money(orderOwed(rental))} />
               )}
             </Section>
           )}

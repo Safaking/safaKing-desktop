@@ -4,6 +4,7 @@ import React from 'react';
 import { X, User, Phone, MapPin, Calendar, Tag, Package, Palette, IndianRupee, FileText, CheckCircle2, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
+import { unassignedCount } from '@/lib/tying-split';
 
 interface SaleDetailsDialogProps {
   sale: any | null;
@@ -129,12 +130,27 @@ export default function SaleDetailsDialog({ sale, onClose }: SaleDetailsDialogPr
                 {sale.safaTyingAddress && <p className="col-span-2">Tying Location: {sale.safaTyingAddress}</p>}
               </div>
 
-              {/* Artist Allocation Info */}
-              <div className="pt-2 border-t border-amber-200/60 flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-700">Allocated Artist:</span>
-                <span className="font-bold text-violet-700">
-                  {sale.artist ? `${sale.artist.name} (₹${sale.artistRate || 0}/safa)` : 'Not allocated'}
-                </span>
+              {/* One line per artist: the tying on a big order is shared out. */}
+              <div className="pt-2 border-t border-amber-200/60 space-y-1 text-xs">
+                <span className="font-bold text-slate-700">Allocated Artists:</span>
+                {(sale.tyingAssignments ?? []).length === 0 ? (
+                  <p className="font-bold text-slate-400">Not allocated</p>
+                ) : (
+                  (sale.tyingAssignments ?? []).map((a: any) => (
+                    <p key={a.id} className="flex justify-between gap-3">
+                      <span className="font-bold text-violet-700">{a.artist?.name ?? 'Artist'}</span>
+                      <span className="font-semibold text-slate-600">
+                        {a.quantity} × ₹{a.rate || 0}
+                        {a.paid ? ' · paid' : ''}
+                      </span>
+                    </p>
+                  ))
+                )}
+                {unassignedCount(sale) > 0 && (
+                  <p className="font-bold text-amber-600">
+                    {unassignedCount(sale)} safas still to allocate
+                  </p>
+                )}
               </div>
 
               {/* Ready status */}

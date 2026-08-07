@@ -20,18 +20,31 @@ export async function GET(request: Request, { params }: { params: any }) {
         where: { artistId: id },
         orderBy: { paidAt: 'desc' },
       }),
-      prisma.rental.findMany({
+      // The artist's shares, not the whole orders — on a split order they are
+      // owed for the safas they tied, not for all of them.
+      prisma.tyingAssignment.findMany({
         where: { artistId: id },
-        select: {
-          id: true,
-          orderNumber: true,
-          customerName: true,
-          createdAt: true,
-          startDate: true,
-          safaTyingCount: true,
-          artistRate: true,
-          artistPaid: true,
-          status: true,
+        include: {
+          rental: {
+            select: {
+              id: true,
+              orderNumber: true,
+              customerName: true,
+              createdAt: true,
+              startDate: true,
+              safaTyingCount: true,
+              status: true,
+            },
+          },
+          sale: {
+            select: {
+              id: true,
+              orderNumber: true,
+              customerName: true,
+              createdAt: true,
+              safaTyingCount: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -39,10 +52,24 @@ export async function GET(request: Request, { params }: { params: any }) {
 
     if (!artist) return NextResponse.json({ error: 'Artist not found' }, { status: 404 });
 
-    const orders = rentals.map((r: any) => ({
-      ...r,
-      earned: (r.artistRate || 0) * (r.safaTyingCount || 0),
-    }));
+    const orders = rentals
+      .filter((s: any) => s.rental || s.sale)
+      .map((s: any) => {
+        const order = s.rental ?? s.sale;
+        return {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          createdAt: order.createdAt,
+          startDate: s.rental ? order.startDate : order.createdAt,
+          status: s.rental ? order.status : 'SOLD',
+          orderSafaCount: order.safaTyingCount || 0,
+          safaTyingCount: s.quantity,
+          artistRate: s.rate,
+          artistPaid: s.paid,
+          earned: (s.rate || 0) * (s.quantity || 0),
+        };
+      });
 
     const totalEarned = orders.reduce((s: number, o: any) => s + o.earned, 0);
     const totalPaidViaLedger = payments.reduce((s: number, p: any) => s + (p.amount || 0), 0);

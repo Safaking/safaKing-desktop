@@ -21,8 +21,10 @@ type Row = {
   customerName: string;
   time: string | null;
   safas: number;
-  artistId: string | null;
-  artistName: string | null;
+  /** Everyone tying this order, and how many each took. */
+  artists: { id: string; name: string; quantity: number }[];
+  /** Safas on this order still with nobody on them. */
+  short: number;
 };
 
 const select = {
@@ -36,6 +38,7 @@ const select = {
   safaTyingTime: true,
   artistId: true,
   artist: { select: { name: true } },
+  tyingAssignments: { include: { artist: { select: { id: true, name: true } } } },
 };
 
 export async function GET(request: Request) {
@@ -69,8 +72,14 @@ export async function GET(request: Request) {
         customerName: o.customerName,
         time: o.safaTyingTime,
         safas: baratiCount(o),
-        artistId: o.artistId,
-        artistName: o.artist?.name ?? null,
+        artists: (o.tyingAssignments ?? [])
+          .filter((a: any) => a.artist)
+          .map((a: any) => ({ id: a.artist.id, name: a.artist.name, quantity: a.quantity })),
+        short: Math.max(
+          0,
+          baratiCount(o) -
+            (o.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+        ),
       }));
 
     const bySlot = (slot: Slot) => {
@@ -78,14 +87,17 @@ export async function GET(request: Request) {
         .filter(r => slotOf(r.time) === slot)
         .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
-      // An artist on two orders in the same slot is one artist, not two.
-      const committed = new Set(list.map(r => r.artistId).filter(Boolean) as string[]);
+      // An artist on two orders in the same slot is one artist, not two — and
+      // an order split between three of them commits all three.
+      const committed = new Set(list.flatMap(r => r.artists.map(a => a.id)));
 
       return {
         orders: list,
         orderCount: list.length,
         safas: list.reduce((s, r) => s + r.safas, 0),
-        unallocated: list.filter(r => !r.artistId).length,
+        // Half-staffed still needs somebody, so it counts here.
+        unallocated: list.filter(r => r.short > 0).length,
+        safasUnassigned: list.reduce((s, r) => s + r.short, 0),
         artistsCommitted: committed.size,
         artistsFree: Math.max(0, artists.length - committed.size),
       };

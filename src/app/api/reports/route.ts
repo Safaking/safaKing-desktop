@@ -39,6 +39,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' },
         include: {
           artist: { select: { id: true, name: true } },
+          tyingAssignments: { include: { artist: { select: { id: true, name: true } } } },
           invoice: { select: { status: true, invoiceNumber: true } },
           items: { select: { quantity: true, product: { select: { name: true } } } },
         },
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' },
         include: {
           vendor: { select: { id: true, name: true } },
+          tyingAssignments: { include: { artist: { select: { id: true, name: true } } } },
           invoice: { select: { status: true, invoiceNumber: true } },
           items: { select: { quantity: true, product: { select: { name: true } } } },
         },
@@ -83,44 +85,82 @@ export async function GET(request: Request) {
     };
 
     // Artist workload and what they are owed, over the same range.
+    //
+    // Walks the shares rather than the orders: a hundred-safa order split
+    // forty/sixty is two artists' work, and each is owed for their own share
+    // at their own rate.
     const byArtist = new Map<string, any>();
-    for (const r of rentals) {
-      if (!r.artistId || !r.artist) continue;
-      const entry = byArtist.get(r.artistId) ?? {
-        id: r.artistId,
-        name: r.artist.name,
-        orderCount: 0,
-        safasTied: 0,
-        feeTotal: 0,
-        feePaid: 0,
-        feeDue: 0,
-        // The artist report lists the orders behind the totals, so they can be
-        // checked line by line when settling up.
-        orders: [] as any[],
-      };
-      entry.orderCount += 1;
-      entry.safasTied += r.safaTyingCount || 0;
-      // Rate is per safa, so what they earn on an order is rate x safas tied.
-      const owed = (r.artistRate || 0) * (r.safaTyingCount || 0);
-      entry.feeTotal += owed;
-      if (r.artistPaid) entry.feePaid += owed;
-      else entry.feeDue += owed;
-      entry.orders.push({
-        id: r.id,
-        orderNumber: r.orderNumber,
-        customerName: r.customerName,
-        createdAt: r.createdAt,
-        startDate: r.startDate,
-        safaTyingCount: r.safaTyingCount,
-        artistRate: r.artistRate,
-        artistPaid: r.artistPaid,
-        earned: owed,
-      });
-      byArtist.set(r.artistId, entry);
-    }
+    const collect = (order: any, kind: 'RENTAL' | 'SALE') => {
+      for (const share of order.tyingAssignments ?? []) {
+        if (!share.artist) continue;
+        const entry = byArtist.get(share.artistId) ?? {
+          id: share.artistId,
+          name: share.artist.name,
+          orderCount: 0,
+          safasTied: 0,
+          feeTotal: 0,
+          feePaid: 0,
+          feeDue: 0,
+          // The artist report lists the orders behind the totals, so they can
+          // be checked line by line when settling up.
+          orders: [] as any[],
+        };
+        const owed = (share.rate || 0) * (share.quantity || 0);
+        entry.orderCount += 1;
+        entry.safasTied += share.quantity || 0;
+        entry.feeTotal += owed;
+        if (share.paid) entry.feePaid += owed;
+        else entry.feeDue += owed;
+        entry.orders.push({
+          id: order.id,
+          kind,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          createdAt: order.createdAt,
+          startDate: kind === 'RENTAL' ? order.startDate : order.createdAt,
+          // This artist's share, and what the whole order needed — so a split
+          // order reads as a split rather than looking like a short count.
+          safaTyingCount: share.quantity,
+          orderSafaCount: order.safaTyingCount || 0,
+          artistRate: share.rate,
+          artistPaid: share.paid,
+          earned: owed,
+        });
+        byArtist.set(share.artistId, entry);
+      }
+    };
+    for (const r of rentals) collect(r, 'RENTAL');
+    for (const sale of sales) collect(sale, 'SALE');
 
-    // Tying orders with nobody allocated are what the shop still has to assign.
-    const unallocatedTying = rentals.filter(r => r.tieSafa && !r.artistId).length;
+    /** Safas on an order that still have nobody tying them. */
+    const shortBy = (o: any) =>
+      Math.max(
+        0,
+        (o.safaTyingCount || 0) -
+          (o.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+      );
+
+    // Half-staffed counts as still to assign: somebody has to be found either
+    // way, and only counting the untouched ones hides the harder cases.
+    const unallocatedTying =
+      rentals.filter(r => r.tieSafa && shortBy(r) > 0).length +
+      sales.filter(s => s.tieSafa && shortBy(s) > 0).length;
+
+    /** "Ramesh 40 · Suresh 60" when split, just the name when it is not. */
+    const artistLabel = (o: any) => {
+      const shares = o.tyingAssignments ?? [];
+      if (!shares.length) return null;
+      if (shares.length === 1) return shares[0].artist?.name ?? null;
+      return shares.map((a: any) => `${a.artist?.name ?? '?'} ${a.quantity}`).join(' · ');
+    };
+    /** A single rate only means anything when one artist holds the order. */
+    const soleRate = (o: any) =>
+      (o.tyingAssignments ?? []).length === 1 ? o.tyingAssignments[0].rate || 0 : 0;
+    const owedOn = (o: any) =>
+      (o.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.rate || 0) * (a.quantity || 0), 0);
+    /** Settled only once every artist on the order has been paid. */
+    const allPaid = (o: any) =>
+      (o.tyingAssignments ?? []).length > 0 && o.tyingAssignments.every((a: any) => a.paid);
 
     const orders = [
       ...rentals.map(r => ({
@@ -141,10 +181,10 @@ export async function GET(request: Request) {
         readyBy: r.readyBy,
         createdBy: r.createdBy,
         tieSafa: r.tieSafa,
-        artistName: r.artist?.name ?? null,
-        artistRate: r.artistRate,
-        artistOwed: (r.artistRate || 0) * (r.safaTyingCount || 0),
-        artistPaid: r.artistPaid,
+        artistName: artistLabel(r),
+        artistRate: soleRate(r),
+        artistOwed: owedOn(r),
+        artistPaid: allPaid(r),
         vendorName: null,
         invoiceStatus: r.invoice?.status ?? null,
       })),
@@ -166,10 +206,10 @@ export async function GET(request: Request) {
         readyBy: null,
         createdBy: s.createdBy,
         tieSafa: s.tieSafa,
-        artistName: null,
-        artistRate: 0,
-        artistOwed: 0,
-        artistPaid: false,
+        artistName: artistLabel(s),
+        artistRate: soleRate(s),
+        artistOwed: owedOn(s),
+        artistPaid: allPaid(s),
         vendorName: s.vendor?.name ?? null,
         invoiceStatus: s.invoice?.status ?? null,
       })),

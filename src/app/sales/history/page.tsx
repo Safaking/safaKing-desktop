@@ -22,6 +22,7 @@ import { generateInvoicePDF } from '@/lib/invoice-gen';
 import SaleDetailsDialog from '@/components/SaleDetailsDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
 import { needsArtist } from '@/lib/barati';
+import { artistLabel, artistTitle, isFullyAssigned } from '@/lib/tying-split';
 import DeliveryLine from '@/components/DeliveryLine';
 
 export default function SalesHistoryPage() {
@@ -201,18 +202,14 @@ export default function SalesHistoryPage() {
                       {needsArtist(sale) && isSuperOrAdmin && (
                         <button
                           onClick={() => setArtistSale(sale)}
-                          title={
-                            sale.artist
-                              ? `Artist: ${sale.artist.name} — ₹${sale.artistRate ?? 0}/safa${sale.artistPaid ? ' (paid)' : ''}`
-                              : 'Allocate a tying artist'
-                          }
+                          title={artistTitle(sale)}
                           className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
-                            sale.artist
+                            isFullyAssigned(sale)
                               ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
                               : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                           }`}
                         >
-                          {sale.artist ? sale.artist.name.split(' ')[0] : 'Allocate'}
+                          {artistLabel(sale, 'Allocate')}
                         </button>
                       )}
                     </div>

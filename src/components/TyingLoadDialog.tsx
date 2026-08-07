@@ -118,12 +118,22 @@ function SlotCard({
                   {o.orderNumber} · {o.safas} safa{o.safas === 1 ? '' : 's'}
                 </span>
               </span>
+              {/* Amber whenever safas are still unstaffed, even if somebody is
+                  already on the order — a half-staffed job still needs people
+                  found, and showing a name would say it was handled. */}
               <span
-                className={`text-[10px] font-black shrink-0 ${
-                  o.artistName ? 'text-emerald-600' : 'text-amber-600'
+                className={`text-[10px] font-black shrink-0 text-right ${
+                  o.short > 0 ? 'text-amber-600' : 'text-emerald-600'
                 }`}
               >
-                {o.artistName ? o.artistName.split(' ')[0] : 'No artist'}
+                {o.artists?.length
+                  ? o.artists.length === 1
+                    ? o.artists[0].name.split(' ')[0]
+                    : `${o.artists.length} artists`
+                  : 'No artist'}
+                {o.short > 0 && (
+                  <span className="block font-bold text-amber-500">{o.short} left</span>
+                )}
               </span>
             </div>
           ))}

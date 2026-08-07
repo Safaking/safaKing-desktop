@@ -40,6 +40,7 @@ export async function GET() {
         safaTyingTime: true,
         artistId: true,
         artist: { select: { name: true } },
+        tyingAssignments: { include: { artist: { select: { name: true } } } },
         items: { select: { quantity: true } },
       },
     };
@@ -71,13 +72,13 @@ export async function GET() {
         take: 8,
         ...shape,
       }),
-      // Barati is the only tying that sends artists out, and it cannot be
-      // filtered in SQL (the styles live in a JSON column), so this reads wider
-      // and narrows below rather than capping at 8 before the filter runs.
+      // Barati is the only tying that sends artists out, and neither that nor
+      // "not fully staffed" can be filtered in SQL — the styles live in a JSON
+      // column and the shortfall is a sum across a second table — so this reads
+      // wider and narrows below rather than capping at 8 before the filter.
       prisma.rental.findMany({
         where: {
           tieSafa: true,
-          artistId: null,
           status: { in: ['BOOKED', 'ACTIVE'] },
           startDate: { gte: today },
         },
@@ -87,22 +88,37 @@ export async function GET() {
       }),
     ]);
 
+    // An order half staffed still needs somebody found, so it belongs here
+    // just as much as one with nobody on it.
+    const notFullyStaffed = (r: any) =>
+      (r.safaTyingCount || 0) >
+      (r.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0);
+
+    const stillToStaff = unallocated.filter(needsArtist).filter(notFullyStaffed);
+
     const format = (r: any) => ({
       ...r,
       itemCount: r.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0),
       items: undefined,
+      // How many safas still have nobody, so the card can say "40 of 100 left".
+      safasUnassigned: Math.max(
+        0,
+        (r.safaTyingCount || 0) -
+          (r.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+      ),
+      artistNames: (r.tyingAssignments ?? []).map((a: any) => a.artist?.name).filter(Boolean),
     });
 
     return NextResponse.json({
       overdue: overdue.map(format),
       dueToday: dueToday.map(format),
       upcoming: upcoming.map(format),
-      unallocated: unallocated.filter(needsArtist).slice(0, 8).map(format),
+      unallocated: stillToStaff.slice(0, 8).map(format),
       counts: {
         overdue: overdue.length,
         dueToday: dueToday.length,
         upcoming: upcoming.length,
-        unallocated: unallocated.filter(needsArtist).length,
+        unallocated: stillToStaff.length,
       },
     });
   } catch (error: any) {

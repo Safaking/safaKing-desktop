@@ -57,6 +57,41 @@ export async function ensureDbSchema(force = false) {
         CONSTRAINT "ArtistPayment_pkey" PRIMARY KEY ("id")
       );`,
 
+      // ── TyingAssignment — one artist's share of one order ─────────────────
+      `CREATE TABLE IF NOT EXISTS "TyingAssignment" (
+        "id" TEXT NOT NULL,
+        "rentalId" TEXT,
+        "saleId" TEXT,
+        "artistId" TEXT NOT NULL,
+        "quantity" INTEGER NOT NULL DEFAULT 0,
+        "rate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "paid" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "TyingAssignment_pkey" PRIMARY KEY ("id")
+      );`,
+      `CREATE INDEX IF NOT EXISTS "TyingAssignment_rentalId_idx" ON "TyingAssignment"("rentalId");`,
+      `CREATE INDEX IF NOT EXISTS "TyingAssignment_saleId_idx" ON "TyingAssignment"("saleId");`,
+      `CREATE INDEX IF NOT EXISTS "TyingAssignment_artistId_idx" ON "TyingAssignment"("artistId");`,
+
+      // Carry the orders that already had a single artist into the new table,
+      // so nobody's earnings disappear the moment the split goes live. The NOT
+      // EXISTS guard makes this safe to run again — it only ever fills gaps.
+      `INSERT INTO "TyingAssignment" ("id", "rentalId", "artistId", "quantity", "rate", "paid", "createdAt", "updatedAt")
+       SELECT gen_random_uuid()::text, r."id", r."artistId",
+              COALESCE(r."safaTyingCount", 0), COALESCE(r."artistRate", 0),
+              COALESCE(r."artistPaid", false), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       FROM "Rental" r
+       WHERE r."artistId" IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM "TyingAssignment" t WHERE t."rentalId" = r."id");`,
+      `INSERT INTO "TyingAssignment" ("id", "saleId", "artistId", "quantity", "rate", "paid", "createdAt", "updatedAt")
+       SELECT gen_random_uuid()::text, s."id", s."artistId",
+              COALESCE(s."safaTyingCount", 0), COALESCE(s."artistRate", 0),
+              COALESCE(s."artistPaid", false), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       FROM "Sale" s
+       WHERE s."artistId" IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM "TyingAssignment" t WHERE t."saleId" = s."id");`,
+
       // ── Vendor ────────────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS "Vendor" (
         "id" TEXT NOT NULL,

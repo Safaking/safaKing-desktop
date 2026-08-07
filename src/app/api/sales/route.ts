@@ -12,6 +12,9 @@ export async function GET() {
         },
         invoice: true,
         artist: { select: { id: true, name: true } },
+        tyingAssignments: {
+          include: { artist: { select: { id: true, name: true, phone: true } } },
+        },
         vendor: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' }
