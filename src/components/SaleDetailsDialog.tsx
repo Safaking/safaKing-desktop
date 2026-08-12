@@ -139,9 +139,10 @@ export default function SaleDetailsDialog({ sale, onClose }: SaleDetailsDialogPr
                   (sale.tyingAssignments ?? []).map((a: any) => (
                     <p key={a.id} className="flex justify-between gap-3">
                       <span className="font-bold text-violet-700">{a.artist?.name ?? 'Artist'}</span>
+                      {/* No rate here: this screen is read at the counter, and
+                          what an artist is paid belongs in their ledger. */}
                       <span className="font-semibold text-slate-600">
-                        {a.quantity} × ₹{a.rate || 0}
-                        {a.paid ? ' · paid' : ''}
+                        {a.quantity} safa{a.quantity === 1 ? '' : 's'}
                       </span>
                     </p>
                   ))
