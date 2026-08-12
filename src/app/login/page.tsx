@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { Lock, User, KeyRound, ArrowRight } from 'lucide-react';
+import { User, KeyRound, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function LoginPage() {
@@ -52,9 +52,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 overflow-hidden relative">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <Lock size={32} />
-          </div>
+          <img
+            src="/assets/logo.png?v=4"
+            alt="Safa King"
+            className="w-28 h-28 object-contain mx-auto mb-3"
+          />
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Joshi Safa House</h1>
           <p className="text-xs text-slate-500 font-medium mt-1">{t('sign_in_sub')}</p>
         </div>

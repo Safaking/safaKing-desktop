@@ -321,7 +321,7 @@ export default function SalesPage() {
               <ArrowLeft size={18} />
             </Link>
             <div className="h-10 flex items-center">
-              <img src="/assets/logo.png?v=3" alt="Logo" className="h-full w-auto object-contain" />
+              <img src="/assets/logo.png?v=4" alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wider">{t('new_sale')}</h1>
           </div>

@@ -69,8 +69,8 @@ export default function Dashboard() {
       <header className="bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3 px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-8">
-            <div className="h-16 flex items-center">
-              <img src="/assets/logo.png?v=3" alt="Logo" className="h-full w-auto object-contain" />
+            <div className="h-20 flex items-center">
+              <img src="/assets/logo.png?v=4" alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <div className="hidden md:block">
               <p className="text-sm font-bold text-slate-700 tracking-tight leading-snug">Near Pandya Memorial School,</p>

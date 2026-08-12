@@ -67,15 +67,18 @@ export const artistLabel = (order: any, emptyLabel: string) => {
 /**
  * The hover text: who has what, and anything still unstaffed.
  *
- * Deliberately no rate. This sits on the order list, which is open at the
- * counter with customers on the other side of it; what an artist is paid is
- * between them and the shop, and is shown in their own ledger.
+ * No per-safa rate. This sits on the order list, which is open at the counter
+ * with customers on the other side of it; the rate belongs in the artist's own
+ * ledger, where settling up happens.
  */
 export const artistTitle = (order: any) => {
   const shares = order?.tyingAssignments ?? [];
   if (!shares.length) return 'Allocate a tying artist';
   const lines = shares.map(
-    (a: any) => `${a.artist?.name ?? 'Artist'} — ${a.quantity} safa${a.quantity === 1 ? '' : 's'}`
+    (a: any) =>
+      `${a.artist?.name ?? 'Artist'} — ${a.quantity} safa${a.quantity === 1 ? '' : 's'}${
+        a.paid ? ' (paid)' : ''
+      }`
   );
   const left = unassignedCount(order);
   if (left > 0) lines.push(`${left} still to allocate`);

@@ -4,7 +4,7 @@ import React from 'react';
 import { X, Phone, MapPin, Calendar, User, Package, IndianRupee, Clock, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { unitLabel, rateSuffix } from '@/lib/product-types';
-import { unassignedCount } from '@/lib/tying-split';
+import { unassignedCount, orderOwed } from '@/lib/tying-split';
 
 interface Props {
   rental: any | null;
@@ -179,19 +179,23 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
               <Row label="Date" value={rental.safaTyingDate} />
               <Row label="Venue" value={rental.safaTyingAddress} />
               {/* A big order is shared out, so each artist gets their own line.
-                  What they are paid does not belong on the order screen — the
-                  counter reads this in front of the customer, and an artist's
-                  rate is between them and the shop. It lives in the artist's
-                  own ledger, so only who tied how many shows here. */}
+                  The per-safa rate is left off — that is between the artist and
+                  the shop, and this screen is read at the counter. What the
+                  order costs and whether it is settled stay. */}
               {(rental.tyingAssignments ?? []).map((a: any) => (
                 <Row
                   key={a.id}
                   label={a.artist?.name ?? 'Artist'}
-                  value={`${a.quantity} safa${a.quantity === 1 ? '' : 's'}`}
+                  value={`${a.quantity} safa${a.quantity === 1 ? '' : 's'} = ${money(
+                    (a.rate || 0) * (a.quantity || 0)
+                  )} ${a.paid ? '(paid)' : '(unpaid)'}`}
                 />
               ))}
               {unassignedCount(rental) > 0 && (
                 <Row label="Still to allocate" value={`${unassignedCount(rental)} safas`} />
+              )}
+              {(rental.tyingAssignments ?? []).length > 1 && (
+                <Row label="Artist Total" value={money(orderOwed(rental))} />
               )}
             </Section>
           )}

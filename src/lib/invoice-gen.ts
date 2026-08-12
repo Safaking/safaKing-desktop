@@ -20,10 +20,10 @@ export async function generateInvoicePDF(
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = reject;
-      img.src = '/assets/logo.png?v=3';
+      img.src = '/assets/logo.png?v=4';
     });
-    // Positioned at top left
-    doc.addImage(logoImg, 'PNG', 15, 10, 40, 25);
+    // Top left, square — the logo is square, so the old 40x25 box squashed it.
+    doc.addImage(logoImg, 'PNG', 15, 8, 28, 28);
   } catch (e) {
     console.error('Failed to load logo for PDF', e);
   }
