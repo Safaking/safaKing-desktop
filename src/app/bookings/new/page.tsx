@@ -100,7 +100,8 @@ export default function OdooBookingPage() {
 
   // These three lists barely change, so they come from cache on repeat visits
   // instead of three fresh round-trips every time the booking form opens.
-  const { data: productData } = useProducts();
+  // Priced for this user's branch: each area charges its own rate.
+  const { data: productData } = useProducts(user?.storeId);
   const { data: safaOptionData } = useSafaOptions();
   const { data: storeData } = useStores();
 

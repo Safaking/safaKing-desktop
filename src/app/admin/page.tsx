@@ -23,12 +23,14 @@ import {
   Building2,
   BarChart3,
   Clock,
-  BookOpen
+  BookOpen,
+  Coins
 } from 'lucide-react';
 import ProductDialog from '@/components/ProductDialog';
 import EditUserDialog from '@/components/EditUserDialog';
 import VendorsPanel from '@/components/VendorsPanel';
 import WorkingHoursPanel from '@/components/WorkingHoursPanel';
+import StorePricesPanel from '@/components/StorePricesPanel';
 import ArtistLedgerDialog from '@/components/ArtistLedgerDialog';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -66,7 +68,7 @@ interface UserData {
 
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing' | 'artists' | 'vendors' | 'hours'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'stores' | 'users' | 'safa_pricing' | 'branch_prices' | 'artists' | 'vendors' | 'hours'>('inventory');
   
   // Stores state
   const [stores, setStores] = useState<StoreData[]>([]);
@@ -465,6 +467,16 @@ export default function AdminPage() {
                 }`}
               >
                 <Building2 size={16} /> Vendors
+              </button>
+              <button
+                onClick={() => setActiveTab('branch_prices')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  activeTab === 'branch_prices'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Coins size={16} /> Branch Prices
               </button>
               <button 
                 onClick={() => setActiveTab('safa_pricing')}
@@ -1065,6 +1077,8 @@ export default function AdminPage() {
         {activeTab === 'vendors' && <VendorsPanel />}
 
         {activeTab === 'hours' && <WorkingHoursPanel />}
+
+        {activeTab === 'branch_prices' && <StorePricesPanel />}
 
         {activeTab === 'safa_pricing' && (
           <div className="max-w-4xl mx-auto space-y-6">

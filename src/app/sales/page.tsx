@@ -91,7 +91,8 @@ export default function SalesPage() {
   const [safaTyingDetails, setSafaTyingDetails] = useState({ name: '', address: '', time: '', marriageDate: '' });
   const [recentSale, setRecentSale] = useState<any>(null);
 
-  const { data: productData } = useProducts();
+  // Priced for this user's branch: each area charges its own rate.
+  const { data: productData } = useProducts(user?.storeId);
   const { data: safaOptionData } = useSafaOptions();
   const { data: vendorData } = useVendors();
   const vendors: any[] = Array.isArray(vendorData) ? vendorData : [];

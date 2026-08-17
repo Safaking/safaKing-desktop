@@ -29,6 +29,30 @@ model Product {
   updatedAt     DateTime     @updatedAt
   rentals       RentalItem[]
   sales         SaleItem[]
+  /// Per-branch price overrides. rentPrice/salePrice above are the base rate
+  /// used by any branch that has not set its own.
+  storePrices   StorePrice[]
+}
+
+/// One branch's own price for one product.
+///
+/// The same safa does not fetch the same rate in Partapur as it does in
+/// Chitri, so each branch can set its own. Both fields are nullable and
+/// independent: a branch may want its own sale price while renting at the
+/// shop-wide rate, and null means "use the base price" rather than "free".
+model StorePrice {
+  id        String   @id @default(uuid())
+  storeId   String
+  productId String
+  rentPrice Float?
+  salePrice Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, productId])
+  @@index([storeId])
 }
 
 model Rental {
@@ -182,15 +206,16 @@ model Invoice {
 }
 
 model Store {
-  id        String     @id @default(uuid())
+  id        String       @id @default(uuid())
   name      String
   location  String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
   rentals   Rental[]
   sales     Sale[]
   users     User[]
   cashBooks CashBook[]
+  prices    StorePrice[]
 }
 
 model User {

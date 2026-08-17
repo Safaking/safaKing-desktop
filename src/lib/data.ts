@@ -36,6 +36,7 @@ const defaultConfig: SWRConfiguration = {
 /** Cache keys, centralised so invalidation can't drift from the fetches. */
 export const KEYS = {
   products: '/api/products',
+  storePrices: '/api/store-prices',
   stores: '/api/stores',
   users: '/api/users',
   safaOptions: '/api/safa-options',
@@ -47,8 +48,21 @@ export const KEYS = {
   rentals: (status?: string) => `/api/rentals${status ? `?status=${status}` : ''}`,
 };
 
-export function useProducts() {
-  return useSWR(KEYS.products, defaultConfig);
+/**
+ * The catalog, priced for one branch.
+ *
+ * Pass the signed-in user's storeId and the till rings up that branch's own
+ * rate. Without one — admin, who belongs to no branch — it is the shop-wide
+ * price. Invalidation matches on prefix, so one branch's key clearing clears
+ * them all.
+ */
+export function useProducts(storeId?: string | null) {
+  return useSWR(storeId ? `${KEYS.products}?storeId=${storeId}` : KEYS.products, defaultConfig);
+}
+
+/** One branch's price overrides, for the admin screen that edits them. */
+export function useStorePrices(storeId?: string | null) {
+  return useSWR(storeId ? `${KEYS.storePrices}?storeId=${storeId}` : null, defaultConfig);
 }
 
 export function useStores() {
@@ -123,3 +137,7 @@ export const invalidateAfterArtistChange = () =>
 
 export const invalidateAfterProductChange = () =>
   invalidate(KEYS.products, KEYS.dashboardStats);
+
+/** A branch price change moves every catalog, since each is keyed by branch. */
+export const invalidateAfterStorePriceChange = () =>
+  invalidate(KEYS.products, KEYS.storePrices);

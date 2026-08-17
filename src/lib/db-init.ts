@@ -92,6 +92,22 @@ export async function ensureDbSchema(force = false) {
        WHERE s."artistId" IS NOT NULL
          AND NOT EXISTS (SELECT 1 FROM "TyingAssignment" t WHERE t."saleId" = s."id");`,
 
+      // ── StorePrice — one branch's own price for one product ───────────────
+      `CREATE TABLE IF NOT EXISTS "StorePrice" (
+        "id" TEXT NOT NULL,
+        "storeId" TEXT NOT NULL,
+        "productId" TEXT NOT NULL,
+        "rentPrice" DOUBLE PRECISION,
+        "salePrice" DOUBLE PRECISION,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "StorePrice_pkey" PRIMARY KEY ("id")
+      );`,
+      // One row per branch per product, so a repeated save updates instead of
+      // stacking a second price nobody can tell apart from the first.
+      `CREATE UNIQUE INDEX IF NOT EXISTS "StorePrice_storeId_productId_key" ON "StorePrice"("storeId", "productId");`,
+      `CREATE INDEX IF NOT EXISTS "StorePrice_storeId_idx" ON "StorePrice"("storeId");`,
+
       // ── Vendor ────────────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS "Vendor" (
         "id" TEXT NOT NULL,
