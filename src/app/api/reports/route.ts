@@ -217,9 +217,98 @@ export async function GET(request: Request) {
       })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+    // ── Artist allocation worklist ────────────────────────────────────────
+    //
+    // Keyed on the tying date, not the date the order was taken: this answers
+    // "who is tying what, when" for the days ahead, and an order booked in
+    // March for a November wedding belongs in November's list.
+    //
+    // safaTyingDate is stored as a yyyy-mm-dd string, which sorts and compares
+    // correctly as text, so the range filter works without parsing it.
+    const tyingWhere: any = { tieSafa: true };
+    if (fromRaw || toRaw) {
+      tyingWhere.safaTyingDate = {};
+      if (fromRaw) tyingWhere.safaTyingDate.gte = fromRaw;
+      if (toRaw) tyingWhere.safaTyingDate.lte = toRaw;
+    }
+
+    const tyingSelect = {
+      id: true,
+      orderNumber: true,
+      customerName: true,
+      customerPhone: true,
+      safaShape: true,
+      safaTyingStyles: true,
+      safaTyingCount: true,
+      safaTyingDate: true,
+      safaTyingTime: true,
+      safaTyingName: true,
+      safaTyingAddress: true,
+      tieSafa: true,
+      tyingAssignments: { include: { artist: { select: { id: true, name: true, phone: true } } } },
+    };
+
+    const [tyingRentals, tyingSales] = await Promise.all([
+      prisma.rental.findMany({
+        where: { ...tyingWhere, status: { not: 'CANCELLED' } },
+        select: tyingSelect,
+      }),
+      prisma.sale.findMany({ where: tyingWhere, select: tyingSelect }),
+    ]);
+
+    const allocations = [
+      ...tyingRentals.map(r => ({ ...r, kind: 'BOOKING' as const })),
+      ...tyingSales.map(sale => ({ ...sale, kind: 'SALE' as const })),
+    ]
+      // Only barati sends artists out; the counter ties the rest, so those
+      // would be permanent "unallocated" rows nobody can ever act on.
+      .filter(needsArtist)
+      .map(o => {
+        const need = baratiCount(o);
+        const done = (o.tyingAssignments ?? []).reduce(
+          (sum: number, a: any) => sum + (a.quantity || 0),
+          0
+        );
+        return {
+          kind: o.kind,
+          id: o.id,
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          customerPhone: o.customerPhone,
+          date: o.safaTyingDate,
+          time: o.safaTyingTime,
+          contact: o.safaTyingName,
+          venue: o.safaTyingAddress,
+          styles: o.safaShape,
+          safas: need,
+          assigned: done,
+          short: Math.max(0, need - done),
+          // Deliberately no rate here: this is a worklist for the shop floor,
+          // and what an artist is paid belongs in their ledger.
+          artists: (o.tyingAssignments ?? [])
+            .filter((a: any) => a.artist)
+            .map((a: any) => ({ name: a.artist.name, phone: a.artist.phone, quantity: a.quantity })),
+        };
+      })
+      // Soonest first, and within a day by the hour the baraat leaves.
+      .sort((a, b) =>
+        (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || '')
+      );
+
+    const allocationSummary = {
+      jobs: allocations.length,
+      safas: allocations.reduce((s, a) => s + a.safas, 0),
+      assigned: allocations.reduce((s, a) => s + a.assigned, 0),
+      short: allocations.reduce((s, a) => s + a.short, 0),
+      fullyStaffed: allocations.filter(a => a.short === 0).length,
+      needStaffing: allocations.filter(a => a.short > 0).length,
+    };
+
     return NextResponse.json({
       range: { from: fromRaw, to: toRaw },
       summary,
+      allocations,
+      allocationSummary,
       orders,
       artists: [...byArtist.values()].sort((a, b) => b.feeDue - a.feeDue),
       unallocatedTying,

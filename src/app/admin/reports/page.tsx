@@ -65,7 +65,7 @@ export default function ReportsPage() {
   const [kind, setKind] = useState<'ALL' | 'RENTAL' | 'SALE'>('ALL');
   // Revenue and artist dues answer different questions, so they are separate
   // reports over the same date range rather than one long page.
-  const [report, setReport] = useState<'REVENUE' | 'ARTISTS'>('REVENUE');
+  const [report, setReport] = useState<'REVENUE' | 'ARTISTS' | 'ALLOCATION'>('REVENUE');
   const [openArtist, setOpenArtist] = useState<string | null>(null);
 
   const { data, isLoading, error } = useSWR(
@@ -77,6 +77,10 @@ export default function ReportsPage() {
   const summary = data?.summary;
   const orders: any[] = Array.isArray(data?.orders) ? data.orders : [];
   const artists: any[] = Array.isArray(data?.artists) ? data.artists : [];
+  // The tying worklist: which barati jobs are staffed and which are not.
+  // Keyed on the tying date, so this range means "jobs happening then".
+  const allocations: any[] = Array.isArray(data?.allocations) ? data.allocations : [];
+  const allocationSummary = data?.allocationSummary;
 
   const visibleOrders = orders.filter(o => kind === 'ALL' || o.kind === kind);
 
@@ -125,6 +129,24 @@ export default function ReportsPage() {
       )
       .join('');
 
+    const allocationRows = allocations
+      .map(
+        a => `<tr>
+          <td>${a.date ?? ''}${a.time ? `<br><span class="k">${a.time}</span>` : ''}</td>
+          <td>${a.orderNumber} <span class="k">${a.kind}</span></td>
+          <td>${a.customerName ?? ''}${a.customerPhone ? `<br><span class="k">${a.customerPhone}</span>` : ''}</td>
+          <td>${a.venue ?? ''}${a.contact ? `<br><span class="k">${a.contact}</span>` : ''}</td>
+          <td style="text-align:right">${a.safas}</td>
+          <td>${
+            a.artists.length
+              ? a.artists.map((x: any) => `${x.name} (${x.quantity})`).join('<br>')
+              : '<b>NOT ALLOTTED</b>'
+          }</td>
+          <td style="text-align:right">${a.short > 0 ? `<b>${a.short}</b>` : '-'}</td>
+        </tr>`
+      )
+      .join('');
+
     const w = window.open('', '_blank', 'width=1000,height=760');
     if (!w) {
       alert('Allow pop-ups to print this report.');
@@ -143,25 +165,48 @@ export default function ReportsPage() {
       .card b{display:block;font-size:15px} .card span{font-size:10px;color:#64748b;text-transform:uppercase}
     </style></head><body>
       <h1>Joshi Safa House</h1>
-      <p class="sub">${report === 'ARTISTS' ? 'Artist payments' : 'Revenue report'} ${from} to ${to} &middot; printed ${format(new Date(), 'dd/MM/yyyy')}</p>
-      <div class="cards">
-        <div class="card"><span>Revenue</span><b>${money(summary?.revenue)}</b></div>
-        <div class="card"><span>Collected</span><b>${money(summary?.collected)}</b></div>
-        <div class="card"><span>Outstanding</span><b>${money(summary?.outstanding)}</b></div>
-        <div class="card"><span>Orders</span><b>${summary?.orderCount ?? 0}</b></div>
-        <div class="card"><span>Not ready</span><b>${summary?.notReadyCount ?? 0}</b></div>
-      </div>
+      <p class="sub">${
+        report === 'ALLOCATION'
+          ? 'Artist allocation'
+          : report === 'ARTISTS'
+          ? 'Artist payments'
+          : 'Revenue report'
+      } ${from} to ${to} &middot; printed ${format(new Date(), 'dd/MM/yyyy')}</p>
       ${
-        artistRows
+        report === 'ALLOCATION'
+          ? `<div class="cards">
+              <div class="card"><span>Tying jobs</span><b>${allocationSummary?.jobs ?? 0}</b></div>
+              <div class="card"><span>Barati safas</span><b>${allocationSummary?.safas ?? 0}</b></div>
+              <div class="card"><span>Allotted</span><b>${allocationSummary?.assigned ?? 0}</b></div>
+              <div class="card"><span>Still to allot</span><b>${allocationSummary?.short ?? 0}</b></div>
+              <div class="card"><span>Jobs short</span><b>${allocationSummary?.needStaffing ?? 0}</b></div>
+             </div>
+             <h2>Artist allocation (${allocations.length})</h2>
+             <table><thead><tr><th>Tying date</th><th>Order</th><th>Customer</th><th>Venue</th>
+             <th style="text-align:right">Safas</th><th>Artist (safas)</th>
+             <th style="text-align:right">Short</th></tr></thead>
+             <tbody>${allocationRows || '<tr><td colspan="7">No barati tying in this range.</td></tr>'}</tbody></table>`
+          : `<div class="cards">
+              <div class="card"><span>Revenue</span><b>${money(summary?.revenue)}</b></div>
+              <div class="card"><span>Collected</span><b>${money(summary?.collected)}</b></div>
+              <div class="card"><span>Outstanding</span><b>${money(summary?.outstanding)}</b></div>
+              <div class="card"><span>Orders</span><b>${summary?.orderCount ?? 0}</b></div>
+              <div class="card"><span>Not ready</span><b>${summary?.notReadyCount ?? 0}</b></div>
+             </div>`
+      }
+      ${
+        report !== 'ARTISTS'
+          ? ''
+          : artistRows
           ? `<h2>Artist workload &amp; dues</h2><table><thead><tr><th>Artist</th>
              <th style="text-align:right">Orders</th><th style="text-align:right">Safas</th>
              <th style="text-align:right">Earned</th><th style="text-align:right">Paid</th>
              <th style="text-align:right">Due</th></tr></thead><tbody>${artistRows}</tbody></table>`
           : ''
       }
-      ${report === 'ARTISTS' ? '' : `<h2>Orders (${visibleOrders.length})</h2>`}
+      ${report === 'REVENUE' ? `<h2>Orders (${visibleOrders.length})</h2>` : ''}
       ${
-        report === 'ARTISTS'
+        report !== 'REVENUE'
           ? ''
           : `<table><thead><tr><th>Order</th><th>Customer &amp; items</th><th>Taken</th><th>By</th><th>Status</th>
         <th style="text-align:right">Total</th><th style="text-align:right">Paid</th>
@@ -203,6 +248,7 @@ export default function ReportsPage() {
           {([
             { key: 'REVENUE', label: 'Revenue' },
             { key: 'ARTISTS', label: 'Artists' },
+            { key: 'ALLOCATION', label: 'Allocation' },
           ] as const).map(r => (
             <button
               key={r.key}
@@ -430,6 +476,113 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+          </>
+        ) : report === 'ALLOCATION' ? (
+          <>
+            {/* A worklist, not an account: who is tying what, when, and what
+                still has nobody on it. Deliberately no money — this sheet goes
+                out to the floor and gets handed around. */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <Stat label="Tying jobs" value={String(allocationSummary?.jobs ?? 0)} />
+              <Stat label="Barati safas" value={String(allocationSummary?.safas ?? 0)} />
+              <Stat label="Allotted" value={String(allocationSummary?.assigned ?? 0)} tone="indigo" />
+              <Stat
+                label="Still to allot"
+                value={String(allocationSummary?.short ?? 0)}
+                tone={(allocationSummary?.short ?? 0) > 0 ? 'rose' : undefined}
+              />
+              <Stat
+                label="Jobs short"
+                value={String(allocationSummary?.needStaffing ?? 0)}
+                hint={`${allocationSummary?.fullyStaffed ?? 0} fully staffed`}
+              />
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100">
+                <h3 className="text-sm font-black text-slate-800">Artist allocation</h3>
+                <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                  Barati tying happening between these dates, soonest first.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[860px]">
+                  <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Tying date</th>
+                      <th className="px-4 py-2 text-left">Order</th>
+                      <th className="px-4 py-2 text-left">Customer</th>
+                      <th className="px-4 py-2 text-left">Venue</th>
+                      <th className="px-4 py-2 text-right">Safas</th>
+                      <th className="px-4 py-2 text-left">Artist (safas)</th>
+                      <th className="px-4 py-2 text-right">Short</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allocations.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10 text-center text-xs font-semibold text-slate-400">
+                          No barati tying in this range.
+                        </td>
+                      </tr>
+                    )}
+                    {allocations.map(a => (
+                      <tr
+                        key={`${a.kind}-${a.id}`}
+                        className={`border-t border-slate-100 ${a.short > 0 ? 'bg-rose-50/40' : ''}`}
+                      >
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <span className="font-bold text-slate-800">{a.date || '—'}</span>
+                          {a.time && (
+                            <span className="block text-[11px] font-bold text-violet-700">{a.time}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-black text-indigo-600">{a.orderNumber}</span>
+                          <span className="block text-[10px] font-bold text-slate-400">{a.kind}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-slate-800">{a.customerName}</span>
+                          {a.customerPhone && (
+                            <span className="block text-[11px] font-semibold text-slate-400">
+                              {a.customerPhone}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-[11px] font-semibold text-slate-600 max-w-[220px]">
+                          {a.venue || <span className="text-slate-300">—</span>}
+                          {a.contact && (
+                            <span className="block text-slate-400">{a.contact}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-black text-slate-800">{a.safas}</td>
+                        <td className="px-4 py-2.5">
+                          {a.artists.length === 0 ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-700">
+                              NOT ALLOTTED
+                            </span>
+                          ) : (
+                            a.artists.map((x: any, i: number) => (
+                              <span key={i} className="block text-[11px] font-bold text-slate-700">
+                                {x.name}{' '}
+                                <span className="font-semibold text-slate-400">({x.quantity})</span>
+                              </span>
+                            ))
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {a.short > 0 ? (
+                            <span className="font-black text-rose-600">{a.short}</span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </>
         ) : (
           <>
