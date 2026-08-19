@@ -17,33 +17,106 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   try {
     const storeId = new URL(request.url).searchParams.get('storeId');
+
     // Availability is aggregated in SQL. Previously every product was loaded
     // with all of its sale and rental rows so they could be summed in JS, which
     // made this endpoint slower with every order the shop took.
-    const productsWithAvailability = await prisma.$queryRaw`
-      WITH sold AS (
-        SELECT "productId", SUM("quantity") AS qty
-        FROM "SaleItem"
-        GROUP BY "productId"
-      ),
-      out_on_rent AS (
-        SELECT ri."productId",
-               SUM(GREATEST(0, ri."quantity" - ri."returnedQuantity")) AS qty
-        FROM "RentalItem" ri
-        JOIN "Rental" r ON r."id" = ri."rentalId"
-        WHERE r."status" IN ('BOOKED', 'ACTIVE', 'OVERDUE')
-          AND r."startDate" <= NOW()
-          AND r."endDate" >= NOW()
-        GROUP BY ri."productId"
-      )
-      SELECT p.*,
-             GREATEST(0,
-               p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0)
-             )::int AS "availableQuantity"
-      FROM "Product" p
-      LEFT JOIN sold s ON s."productId" = p."id"
-      LEFT JOIN out_on_rent o ON o."productId" = p."id"
-    `;
+    //
+    // Stock is per branch, with one exception: barati safas travel out to the
+    // wedding, so every branch draws them from one shop-wide pool. Those keep
+    // counting against Product.totalQuantity and against what the whole shop
+    // has committed; everything else counts a branch's own shelf against that
+    // branch's own orders, so Chitri selling a safa cannot empty Partapur.
+    //
+    // Orders taken before branches were recorded have a null storeId. They are
+    // counted against the branch being asked about, because a shared pool that
+    // silently ignores them would over-promise stock that is already out.
+    //
+    // A product nobody has divided between branches yet keeps behaving exactly
+    // as it did: one shop-wide quantity against every order. Without that, the
+    // day this ships every non-barati product reads as zero at every branch and
+    // no booking can be taken until somebody has typed in the whole inventory.
+    // Splitting a product is therefore something admin opts into, per product,
+    // by giving it a quantity at any branch.
+    const productsWithAvailability = storeId
+      ? await prisma.$queryRaw`
+        WITH sold AS (
+          SELECT si."productId",
+                 SUM(si."quantity") FILTER (
+                   WHERE sa."storeId" = ${storeId} OR sa."storeId" IS NULL
+                 ) AS branch_qty,
+                 SUM(si."quantity") AS all_qty
+          FROM "SaleItem" si
+          JOIN "Sale" sa ON sa."id" = si."saleId"
+          GROUP BY si."productId"
+        ),
+        out_on_rent AS (
+          SELECT ri."productId",
+                 SUM(GREATEST(0, ri."quantity" - ri."returnedQuantity")) FILTER (
+                   WHERE r."storeId" = ${storeId} OR r."storeId" IS NULL
+                 ) AS branch_qty,
+                 SUM(GREATEST(0, ri."quantity" - ri."returnedQuantity")) AS all_qty
+          FROM "RentalItem" ri
+          JOIN "Rental" r ON r."id" = ri."rentalId"
+          WHERE r."status" IN ('BOOKED', 'ACTIVE', 'OVERDUE')
+            AND r."startDate" <= NOW()
+            AND r."endDate" >= NOW()
+          GROUP BY ri."productId"
+        ),
+        shelf AS (
+          SELECT "productId", "quantity"
+          FROM "StoreStock"
+          WHERE "storeId" = ${storeId}
+        ),
+        split AS (
+          SELECT DISTINCT "productId" FROM "StoreStock"
+        )
+        SELECT p.*,
+               (p."productType" = ANY(${['Barati safa']}::text[])) AS "sharedStock",
+               COALESCE(shelf."quantity", 0)::int AS "branchQuantity",
+               (split."productId" IS NOT NULL) AS "stockSplit",
+               CASE
+                 WHEN p."productType" = ANY(${['Barati safa']}::text[])
+                   OR split."productId" IS NULL THEN
+                   GREATEST(0, p."totalQuantity"
+                     - COALESCE(sold.all_qty, 0) - COALESCE(out_on_rent.all_qty, 0))
+                 ELSE
+                   GREATEST(0, COALESCE(shelf."quantity", 0)
+                     - COALESCE(sold.branch_qty, 0) - COALESCE(out_on_rent.branch_qty, 0))
+               END::int AS "availableQuantity"
+        FROM "Product" p
+        LEFT JOIN sold ON sold."productId" = p."id"
+        LEFT JOIN out_on_rent ON out_on_rent."productId" = p."id"
+        LEFT JOIN shelf ON shelf."productId" = p."id"
+        LEFT JOIN split ON split."productId" = p."id"
+      `
+      : await prisma.$queryRaw`
+        WITH sold AS (
+          SELECT "productId", SUM("quantity") AS qty
+          FROM "SaleItem"
+          GROUP BY "productId"
+        ),
+        out_on_rent AS (
+          SELECT ri."productId",
+                 SUM(GREATEST(0, ri."quantity" - ri."returnedQuantity")) AS qty
+          FROM "RentalItem" ri
+          JOIN "Rental" r ON r."id" = ri."rentalId"
+          WHERE r."status" IN ('BOOKED', 'ACTIVE', 'OVERDUE')
+            AND r."startDate" <= NOW()
+            AND r."endDate" >= NOW()
+          GROUP BY ri."productId"
+        )
+        SELECT p.*,
+               (p."productType" = ANY(${['Barati safa']}::text[])) AS "sharedStock",
+               NULL::int AS "branchQuantity",
+               FALSE AS "stockSplit",
+               GREATEST(0,
+                 p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0)
+               )::int AS "availableQuantity"
+        FROM "Product" p
+        LEFT JOIN sold s ON s."productId" = p."id"
+        LEFT JOIN out_on_rent o ON o."productId" = p."id"
+      `;
 
     const products = productsWithAvailability as any[];
 

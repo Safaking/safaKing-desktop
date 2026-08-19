@@ -34,3 +34,16 @@ export function unitLabel(product?: { productType?: string | null } | null): str
 export function rateSuffix(product?: { productType?: string | null } | null): string {
   return isMeterBased(product) ? ' / m' : '';
 }
+
+/**
+ * Categories held as one pool for the whole shop rather than per branch.
+ *
+ * Barati safas travel: whichever branch takes the baraat draws from the same
+ * stock, because the artists and the safas go out together to the wedding.
+ * Everything else sits on a shelf in one shop and belongs to that shop.
+ */
+export const SHARED_STOCK_TYPES: readonly string[] = ['Barati safa'];
+
+export function isSharedStock(product?: { productType?: string | null } | null): boolean {
+  return !!product?.productType && SHARED_STOCK_TYPES.includes(product.productType);
+}

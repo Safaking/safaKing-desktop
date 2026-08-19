@@ -8,9 +8,10 @@ import {
   useStorePrices,
   useSafaOptions,
   useStoreSafaPrices,
+  useStoreStock,
   invalidateAfterStorePriceChange,
 } from '@/lib/data';
-import { isMeterBased, rateSuffix } from '@/lib/product-types';
+import { isMeterBased, rateSuffix, isSharedStock, unitLabel } from '@/lib/product-types';
 
 /** A blank box means "use the shop price"; only a real number is an override. */
 const clean = (v: string) => v.trim();
@@ -50,6 +51,24 @@ export default function StorePricesPanel() {
   const products: any[] = Array.isArray(productData) ? productData : [];
   const { data: priceData, isLoading } = useStorePrices(storeId || null);
   const overrides: any[] = Array.isArray(priceData) ? priceData : [];
+
+  // A branch's own shelf. Barati safas are not here: they travel out to the
+  // wedding from one shop-wide pool, so they have no per-branch count.
+  const { data: stockData } = useStoreStock(storeId || null);
+  const stockRows: any[] = Array.isArray(stockData) ? stockData : [];
+  const [stock, setStock] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const r of stockRows) next[r.productId] = String(r.quantity);
+    setStock(next);
+  }, [stockData, storeId]);
+
+  const stockChanged = products.filter(p => {
+    if (isSharedStock(p)) return false;
+    const stored = stockRows.find(r => r.productId === p.id);
+    return clean(stock[p.id] ?? '') !== (stored ? String(stored.quantity) : '');
+  });
 
   // Tying is charged by area too, and there are only a handful of styles, so
   // they sit on the same screen rather than in a tab of their own.
@@ -162,7 +181,7 @@ export default function StorePricesPanel() {
   });
 
   const save = async () => {
-    if (!storeId || !changed.length) return;
+    if (!storeId || (!changed.length && !stockChanged.length)) return;
     setSaving(true);
     setError('');
     setSaved('');
@@ -184,10 +203,32 @@ export default function StorePricesPanel() {
         setError(data.error || 'Could not save the prices');
         return;
       }
+      let stockResult: any = {};
+      if (stockChanged.length) {
+        const sres = await fetch('/api/store-stock', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeId,
+            stock: stockChanged.map(p => ({
+              productId: p.id,
+              quantity: clean(stock[p.id] ?? '') === '' ? null : clean(stock[p.id] ?? ''),
+            })),
+          }),
+        });
+        stockResult = await sres.json().catch(() => ({}));
+        if (!sres.ok) {
+          setError(stockResult.error || 'Prices saved, but the stock did not');
+          return;
+        }
+      }
+
       await invalidateAfterStorePriceChange();
       const bits = [
         data.saved ? `${data.saved} price${data.saved === 1 ? '' : 's'} saved` : '',
         data.cleared ? `${data.cleared} back on the shop rate` : '',
+        stockResult.saved ? `${stockResult.saved} stock count${stockResult.saved === 1 ? '' : 's'} set` : '',
+        stockResult.cleared ? `${stockResult.cleared} back on the shop count` : '',
       ].filter(Boolean);
       setSaved(bits.join(' · ') || 'Saved');
     } catch (err: any) {
@@ -277,20 +318,21 @@ export default function StorePricesPanel() {
                 <th className="px-3 py-2 text-right">This branch</th>
                 <th className="px-3 py-2 text-right">Shop sale</th>
                 <th className="px-3 py-2 text-right">This branch</th>
+                <th className="px-3 py-2 text-right">Stock here</th>
                 <th className="px-2 py-2" />
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                     <Loader2 size={15} className="animate-spin inline" />
                   </td>
                 </tr>
               )}
               {!isLoading && visible.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-xs font-semibold text-slate-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-xs font-semibold text-slate-400">
                     Nothing matches this filter.
                   </td>
                 </tr>
@@ -356,6 +398,31 @@ export default function StorePricesPanel() {
                         </div>
                       </td>
 
+                      {/* Barati travels out to the wedding from one shop pool,
+                          so it has no per-branch count to set. */}
+                      <td className="px-3 py-2">
+                        {isSharedStock(p) ? (
+                          <span className="block text-right text-[10px] font-black text-amber-600 uppercase tracking-wider">
+                            Shared
+                            <span className="block font-bold text-slate-400 normal-case tracking-normal">
+                              {p.totalQuantity} {unitLabel(p)}
+                            </span>
+                          </span>
+                        ) : (
+                          <div className="w-24 ml-auto">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={stock[p.id] ?? ''}
+                              onChange={e => setStock(t => ({ ...t, [p.id]: e.target.value }))}
+                              placeholder={`shop ${p.totalQuantity}`}
+                              className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 text-xs font-bold text-right"
+                            />
+                          </div>
+                        )}
+                      </td>
+
                       <td className="px-2 py-2">
                         <button
                           type="button"
@@ -376,8 +443,10 @@ export default function StorePricesPanel() {
 
         <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <p className="text-[11px] font-semibold text-slate-400">
-            Leave a box empty to charge the shop price. Blank follows the shop rate even when it
-            changes later.
+            Leave a price empty to charge the shop rate — blank keeps following it when it changes.
+            Leave stock empty and the product stays on one undivided shop-wide count; give it a
+            number and this branch keeps its own. Barati safas are always shared: they go out to
+            the wedding from one pool.
           </p>
           <div className="flex items-center gap-3">
             {saved && (
@@ -389,14 +458,14 @@ export default function StorePricesPanel() {
             <button
               type="button"
               onClick={save}
-              disabled={saving || !changed.length}
+              disabled={saving || (!changed.length && !stockChanged.length)}
               className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold transition-colors"
             >
-              {saving
-                ? 'Saving…'
-                : changed.length
-                ? `Save ${changed.length} change${changed.length === 1 ? '' : 's'}`
-                : 'No changes'}
+              {(() => {
+                const n = changed.length + stockChanged.length;
+                if (saving) return 'Saving…';
+                return n ? `Save ${n} change${n === 1 ? '' : 's'}` : 'No changes';
+              })()}
             </button>
           </div>
         </div>

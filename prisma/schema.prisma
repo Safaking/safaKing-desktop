@@ -32,6 +32,27 @@ model Product {
   /// Per-branch price overrides. rentPrice/salePrice above are the base rate
   /// used by any branch that has not set its own.
   storePrices   StorePrice[]
+  storeStock    StoreStock[]
+}
+
+/// How many of one product one branch holds.
+///
+/// Stock sits on a shelf in a particular shop, so it belongs to that shop.
+/// Barati safas are the exception — they travel out to weddings and are drawn
+/// from one shop-wide pool — so they have no rows here and keep using
+/// Product.totalQuantity.
+model StoreStock {
+  id        String   @id @default(uuid())
+  storeId   String
+  productId String
+  quantity  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, productId])
+  @@index([storeId])
 }
 
 /// One branch's own price for one product.
@@ -221,6 +242,7 @@ model Store {
   cashBooks  CashBook[]
   prices     StorePrice[]
   safaPrices StoreSafaPrice[]
+  stock      StoreStock[]
 }
 
 model User {

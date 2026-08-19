@@ -38,6 +38,7 @@ export const KEYS = {
   products: '/api/products',
   storePrices: '/api/store-prices',
   storeSafaPrices: '/api/store-safa-prices',
+  storeStock: '/api/store-stock',
   stores: '/api/stores',
   users: '/api/users',
   safaOptions: '/api/safa-options',
@@ -80,6 +81,11 @@ export function useSafaOptions(storeId?: string | null) {
     storeId ? `${KEYS.safaOptions}?storeId=${storeId}` : KEYS.safaOptions,
     defaultConfig
   );
+}
+
+/** One branch's own shelf, for the admin screen that sets it. */
+export function useStoreStock(storeId?: string | null) {
+  return useSWR(storeId ? `${KEYS.storeStock}?storeId=${storeId}` : null, defaultConfig);
 }
 
 /** One branch's tying-rate overrides, for the admin screen. */
@@ -150,4 +156,10 @@ export const invalidateAfterProductChange = () =>
 
 /** A branch price change moves every catalog, since each is keyed by branch. */
 export const invalidateAfterStorePriceChange = () =>
-  invalidate(KEYS.products, KEYS.storePrices, KEYS.safaOptions, KEYS.storeSafaPrices);
+  invalidate(
+    KEYS.products,
+    KEYS.storePrices,
+    KEYS.safaOptions,
+    KEYS.storeSafaPrices,
+    KEYS.storeStock
+  );

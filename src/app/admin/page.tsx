@@ -497,7 +497,7 @@ export default function AdminPage() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <Coins size={16} /> Branch Prices
+                <Coins size={16} /> Branch Prices &amp; Stock
               </button>
               <button 
                 onClick={() => setActiveTab('safa_pricing')}

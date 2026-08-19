@@ -121,6 +121,19 @@ export async function ensureDbSchema(force = false) {
       `CREATE UNIQUE INDEX IF NOT EXISTS "StoreSafaPrice_storeId_safaOptionId_key" ON "StoreSafaPrice"("storeId", "safaOptionId");`,
       `CREATE INDEX IF NOT EXISTS "StoreSafaPrice_storeId_idx" ON "StoreSafaPrice"("storeId");`,
 
+      // ── StoreStock — how many of a product one branch holds ───────────────
+      `CREATE TABLE IF NOT EXISTS "StoreStock" (
+        "id" TEXT NOT NULL,
+        "storeId" TEXT NOT NULL,
+        "productId" TEXT NOT NULL,
+        "quantity" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "StoreStock_pkey" PRIMARY KEY ("id")
+      );`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "StoreStock_storeId_productId_key" ON "StoreStock"("storeId", "productId");`,
+      `CREATE INDEX IF NOT EXISTS "StoreStock_storeId_idx" ON "StoreStock"("storeId");`,
+
       // ── Vendor ────────────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS "Vendor" (
         "id" TEXT NOT NULL,
