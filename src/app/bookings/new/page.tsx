@@ -104,7 +104,8 @@ export default function OdooBookingPage() {
   // instead of three fresh round-trips every time the booking form opens.
   // Priced for this user's branch: each area charges its own rate.
   const { data: productData } = useProducts(user?.storeId);
-  const { data: safaOptionData } = useSafaOptions();
+  // Tying is priced by branch too, so ask for this branch's rates.
+  const { data: safaOptionData } = useSafaOptions(user?.storeId);
   const { data: storeData } = useStores();
 
   useEffect(() => {

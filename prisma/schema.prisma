@@ -206,20 +206,21 @@ model Invoice {
 }
 
 model Store {
-  id        String       @id @default(uuid())
-  name      String
-  location  String?
+  id         String           @id @default(uuid())
+  name       String
+  location   String?
   /// This branch's logo, as a public asset path. Partapur trades under the
   /// old Joshi Safa House mark; the newer branches use Safa King. Null means
   /// the shop default, so a new branch works before anyone sets one.
-  logo      String?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  rentals   Rental[]
-  sales     Sale[]
-  users     User[]
-  cashBooks CashBook[]
-  prices    StorePrice[]
+  logo       String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  rentals    Rental[]
+  sales      Sale[]
+  users      User[]
+  cashBooks  CashBook[]
+  prices     StorePrice[]
+  safaPrices StoreSafaPrice[]
 }
 
 model User {
@@ -252,12 +253,34 @@ model SafaPricing {
   updatedAt       DateTime @updatedAt
 }
 
+/// One branch's own tying rate for one style.
+///
+/// Tying is priced by the area it is done in, the same as the safas
+/// themselves. Null is not allowed here — a row exists only when the branch
+/// has deliberately set a rate, and no row means the shop rate.
+model StoreSafaPrice {
+  id           String     @id @default(uuid())
+  storeId      String
+  safaOptionId String
+  price        Float
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  safaOption   SafaOption @relation(fields: [safaOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, safaOptionId])
+  @@index([storeId])
+}
+
 model SafaOption {
-  id        String   @id @default(uuid())
-  name      String
-  price     Float    @default(50)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String           @id @default(uuid())
+  name        String
+  /// The shop-wide rate. A branch that charges differently overrides it in
+  /// StoreSafaPrice; everyone else follows this, including later changes.
+  price       Float            @default(50)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  storePrices StoreSafaPrice[]
 }
 
 model Artist {

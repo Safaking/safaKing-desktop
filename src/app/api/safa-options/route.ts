@@ -2,8 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
-export async function GET() {
+/**
+ * Tying styles and what they cost.
+ *
+ * ?storeId=… prices them for that branch: tying is charged by the area it is
+ * done in, the same as the safas. `price` carries the resolved figure so the
+ * booking and till screens need no change, with `basePrice` alongside for the
+ * admin screen that sets the overrides.
+ */
+export async function GET(request: Request) {
   try {
+    const storeId = new URL(request.url).searchParams.get('storeId');
 
     let options = await prisma.safaOption.findMany({
       orderBy: { createdAt: 'asc' },
@@ -25,7 +34,25 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(options);
+    const withBase = options.map(o => ({
+      ...o,
+      basePrice: o.price,
+      priceOverridden: false,
+    }));
+
+    if (!storeId) return NextResponse.json(withBase);
+
+    const overrides = await prisma.storeSafaPrice.findMany({ where: { storeId } });
+    const byOption = new Map(overrides.map(o => [o.safaOptionId, o.price]));
+
+    return NextResponse.json(
+      withBase.map(o => {
+        const own = byOption.get(o.id);
+        return typeof own === 'number'
+          ? { ...o, price: own, priceOverridden: true }
+          : o;
+      })
+    );
   } catch (error: any) {
     console.error('GET /api/safa-options error:', error);
     return NextResponse.json([

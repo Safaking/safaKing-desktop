@@ -37,6 +37,7 @@ const defaultConfig: SWRConfiguration = {
 export const KEYS = {
   products: '/api/products',
   storePrices: '/api/store-prices',
+  storeSafaPrices: '/api/store-safa-prices',
   stores: '/api/stores',
   users: '/api/users',
   safaOptions: '/api/safa-options',
@@ -73,8 +74,17 @@ export function useUsers() {
   return useSWR(KEYS.users, defaultConfig);
 }
 
-export function useSafaOptions() {
-  return useSWR(KEYS.safaOptions, defaultConfig);
+/** Tying styles, priced for one branch. Same rule as useProducts. */
+export function useSafaOptions(storeId?: string | null) {
+  return useSWR(
+    storeId ? `${KEYS.safaOptions}?storeId=${storeId}` : KEYS.safaOptions,
+    defaultConfig
+  );
+}
+
+/** One branch's tying-rate overrides, for the admin screen. */
+export function useStoreSafaPrices(storeId?: string | null) {
+  return useSWR(storeId ? `${KEYS.storeSafaPrices}?storeId=${storeId}` : null, defaultConfig);
 }
 
 export function useArtists(withWork = false) {
@@ -140,4 +150,4 @@ export const invalidateAfterProductChange = () =>
 
 /** A branch price change moves every catalog, since each is keyed by branch. */
 export const invalidateAfterStorePriceChange = () =>
-  invalidate(KEYS.products, KEYS.storePrices);
+  invalidate(KEYS.products, KEYS.storePrices, KEYS.safaOptions, KEYS.storeSafaPrices);

@@ -95,7 +95,8 @@ export default function SalesPage() {
 
   // Priced for this user's branch: each area charges its own rate.
   const { data: productData } = useProducts(user?.storeId);
-  const { data: safaOptionData } = useSafaOptions();
+  // Tying is priced by branch too, so ask for this branch's rates.
+  const { data: safaOptionData } = useSafaOptions(user?.storeId);
   const { data: vendorData } = useVendors();
   const vendors: any[] = Array.isArray(vendorData) ? vendorData : [];
   const safaOptions: any[] = Array.isArray(safaOptionData) ? safaOptionData : [];

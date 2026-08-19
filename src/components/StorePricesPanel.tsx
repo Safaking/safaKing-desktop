@@ -2,7 +2,14 @@
 
 import React from 'react';
 import { Store, Search, IndianRupee, RotateCcw, Loader2, Check } from 'lucide-react';
-import { useStores, useProducts, useStorePrices, invalidateAfterStorePriceChange } from '@/lib/data';
+import {
+  useStores,
+  useProducts,
+  useStorePrices,
+  useSafaOptions,
+  useStoreSafaPrices,
+  invalidateAfterStorePriceChange,
+} from '@/lib/data';
 import { isMeterBased, rateSuffix } from '@/lib/product-types';
 
 /** A blank box means "use the shop price"; only a real number is an override. */
@@ -43,6 +50,58 @@ export default function StorePricesPanel() {
   const products: any[] = Array.isArray(productData) ? productData : [];
   const { data: priceData, isLoading } = useStorePrices(storeId || null);
   const overrides: any[] = Array.isArray(priceData) ? priceData : [];
+
+  // Tying is charged by area too, and there are only a handful of styles, so
+  // they sit on the same screen rather than in a tab of their own.
+  const { data: styleData } = useSafaOptions();
+  const styles: any[] = Array.isArray(styleData) ? styleData : [];
+  const { data: styleOverrideData } = useStoreSafaPrices(storeId || null);
+  const styleOverrides: any[] = Array.isArray(styleOverrideData) ? styleOverrideData : [];
+  const [tying, setTying] = React.useState<Record<string, string>>({});
+  const [savingTying, setSavingTying] = React.useState(false);
+  const [tyingSaved, setTyingSaved] = React.useState('');
+
+  React.useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const o of styleOverrides) next[o.safaOptionId] = String(o.price);
+    setTying(next);
+    setTyingSaved('');
+  }, [styleOverrideData, storeId]);
+
+  const tyingChanged = styles.filter(st => {
+    const stored = styleOverrides.find(o => o.safaOptionId === st.id);
+    return clean(tying[st.id] ?? '') !== (stored ? String(stored.price) : '');
+  });
+
+  const saveTying = async () => {
+    if (!storeId || !tyingChanged.length) return;
+    setSavingTying(true);
+    setTyingSaved('');
+    try {
+      const res = await fetch('/api/store-safa-prices', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId,
+          prices: tyingChanged.map(st => ({
+            safaOptionId: st.id,
+            price: clean(tying[st.id] ?? '') === '' ? null : asNumber(tying[st.id] ?? ''),
+          })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Could not save the tying rates');
+        return;
+      }
+      await invalidateAfterStorePriceChange();
+      setTyingSaved('Saved');
+    } catch (err: any) {
+      setError(err.message || 'Could not save the tying rates');
+    } finally {
+      setSavingTying(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!storeId && stores.length) setStoreId(stores[0].id);
@@ -340,6 +399,76 @@ export default function StorePricesPanel() {
                 : 'No changes'}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Tying rates for this branch. Same rule as the products above: blank
+          means the shop rate, and it keeps meaning that. */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <IndianRupee size={15} className="text-indigo-600" /> Safa tying rates for this branch
+          </h2>
+          <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+            Per safa. Leave blank to charge the shop rate.
+          </p>
+        </div>
+
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {styles.length === 0 && (
+            <p className="text-xs font-semibold text-slate-400">No tying styles set up yet.</p>
+          )}
+          {styles.map(st => {
+            const own = clean(tying[st.id] ?? '') !== '';
+            return (
+              <div
+                key={st.id}
+                className={`rounded-xl border p-3 ${
+                  own ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-200'
+                }`}
+              >
+                <p className="text-xs font-bold text-slate-800">{st.name}</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                  Shop rate ₹{Number(st.basePrice ?? st.price ?? 0).toFixed(0)}
+                </p>
+                <div className="relative mt-2">
+                  <IndianRupee
+                    size={11}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="shop rate"
+                    value={tying[st.id] ?? ''}
+                    onChange={e => setTying(t => ({ ...t, [st.id]: e.target.value }))}
+                    className="w-full pl-6 pr-2 py-1.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 text-xs font-bold text-right"
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end gap-3">
+          {tyingSaved && (
+            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+              <Check size={13} /> {tyingSaved}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={saveTying}
+            disabled={savingTying || !tyingChanged.length}
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold transition-colors"
+          >
+            {savingTying
+              ? 'Saving…'
+              : tyingChanged.length
+              ? `Save ${tyingChanged.length} rate${tyingChanged.length === 1 ? '' : 's'}`
+              : 'No changes'}
+          </button>
         </div>
       </div>
     </div>
