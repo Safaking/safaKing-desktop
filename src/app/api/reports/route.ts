@@ -225,12 +225,20 @@ export async function GET(request: Request) {
     //
     // safaTyingDate is stored as a yyyy-mm-dd string, which sorts and compares
     // correctly as text, so the range filter works without parsing it.
-    const tyingWhere: any = { tieSafa: true };
-    if (fromRaw || toRaw) {
-      tyingWhere.safaTyingDate = {};
-      if (fromRaw) tyingWhere.safaTyingDate.gte = fromRaw;
-      if (toRaw) tyingWhere.safaTyingDate.lte = toRaw;
-    }
+    // A job with no tying date recorded is included whatever the range asks
+    // for. Filtering it out dropped it from the worklist entirely, and a barati
+    // job nobody has dated is the one most likely to be forgotten — hiding it
+    // is the opposite of what this sheet is for. It sorts to the top, flagged.
+    const inRange: any = {};
+    if (fromRaw) inRange.gte = fromRaw;
+    if (toRaw) inRange.lte = toRaw;
+
+    const tyingWhere: any = {
+      tieSafa: true,
+      ...(fromRaw || toRaw
+        ? { OR: [{ safaTyingDate: inRange }, { safaTyingDate: null }, { safaTyingDate: '' }] }
+        : {}),
+    };
 
     const tyingSelect = {
       id: true,
@@ -275,7 +283,8 @@ export async function GET(request: Request) {
           orderNumber: o.orderNumber,
           customerName: o.customerName,
           customerPhone: o.customerPhone,
-          date: o.safaTyingDate,
+          date: o.safaTyingDate || null,
+          dateMissing: !o.safaTyingDate,
           time: o.safaTyingTime,
           contact: o.safaTyingName,
           venue: o.safaTyingAddress,
@@ -290,10 +299,14 @@ export async function GET(request: Request) {
             .map((a: any) => ({ name: a.artist.name, phone: a.artist.phone, quantity: a.quantity })),
         };
       })
-      // Soonest first, and within a day by the hour the baraat leaves.
-      .sort((a, b) =>
-        (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || '')
-      );
+      // Undated first — they need a date before anything else can be planned —
+      // then soonest first, and within a day by the hour the baraat leaves.
+      .sort((a, b) => {
+        if (a.dateMissing !== b.dateMissing) return a.dateMissing ? -1 : 1;
+        return (
+          (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || '')
+        );
+      });
 
     const allocationSummary = {
       jobs: allocations.length,
@@ -302,6 +315,7 @@ export async function GET(request: Request) {
       short: allocations.reduce((s, a) => s + a.short, 0),
       fullyStaffed: allocations.filter(a => a.short === 0).length,
       needStaffing: allocations.filter(a => a.short > 0).length,
+      undated: allocations.filter(a => a.dateMissing).length,
     };
 
     return NextResponse.json({

@@ -132,7 +132,9 @@ export default function ReportsPage() {
     const allocationRows = allocations
       .map(
         a => `<tr>
-          <td>${a.date ?? ''}${a.time ? `<br><span class="k">${a.time}</span>` : ''}</td>
+          <td>${a.dateMissing ? '<b>DATE NOT SET</b>' : a.date}${
+            a.time ? `<br><span class="k">${a.time}</span>` : ''
+          }</td>
           <td>${a.orderNumber} <span class="k">${a.kind}</span></td>
           <td>${a.customerName ?? ''}${a.customerPhone ? `<br><span class="k">${a.customerPhone}</span>` : ''}</td>
           <td>${a.venue ?? ''}${a.contact ? `<br><span class="k">${a.contact}</span>` : ''}</td>
@@ -529,10 +531,18 @@ export default function ReportsPage() {
                     {allocations.map(a => (
                       <tr
                         key={`${a.kind}-${a.id}`}
-                        className={`border-t border-slate-100 ${a.short > 0 ? 'bg-rose-50/40' : ''}`}
+                        className={`border-t border-slate-100 ${
+                          a.short > 0 ? 'bg-rose-50/40' : a.dateMissing ? 'bg-amber-50/40' : ''
+                        }`}
                       >
                         <td className="px-4 py-2.5 whitespace-nowrap">
-                          <span className="font-bold text-slate-800">{a.date || '—'}</span>
+                          {a.dateMissing ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-700">
+                              DATE NOT SET
+                            </span>
+                          ) : (
+                            <span className="font-bold text-slate-800">{a.date}</span>
+                          )}
                           {a.time && (
                             <span className="block text-[11px] font-bold text-violet-700">{a.time}</span>
                           )}
