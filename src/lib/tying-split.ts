@@ -13,6 +13,8 @@
  * artist; nothing should compute money from it.
  */
 
+import { baratiCount } from '@/lib/barati';
+
 export type Share = {
   artistId: string;
   quantity: number;
@@ -28,9 +30,15 @@ export const shareValue = (s: { rate?: number | null; quantity?: number | null }
 export const assignedCount = (assignments?: any[] | null) =>
   (assignments ?? []).reduce((sum, a) => sum + (Number(a?.quantity) || 0), 0);
 
-/** Safas still waiting for an artist. Never negative. */
+/**
+ * Safas still waiting for an artist. Never negative.
+ *
+ * Counted against the barati safas alone: those are the ones artists travel
+ * for. Counting the whole order would leave every mixed order looking short by
+ * the safas the counter ties itself.
+ */
 export const unassignedCount = (order: any) =>
-  Math.max(0, (Number(order?.safaTyingCount) || 0) - assignedCount(order?.tyingAssignments));
+  Math.max(0, baratiCount(order) - assignedCount(order?.tyingAssignments));
 
 /**
  * Is this order fully staffed?

@@ -94,7 +94,7 @@ export async function generateInvoicePDF(
   if (data.customerAddress) {
     const splitAddress = doc.splitTextToSize(data.customerAddress, 80);
     doc.text(splitAddress, 195, billToY, { align: 'right' });
-    billToY += splitAddress.length * 6;
+    billToY += splitAddress.length * 7;
   }
   if (data.customerPhone) {
     doc.text(`Phone: ${data.customerPhone}`, 195, billToY, { align: 'right' });
@@ -106,7 +106,13 @@ export async function generateInvoicePDF(
   }
 
   // Business Specific Details
-  let detailY = Math.max(startDetailsY + 16, billToY - 2);
+  //
+  // Both columns above are variable height: the left always runs to Payment
+  // Status, the right grows with however much address the customer gave. This
+  // has to clear the taller of the two — starting at a fixed offset printed
+  // the wedding date straight through the payment lines.
+  const leftColumnBottom = startDetailsY + 28;
+  let detailY = Math.max(leftColumnBottom, billToY) + 9;
   doc.setFontSize(12);
   if (data.weddingDate) {
     doc.setFont('helvetica', 'bold');
@@ -147,7 +153,7 @@ export async function generateInvoicePDF(
       data.safaTyingAddress ? `Venue: ${data.safaTyingAddress}` : ''
     ].filter(Boolean).join(' | ');
     
-    const splitTyingInfo = doc.splitTextToSize(tyingInfoStr, 110);
+    const splitTyingInfo = doc.splitTextToSize(tyingInfoStr, 125);
     doc.text(splitTyingInfo, 65, detailY);
     detailY += splitTyingInfo.length * 6;
   }
@@ -176,22 +182,34 @@ export async function generateInvoicePDF(
     },
     styles: { 
       fontSize: 10, 
-      cellPadding: 4, 
+      cellPadding: 3, 
       textColor: [0, 0, 0],
       lineWidth: 0.1,
       lineColor: [0, 0, 0]
     },
+    // Aligned to the same 20..195 the rest of the page uses, and the widths
+    // add up to exactly that span. The row number column was 10mm wide with
+    // 4mm padding either side, leaving 2mm of usable space, so any order past
+    // item 9 broke its own number over two lines — "25" printed as 2 above 5.
+    margin: { left: 20, right: 15 },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 100 },
-      2: { cellWidth: 20, halign: 'center' },
+      0: { cellWidth: 14, halign: 'center' },
+      1: { cellWidth: 81 },
+      2: { cellWidth: 18, halign: 'center' },
       3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 32, halign: 'right' },
     }
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 15;
-  
+  // The totals block is about 55mm tall at its longest. autoTable breaks the
+  // item table across pages on its own, but it can finish near the bottom, and
+  // the totals were then printed over the footer.
+  let finalY = (doc as any).lastAutoTable.finalY + 15;
+  if (finalY + 55 > doc.internal.pageSize.height - 22) {
+    doc.addPage();
+    finalY = 20;
+  }
+
   // Totals Section (on the right)
   doc.setFontSize(10);
   const totalLabelX = 160;
@@ -297,20 +315,34 @@ export async function generateInvoicePDF(
     '5. T&C Apply'
   ];
   
+  // The footer is printed at pageHeight - 15, so nothing may pass this line.
+  const pageHeight = doc.internal.pageSize.height;
+  const footerTop = pageHeight - 22;
+
   let termsY = termsStartY + 7;
   for (const term of termsList) {
     const hindiImg = getHindiImage(term);
+    // A long order pushes the terms down; carry on overleaf rather than
+    // printing them on top of the footer.
+    if (termsY + hindiImg.height > footerTop) {
+      doc.addPage();
+      termsY = 20;
+    }
     doc.addImage(hindiImg.dataUrl, 'PNG', 20, termsY, hindiImg.width, hindiImg.height);
     termsY += hindiImg.height + 2;
   }
 
   if (data.notes) {
     doc.setFont('helvetica', 'italic');
-    doc.text(`Note: ${data.notes}`, 20, termsY + 2);
+    const noteLines = doc.splitTextToSize(`Note: ${data.notes}`, 170);
+    if (termsY + noteLines.length * 5 > footerTop) {
+      doc.addPage();
+      termsY = 20;
+    }
+    doc.text(noteLines, 20, termsY + 2);
   }
 
   // Footer text only
-  const pageHeight = doc.internal.pageSize.height;
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'italic');

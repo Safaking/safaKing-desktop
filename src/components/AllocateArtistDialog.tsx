@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Palette, IndianRupee, Check, Plus, Trash2, Users } from 'lucide-react';
 import { useArtists, invalidateAfterArtistChange } from '@/lib/data';
 import { useAuth } from '@/lib/AuthContext';
+import { baratiCount } from '@/lib/barati';
 
 interface Props {
   rental: any | null;
@@ -76,7 +77,9 @@ export default function AllocateArtistDialog({ rental, type = 'RENTAL', onClose,
 
   if (!rental) return null;
 
-  const required = rental.safaTyingCount || 0;
+  // Only the barati safas need artists sent out — the rest are tied at the
+  // counter when the customer collects, so they are nobody's allocation.
+  const required = baratiCount(rental);
   const assigned = rows.reduce((s, r) => s + (r.artistId ? num(r.quantity) : 0), 0);
   const left = required - assigned;
   const over = left < 0;
@@ -176,9 +179,22 @@ export default function AllocateArtistDialog({ rental, type = 'RENTAL', onClose,
               {rental.orderNumber} • {rental.customerName}
             </p>
             <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-              {required} safa{required === 1 ? '' : 's'} to tie
-              {rental.safaShape ? ` — ${rental.safaShape}` : ''}
+              {required} barati safa{required === 1 ? '' : 's'} to tie
+              {(rental.safaTyingCount || 0) > required &&
+                ` (of ${rental.safaTyingCount} on the order)`}
             </p>
+            {/* Item 2: when and where, on the allocation screen itself. The
+                artist is being booked for an hour on a day, and that was only
+                visible by opening the order. */}
+            {(rental.safaTyingDate || rental.safaTyingTime || rental.safaTyingAddress) && (
+              <p className="text-[11px] font-bold text-violet-700 mt-1.5 flex flex-wrap gap-x-2">
+                {rental.safaTyingDate && <span>{rental.safaTyingDate}</span>}
+                {rental.safaTyingTime && <span>· {rental.safaTyingTime}</span>}
+                {rental.safaTyingAddress && (
+                  <span className="font-semibold text-slate-500">· {rental.safaTyingAddress}</span>
+                )}
+              </p>
+            )}
           </div>
 
           {/* The running total is the whole point of the screen, so it sits

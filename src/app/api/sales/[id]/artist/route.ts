@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normaliseShares, validateShares, legacyMirror } from '@/lib/tying-split';
+import { baratiCount } from '@/lib/barati';
 
 /**
  * Allocate the tying on a sale, split across one or more artists.
@@ -26,7 +27,7 @@ export async function POST(request: Request, { params }: { params: any }) {
       ? [
           {
             artistId: body.artistId,
-            quantity: sale.safaTyingCount || 0,
+            quantity: baratiCount(sale),
             rate: body.artistRate,
             paid: body.artistPaid,
           },
@@ -45,7 +46,8 @@ export async function POST(request: Request, { params }: { params: any }) {
       }
     }
 
-    const check = validateShares(shares, sale.safaTyingCount || 0);
+    // Artists are only sent out for barati; the counter ties the rest.
+    const check = validateShares(shares, baratiCount(sale));
     if (!check.ok) {
       return NextResponse.json({ error: check.error }, { status: 400 });
     }

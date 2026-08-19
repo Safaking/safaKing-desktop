@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { needsArtist } from '@/lib/barati';
+import { needsArtist, baratiCount } from '@/lib/barati';
 import { startOfDay, endOfDay, addDays } from 'date-fns';
 
 /**
@@ -91,7 +91,7 @@ export async function GET() {
     // An order half staffed still needs somebody found, so it belongs here
     // just as much as one with nobody on it.
     const notFullyStaffed = (r: any) =>
-      (r.safaTyingCount || 0) >
+      baratiCount(r) >
       (r.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0);
 
     const stillToStaff = unallocated.filter(needsArtist).filter(notFullyStaffed);
@@ -103,7 +103,7 @@ export async function GET() {
       // How many safas still have nobody, so the card can say "40 of 100 left".
       safasUnassigned: Math.max(
         0,
-        (r.safaTyingCount || 0) -
+        baratiCount(r) -
           (r.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
       ),
       artistNames: (r.tyingAssignments ?? []).map((a: any) => a.artist?.name).filter(Boolean),

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { needsArtist, baratiCount } from '@/lib/barati';
 
 /**
  * Reporting data for a date range.
@@ -132,19 +133,20 @@ export async function GET(request: Request) {
     for (const r of rentals) collect(r, 'RENTAL');
     for (const sale of sales) collect(sale, 'SALE');
 
-    /** Safas on an order that still have nobody tying them. */
+    /** Barati safas on an order that still have nobody tying them. */
     const shortBy = (o: any) =>
       Math.max(
         0,
-        (o.safaTyingCount || 0) -
+        baratiCount(o) -
           (o.tyingAssignments ?? []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
       );
 
     // Half-staffed counts as still to assign: somebody has to be found either
-    // way, and only counting the untouched ones hides the harder cases.
+    // way, and only counting the untouched ones hides the harder cases. Only
+    // barati counts — the counter ties the rest without an artist.
     const unallocatedTying =
-      rentals.filter(r => r.tieSafa && shortBy(r) > 0).length +
-      sales.filter(s => s.tieSafa && shortBy(s) > 0).length;
+      rentals.filter(r => needsArtist(r) && shortBy(r) > 0).length +
+      sales.filter(s => needsArtist(s) && shortBy(s) > 0).length;
 
     /** "Ramesh 40 · Suresh 60" when split, just the name when it is not. */
     const artistLabel = (o: any) => {
