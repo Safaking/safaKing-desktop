@@ -209,6 +209,10 @@ model Store {
   id        String       @id @default(uuid())
   name      String
   location  String?
+  /// This branch's logo, as a public asset path. Partapur trades under the
+  /// old Joshi Safa House mark; the newer branches use Safa King. Null means
+  /// the shop default, so a new branch works before anyone sets one.
+  logo      String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   rentals   Rental[]

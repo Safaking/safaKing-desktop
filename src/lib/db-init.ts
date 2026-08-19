@@ -234,6 +234,15 @@ export async function ensureDbSchema(force = false) {
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistRate" DOUBLE PRECISION DEFAULT 0;`,
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistPaid" BOOLEAN DEFAULT false;`,
 
+      // ── Store — new columns ───────────────────────────────────────────────
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "logo" TEXT;`,
+      // Partapur keeps the mark it has always traded under. Matched on the name
+      // because that is the only thing that identifies it across databases, and
+      // only where nothing has been chosen yet, so an admin's pick is never
+      // overwritten by a later migration.
+      `UPDATE "Store" SET "logo" = '/assets/logo-joshi.png'
+       WHERE "logo" IS NULL AND "name" ILIKE '%partapur%';`,
+
       // ── Invoice — new columns ─────────────────────────────────────────────
       `ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';`,
     ];

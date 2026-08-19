@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useBranchLogo } from '@/lib/branding';
 
 interface Product {
   id: string;
@@ -50,6 +51,7 @@ interface DashboardStats {
 export default function Dashboard() {
   const { language, setLanguage, t } = useLanguage();
   const { user, logout, isAdmin, isSuperOrAdmin, canManageVendors } = useAuth();
+  const branchLogo = useBranchLogo();
   const { stats, isLoading: loading } = useDashboard() as {
     stats: DashboardStats | null;
     isLoading: boolean;
@@ -70,7 +72,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3 px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-8">
             <div className="h-20 flex items-center">
-              <img src="/assets/logo.png?v=4" alt="Logo" className="h-full w-auto object-contain" />
+              <img src={branchLogo} alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <div className="hidden md:block">
               <p className="text-sm font-bold text-slate-700 tracking-tight leading-snug">Near Pandya Memorial School,</p>

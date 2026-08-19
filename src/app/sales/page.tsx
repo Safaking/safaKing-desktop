@@ -30,6 +30,7 @@ import { generateInvoicePDF } from '@/lib/invoice-gen';
 import BillPreviewDialog from '@/components/BillPreviewDialog';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useBranchLogo } from '@/lib/branding';
 
 interface Product {
   id: string;
@@ -56,6 +57,7 @@ interface SaleItem {
 export default function SalesPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const branchLogo = useBranchLogo();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -278,6 +280,9 @@ export default function SalesPage() {
           safaTyingDate: tieSafa ? safaTyingDetails.marriageDate : null,
           tieSafaCharge: getSafaCharge(),
           createdBy: user?.username || user?.name || null,
+          // Which branch sold it. Bookings have always recorded this; sales
+          // did not, so their bills, prices and stock had no branch to follow.
+          storeId: user?.storeId || null,
           vendorId: vendorId || null,
           pickupName: pickup.name,
           pickupPhone: pickup.phone,
@@ -343,7 +348,7 @@ export default function SalesPage() {
               <ArrowLeft size={18} />
             </Link>
             <div className="h-10 flex items-center">
-              <img src="/assets/logo.png?v=4" alt="Logo" className="h-full w-auto object-contain" />
+              <img src={branchLogo} alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wider">{t('new_sale')}</h1>
           </div>

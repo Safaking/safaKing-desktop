@@ -15,12 +15,30 @@ export async function generateInvoicePDF(
   // No background header bar - keeping it white
   
   // Add Logo
+  //
+  // Whichever branch took the order, not whichever is printing it — a Partapur
+  // bill reprinted at Chitri must still be a Joshi Safa House bill, because
+  // that is the shop the customer dealt with.
+  let logoSrc = '/assets/logo.png?v=4';
+  try {
+    if (data.storeId) {
+      const res = await fetch(`/api/branding?storeId=${data.storeId}`);
+      if (res.ok) {
+        const branding = await res.json();
+        if (branding?.logo) logoSrc = branding.logo;
+      }
+    }
+  } catch {
+    // Branding is decoration; a bill that prints with the default mark is far
+    // better than one that fails to print at all.
+  }
+
   try {
     const logoImg = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = reject;
-      img.src = '/assets/logo.png?v=4';
+      img.src = logoSrc;
     });
     // Top left, square — the logo is square, so the old 40x25 box squashed it.
     doc.addImage(logoImg, 'PNG', 15, 8, 28, 28);

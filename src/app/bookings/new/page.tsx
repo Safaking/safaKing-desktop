@@ -30,6 +30,7 @@ import DateInput from '@/components/DateInput';
 import { isMeterBased, unitLabel, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useBranchLogo } from '@/lib/branding';
 
 interface Product {
   id: string;
@@ -52,6 +53,7 @@ interface BookingItem {
 export default function OdooBookingPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const branchLogo = useBranchLogo();
   const [products, setProducts] = useState<Product[]>([]);
   const [customer, setCustomer] = useState({ 
     name: '', 
@@ -370,7 +372,7 @@ export default function OdooBookingPage() {
               <ArrowLeft size={22} />
             </Link>
             <div className="h-10 flex items-center">
-              <img src="/assets/logo.png?v=4" alt="Logo" className="h-full w-auto object-contain" />
+              <img src={branchLogo} alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wider">{t('new_rental')}</h1>
           </div>

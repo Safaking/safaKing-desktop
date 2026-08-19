@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProducts, useStores, useUsers, useSafaOptions, useArtists, invalidateAfterArtistChange } from '@/lib/data';
+import { useProducts, useStores, useUsers, useSafaOptions, useArtists, invalidateAfterArtistChange, invalidate, KEYS } from '@/lib/data';
 import { PRODUCT_TYPES, UNCATEGORISED, isMeterBased, rateSuffix } from '@/lib/product-types';
 import Link from 'next/link';
 import { 
@@ -38,6 +38,8 @@ interface StoreData {
   id: string;
   name: string;
   location: string | null;
+  /** Public asset path for this branch's mark; null means the shop default. */
+  logo?: string | null;
 }
 
 interface Product {
@@ -271,6 +273,25 @@ export default function AdminPage() {
       }
     } catch (err: any) {
       alert(err.message || 'Error deleting option');
+    }
+  };
+
+  /** Set which mark a branch trades under. '' puts it back on the default. */
+  const handleSetStoreLogo = async (id: string, logo: string) => {
+    try {
+      const res = await fetch('/api/stores', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, logo }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not change the logo');
+        return;
+      }
+      await invalidate(KEYS.stores, '/api/branding');
+    } catch (err: any) {
+      alert(err.message || 'Could not change the logo');
     }
   };
 
@@ -746,15 +767,52 @@ export default function AdminPage() {
               ) : (
                 <div className="space-y-3">
                   {stores.map(store => (
-                    <div key={store.id} className="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-start justify-between">
-                      <div>
-                        <h3 className="font-bold text-slate-800">{store.name}</h3>
-                        {store.location && (
-                          <div className="flex items-center gap-1 text-slate-500 text-sm mt-1">
-                            <MapPin size={14} />
-                            <span>{store.location}</span>
-                          </div>
-                        )}
+                    <div key={store.id} className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-bold text-slate-800">{store.name}</h3>
+                          {store.location && (
+                            <div className="flex items-center gap-1 text-slate-500 text-sm mt-1">
+                              <MapPin size={14} />
+                              <span>{store.location}</span>
+                            </div>
+                          )}
+                        </div>
+                        <img
+                          src={store.logo || '/assets/logo.png?v=4'}
+                          alt=""
+                          className="h-10 w-auto object-contain shrink-0"
+                        />
+                      </div>
+
+                      {/* Which mark this branch trades under. Partapur's
+                          customers know the Joshi bill; the newer branches
+                          bill as Safa King. It shows on their screens and on
+                          every bill they raise. */}
+                      <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">
+                          Logo
+                        </span>
+                        {[
+                          { label: 'Safa King', value: '' },
+                          { label: 'Joshi Safa House', value: '/assets/logo-joshi.png' },
+                        ].map(opt => {
+                          const active = (store.logo || '') === opt.value;
+                          return (
+                            <button
+                              key={opt.label}
+                              type="button"
+                              onClick={() => handleSetStoreLogo(store.id, opt.value)}
+                              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                                active
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
