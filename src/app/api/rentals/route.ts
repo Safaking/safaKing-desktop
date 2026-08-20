@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { recordPayment } from '@/lib/payments';
 import { checkMultiProductAvailability } from '@/lib/inventory';
 
 export async function GET(request: Request) {
@@ -206,6 +207,16 @@ export async function POST(request: Request) {
           status: invStatus,
           paymentMethod: paymentMethod || 'CASH',
         },
+      });
+
+      // The advance taken at booking, stamped with today.
+      await recordPayment(tx, {
+        rentalId: newRental.id,
+        storeId: newRental.storeId,
+        amount: paid,
+        method: newRental.paymentMethod,
+        kind: 'ADVANCE',
+        receivedBy: newRental.createdBy,
       });
 
       return newRental;

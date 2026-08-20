@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import DateInput from '@/components/DateInput';
-import { X, Edit3, User, Phone, MapPin, Calendar, FileText, CheckCircle2 } from 'lucide-react';
+import { X, Edit3, User, Phone, MapPin, Calendar, FileText, CheckCircle2, Clock } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { useSafaOptions } from '@/lib/data';
 
 interface EditRentalDialogProps {
   rental: any;
@@ -24,6 +26,38 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
   const [paidAmount, setPaidAmount] = useState(rental.paidAmount?.toString() || '0');
   const [discount, setDiscount] = useState(rental.discount?.toString() || '0');
   const [paymentMethod, setPaymentMethod] = useState(rental.paymentMethod || 'CASH');
+
+  // Tying, which could not be corrected at all before: a count entered as 3
+  // instead of 30 was stuck, and so was the charge sitting against it.
+  const { user, isAdmin } = useAuth();
+  const { data: styleData } = useSafaOptions(user?.storeId);
+  const styleList: any[] = Array.isArray(styleData) ? styleData : [];
+
+  const [tieSafa, setTieSafa] = useState(!!rental.tieSafa);
+  const [tyingQty, setTyingQty] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    try {
+      const parsed = rental.safaTyingStyles ? JSON.parse(rental.safaTyingStyles) : null;
+      if (Array.isArray(parsed)) {
+        for (const st of parsed) if (st?.id) out[st.id] = String(st.quantity ?? 0);
+      }
+    } catch {
+      // Older order with only safaShape — the boxes start empty and whatever
+      // is typed becomes the new breakdown.
+    }
+    return out;
+  });
+  const [tyingName, setTyingName] = useState(rental.safaTyingName || '');
+  const [tyingAddress, setTyingAddress] = useState(rental.safaTyingAddress || '');
+  const [tyingTime, setTyingTime] = useState(rental.safaTyingTime || '');
+  const [tyingDate, setTyingDate] = useState(rental.safaTyingDate || '');
+
+  /** The styles actually chosen, priced at this branch's rate. */
+  const chosenStyles = styleList
+    .map(st => ({ ...st, quantity: Math.max(0, parseInt(tyingQty[st.id] || '0') || 0) }))
+    .filter(st => st.quantity > 0);
+  const tyingCount = chosenStyles.reduce((s, st) => s + st.quantity, 0);
+  const tyingCharge = chosenStyles.reduce((s, st) => s + (st.price || 0) * st.quantity, 0);
 
   const [loading, setLoading] = useState(false);
 
@@ -49,6 +83,30 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
           paidAmount: parseFloat(paidAmount || '0'),
           discount: parseFloat(discount || '0'),
           paymentMethod,
+          tieSafa,
+          // Only send the breakdown when styles were actually picked, so a
+          // dialog opened on an older order does not wipe its safaShape.
+          ...(tieSafa && chosenStyles.length
+            ? {
+                safaTyingCount: tyingCount,
+                safaTyingStyles: JSON.stringify(
+                  chosenStyles.map(st => ({
+                    id: st.id,
+                    name: st.name,
+                    price: st.price,
+                    quantity: st.quantity,
+                  }))
+                ),
+                safaShape: chosenStyles.map(st => st.name).join(', '),
+                tieSafaCharge: tyingCharge,
+              }
+            : {}),
+          safaTyingName: tyingName,
+          safaTyingAddress: tyingAddress,
+          safaTyingTime: tyingTime,
+          safaTyingDate: tyingDate,
+          // The server only lets an admin touch an order that has gone out.
+          role: user?.role,
         }),
       });
 
@@ -209,6 +267,98 @@ export default function EditRentalDialog({ rental, onClose, onSuccess }: EditRen
           </div>
 
           <div>
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+              <button
+                type="button"
+                onClick={() => setTieSafa(v => !v)}
+                className="flex items-center gap-2 text-xs font-black text-amber-900 uppercase tracking-wider"
+              >
+                <Clock size={14} />
+                Safa tying
+                <span
+                  className={`ml-1 px-2 py-0.5 rounded text-[10px] ${
+                    tieSafa ? 'bg-amber-600 text-white' : 'bg-white text-slate-500 border border-slate-200'
+                  }`}
+                >
+                  {tieSafa ? 'ON' : 'OFF'}
+                </span>
+              </button>
+
+              {tieSafa && (
+                <>
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {styleList.map(st => (
+                      <div key={st.id}>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                          {st.name} <span className="text-slate-400">₹{st.price}</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={tyingQty[st.id] ?? ''}
+                          onChange={e => setTyingQty(q => ({ ...q, [st.id]: e.target.value }))}
+                          className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-right outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="mt-2 text-[11px] font-bold text-amber-900">
+                    {tyingCount} safa{tyingCount === 1 ? '' : 's'} · ₹{tyingCharge.toFixed(2)}
+                    {chosenStyles.length === 0 && (
+                      <span className="ml-1 font-semibold text-slate-500">
+                        (leave blank to keep {rental.safaTyingCount || 0} as booked)
+                      </span>
+                    )}
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Tying date</label>
+                      <DateInput
+                        value={tyingDate}
+                        onChange={setTyingDate}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Time</label>
+                      <input
+                        type="time"
+                        value={tyingTime}
+                        onChange={e => setTyingTime(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Contact</label>
+                      <input
+                        value={tyingName}
+                        onChange={e => setTyingName(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Venue</label>
+                      <input
+                        value={tyingAddress}
+                        onChange={e => setTyingAddress(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {rental.status !== 'BOOKED' && !isAdmin && (
+              <p className="mb-3 text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
+                This order has already gone out. Only an admin can correct it now.
+              </p>
+            )}
+
             <label className="block text-xs font-bold text-slate-600 mb-1">Notes / Remarks</label>
             <textarea 
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-indigo-500 focus:bg-white h-16 resize-none"

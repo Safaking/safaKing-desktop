@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { recordPayment } from '@/lib/payments';
 
 export async function GET() {
   try {
@@ -179,6 +180,17 @@ export async function POST(request: Request) {
           // a bulk vendor order can be part-paid.
           status: paid >= finalTotal && finalTotal > 0 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'DUE',
         },
+      });
+
+      // The money taken at the till, stamped with today. Inside the same
+      // transaction as the sale: a sale in the books with no receipt behind it
+      // would quietly short the day's cash.
+      await recordPayment(tx, {
+        saleId: newSale.id,
+        storeId: newSale.storeId,
+        amount: paid,
+        kind: 'ADVANCE',
+        receivedBy: createdBy?.trim() || null,
       });
 
       return newSale;

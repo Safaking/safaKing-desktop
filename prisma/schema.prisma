@@ -35,6 +35,37 @@ model Product {
   storeStock    StoreStock[]
 }
 
+/// One payment actually received, on the day it was received.
+///
+/// Rental.paidAmount and Sale.paidAmount are running totals: an advance at
+/// booking plus whatever is collected at handover. The cash book, though, has
+/// to answer "what came into this till today", and summing those totals over
+/// orders *created* today put a balance collected in November into the book
+/// for the day the order was taken in March — a day already tallied and
+/// closed. Each receipt is its own row here, stamped with the day and the
+/// branch that took it.
+model OrderPayment {
+  id         String   @id @default(uuid())
+  /// Exactly one of rentalId / saleId is set.
+  rentalId   String?
+  saleId     String?
+  /// The till that received it, which is not always the order's own branch.
+  storeId    String?
+  amount     Float
+  method     String?  @default("CASH")
+  /// ADVANCE at booking, BALANCE at handover, ADJUSTMENT for a correction.
+  kind       String   @default("ADVANCE")
+  note       String?
+  receivedAt DateTime @default(now())
+  receivedBy String?
+  rental     Rental?  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  sale       Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, receivedAt])
+  @@index([rentalId])
+  @@index([saleId])
+}
+
 /// How many of one product one branch holds.
 ///
 /// Stock sits on a shelf in a particular shop, so it belongs to that shop.
@@ -130,6 +161,7 @@ model Rental {
   /// The real allocation, one row per artist. artistId above is kept in step
   /// with the first of these so older reads still find an artist on the order.
   tyingAssignments TyingAssignment[]
+  payments         OrderPayment[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   invoice          Invoice?
@@ -194,6 +226,7 @@ model Sale {
   artistPaid       Boolean           @default(false)
   artist           Artist?           @relation("SaleArtist", fields: [artistId], references: [id])
   tyingAssignments TyingAssignment[]
+  payments         OrderPayment[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   invoice          Invoice?

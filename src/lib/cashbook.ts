@@ -27,27 +27,30 @@ export const prevISODay = (iso: string) => {
 
 /** Everything collected for a store on a day, across rentals and sales. */
 export async function collectionsFor(storeId: string, iso: string) {
-  const createdAt = { gte: dayStart(iso), lte: dayEnd(iso) };
-  const [rentals, sales] = await Promise.all([
-    prisma.rental.findMany({
-      where: { storeId, createdAt },
-      select: { paidAmount: true },
-    }),
-    prisma.sale.findMany({
-      where: { storeId, createdAt },
-      select: { paidAmount: true },
-    }),
-  ]);
+  // Receipts, on the day they were received — not the totals of orders taken
+  // that day. A balance collected at handover in November belongs in
+  // November's till, not in the book for the March day the order was booked,
+  // which has long since been tallied and closed.
+  const payments = await prisma.orderPayment.findMany({
+    where: { storeId, receivedAt: { gte: dayStart(iso), lte: dayEnd(iso) } },
+    select: { amount: true, rentalId: true, saleId: true },
+  });
 
-  const rentalCollected = rentals.reduce((s, r) => s + (r.paidAmount || 0), 0);
-  const saleCollected = sales.reduce((s, x) => s + (x.paidAmount || 0), 0);
+  const rentalCollected = payments
+    .filter(p => p.rentalId)
+    .reduce((s, p) => s + (p.amount || 0), 0);
+  const saleCollected = payments
+    .filter(p => p.saleId)
+    .reduce((s, p) => s + (p.amount || 0), 0);
 
   return {
     rentalCollected,
     saleCollected,
     collected: rentalCollected + saleCollected,
-    rentalCount: rentals.length,
-    saleCount: sales.length,
+    // Receipts, not orders: one order paid in two instalments is two lines in
+    // the till, which is what somebody counting the drawer will find.
+    rentalCount: payments.filter(p => p.rentalId).length,
+    saleCount: payments.filter(p => p.saleId).length,
   };
 }
 

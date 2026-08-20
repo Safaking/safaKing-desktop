@@ -134,6 +134,41 @@ export async function ensureDbSchema(force = false) {
       `CREATE UNIQUE INDEX IF NOT EXISTS "StoreStock_storeId_productId_key" ON "StoreStock"("storeId", "productId");`,
       `CREATE INDEX IF NOT EXISTS "StoreStock_storeId_idx" ON "StoreStock"("storeId");`,
 
+      // ── OrderPayment — one receipt, on the day it was received ────────────
+      `CREATE TABLE IF NOT EXISTS "OrderPayment" (
+        "id" TEXT NOT NULL,
+        "rentalId" TEXT,
+        "saleId" TEXT,
+        "storeId" TEXT,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "method" TEXT DEFAULT 'CASH',
+        "kind" TEXT NOT NULL DEFAULT 'ADVANCE',
+        "note" TEXT,
+        "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "receivedBy" TEXT,
+        CONSTRAINT "OrderPayment_pkey" PRIMARY KEY ("id")
+      );`,
+      `CREATE INDEX IF NOT EXISTS "OrderPayment_storeId_receivedAt_idx" ON "OrderPayment"("storeId", "receivedAt");`,
+      `CREATE INDEX IF NOT EXISTS "OrderPayment_rentalId_idx" ON "OrderPayment"("rentalId");`,
+      `CREATE INDEX IF NOT EXISTS "OrderPayment_saleId_idx" ON "OrderPayment"("saleId");`,
+
+      // Everything already collected becomes one receipt dated to the order,
+      // which is where the cash book has been counting it all along. The books
+      // therefore do not move on the day this ships. The NOT EXISTS guard makes
+      // it safe to re-run.
+      `INSERT INTO "OrderPayment" ("id", "rentalId", "storeId", "amount", "method", "kind", "receivedAt", "receivedBy")
+       SELECT gen_random_uuid()::text, r."id", r."storeId", r."paidAmount",
+              COALESCE(r."paymentMethod", 'CASH'), 'ADVANCE', r."createdAt", r."createdBy"
+       FROM "Rental" r
+       WHERE COALESCE(r."paidAmount", 0) > 0
+         AND NOT EXISTS (SELECT 1 FROM "OrderPayment" p WHERE p."rentalId" = r."id");`,
+      `INSERT INTO "OrderPayment" ("id", "saleId", "storeId", "amount", "method", "kind", "receivedAt", "receivedBy")
+       SELECT gen_random_uuid()::text, s."id", s."storeId", s."paidAmount",
+              'CASH', 'ADVANCE', s."createdAt", s."createdBy"
+       FROM "Sale" s
+       WHERE COALESCE(s."paidAmount", 0) > 0
+         AND NOT EXISTS (SELECT 1 FROM "OrderPayment" p WHERE p."saleId" = s."id");`,
+
       // ── Vendor ────────────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS "Vendor" (
         "id" TEXT NOT NULL,

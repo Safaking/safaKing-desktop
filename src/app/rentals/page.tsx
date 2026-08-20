@@ -386,7 +386,10 @@ export default function RentalsPage() {
                             onClick={(e) => e.stopPropagation()}
                             className="absolute right-0 top-10 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-left animate-in fade-in zoom-in-95 duration-150"
                           >
-                            {rental.status === 'BOOKED' ? (
+                            {/* Admin can correct an order after it has gone
+                                out — a bill already printed with the wrong
+                                tying count had no way to be fixed. */}
+                            {rental.status === 'BOOKED' || isAdmin ? (
                               <button
                                 onClick={() => {
                                   setOpenMenuId(null);
@@ -394,7 +397,8 @@ export default function RentalsPage() {
                                 }}
                                 className="w-full px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-2"
                               >
-                                <Edit3 size={14} className="text-indigo-600" /> Edit Booking
+                                <Edit3 size={14} className="text-indigo-600" />{' '}
+                                {rental.status === 'BOOKED' ? 'Edit Booking' : 'Correct Order'}
                               </button>
                             ) : (
                               <div className="px-3 py-2 text-[11px] font-semibold text-slate-400 flex items-center gap-2 cursor-not-allowed">

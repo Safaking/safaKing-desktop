@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { recordPayment } from '@/lib/payments';
 
 export async function DELETE(
   request: Request,
@@ -64,12 +65,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Rental order not found' }, { status: 404 });
     }
 
-    // Edit is allowed only when status is BOOKED
-    if (existingRental.status !== 'BOOKED') {
-      return NextResponse.json({ error: 'Only bookings in BOOKED status can be edited' }, { status: 400 });
-    }
-
     const body = await request.json();
+
+    // Staff may correct an order until it goes out of the door; after that the
+    // customer has the goods and the bill, so only an admin can. Refusing
+    // everyone left the shop unable to fix a bill it had already printed —
+    // a tying count typed as 3 instead of 30 could not be put right at all.
+    if (existingRental.status !== 'BOOKED' && body?.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'This order has already gone out. Ask an admin to correct it.' },
+        { status: 403 }
+      );
+    }
     const { 
       customerName, 
       customerPhone, 
@@ -85,6 +92,8 @@ export async function PUT(
       paidAmount, 
       tieSafa,
       safaShape,
+      safaTyingCount,
+      safaTyingStyles,
       safaTyingName,
       safaTyingAddress,
       safaTyingTime,
@@ -106,8 +115,16 @@ export async function PUT(
       }, 0);
     }
 
+    // The tying charge follows the styles when they are sent, so correcting a
+    // count of 3 to 30 corrects the bill too rather than leaving the old
+    // charge sitting against a new quantity.
+    let tyingCharge = existingRental.tieSafaCharge;
+    if (tieSafaCharge !== undefined) {
+      const parsed = parseFloat(tieSafaCharge?.toString() ?? '');
+      if (Number.isFinite(parsed) && parsed >= 0) tyingCharge = parsed;
+    }
     if (tieSafa) {
-      totalAmount += parseFloat(tieSafaCharge?.toString() || '50') || 50;
+      totalAmount += tyingCharge;
     }
     if (discount) {
       totalAmount -= parseFloat(discount?.toString() || '0') || 0;
@@ -138,12 +155,18 @@ export async function PUT(
           paidAmount: paid,
           remainingAmount: remaining,
           tieSafa: tieSafa !== undefined ? !!tieSafa : existingRental.tieSafa,
+          safaTyingCount:
+            safaTyingCount !== undefined
+              ? Math.max(0, parseInt(safaTyingCount?.toString() || '0') || 0)
+              : existingRental.safaTyingCount,
+          safaTyingStyles:
+            safaTyingStyles !== undefined ? safaTyingStyles : existingRental.safaTyingStyles,
+          tieSafaCharge: tyingCharge,
           safaShape: safaShape || existingRental.safaShape,
           safaTyingName: safaTyingName !== undefined ? safaTyingName : existingRental.safaTyingName,
           safaTyingAddress: safaTyingAddress !== undefined ? safaTyingAddress : existingRental.safaTyingAddress,
           safaTyingTime: safaTyingTime !== undefined ? safaTyingTime : existingRental.safaTyingTime,
           safaTyingDate: safaTyingDate !== undefined ? safaTyingDate : existingRental.safaTyingDate,
-          tieSafaCharge: tieSafaCharge !== undefined ? parseFloat(tieSafaCharge.toString()) : existingRental.tieSafaCharge,
           discount: discount !== undefined ? parseFloat(discount.toString()) : existingRental.discount,
           paymentMethod: paymentMethod || existingRental.paymentMethod || 'CASH',
           ...(items && items.length > 0 ? {
@@ -174,6 +197,22 @@ export async function PUT(
 
       return rental;
     });
+
+    // Correcting what was paid has to move the till too, or the cash book and
+    // the order stop agreeing. Recorded as an adjustment dated today, since
+    // that is when the correction was actually made.
+    const paidDelta = paid - (existingRental.paidAmount || 0);
+    if (paidDelta > 0) {
+      await recordPayment(null, {
+        rentalId: id,
+        storeId: existingRental.storeId,
+        amount: paidDelta,
+        method: paymentMethod || existingRental.paymentMethod,
+        kind: 'ADJUSTMENT',
+        note: 'Correction to the order',
+        receivedBy: body?.editedBy || null,
+      });
+    }
 
     return NextResponse.json(updatedRental);
   } catch (error: any) {

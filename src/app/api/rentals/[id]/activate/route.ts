@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { recordPayment } from '@/lib/payments';
 
 export async function POST(
   request: Request,
@@ -39,6 +40,19 @@ export async function POST(
         paidAmount: newPaidAmount,
         remainingAmount: newRemainingAmount,
       },
+    });
+
+    // The balance handed over at collection, stamped with today rather than
+    // with the day the order was booked. Without this it landed in a cash book
+    // that was tallied and closed weeks ago.
+    await recordPayment(null, {
+      rentalId: updatedRental.id,
+      storeId: updatedRental.storeId,
+      amount: additionalPaid,
+      method: updatedRental.paymentMethod,
+      kind: 'BALANCE',
+      note: 'Collected at handover',
+      receivedBy: body?.collectedBy || null,
     });
 
     return NextResponse.json(updatedRental);

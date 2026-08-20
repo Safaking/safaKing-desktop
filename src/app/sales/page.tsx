@@ -90,6 +90,7 @@ export default function SalesPage() {
   // can be part-paid, unlike a counter sale which settles in full.
   const [vendorId, setVendorId] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
+  const [discount, setDiscount] = useState('');
   const [safaTyingDetails, setSafaTyingDetails] = useState({ name: '', address: '', time: '', marriageDate: '' });
   const [recentSale, setRecentSale] = useState<any>(null);
 
@@ -198,6 +199,7 @@ export default function SalesPage() {
 
   const totalTyingCount = selectedStyles.reduce((s, st) => s + st.quantity, 0);
   const getSafaCharge = () => (tieSafa ? selectedStyles.reduce((s, st) => s + st.price * st.quantity, 0) : 0);
+
   const soldSafaQty = items.reduce((s, i) => s + i.quantity, 0);
 
   const setStyleQty = (styleId: string, qty: number) => {
@@ -224,9 +226,18 @@ export default function SalesPage() {
     setTyingQuantities(prev => ({ ...prev, [style.id]: seed }));
   };
 
-  const calculateTotal = () => {
+  /** Items plus tying, before any discount. */
+  const calculateGross = () => {
     return items.reduce((s, i) => s + (i.price * i.quantity), 0) + getSafaCharge();
   };
+
+  /** What the customer actually pays. Everything downstream reads this. */
+  const calculateTotal = () => Math.max(0, calculateGross() - (Math.max(0, parseFloat(discount) || 0)));
+  /** Never more than the bill: a discount bigger than the sale is a typo. */
+  const discountAmount = Math.max(0, Math.min(parseFloat(discount) || 0, calculateGross()));
+  const payable = Math.max(0, calculateGross() - discountAmount);
+  const advanceAmount = paidAmount === '' ? payable : Math.max(0, parseFloat(paidAmount) || 0);
+  const balanceDue = Math.max(0, payable - advanceAmount);
 
   // Barati tying is the only kind that sends artists out to the event, so it is
   // the only kind whose date has a capacity worth checking before the sale.
@@ -270,7 +281,10 @@ export default function SalesPage() {
           safaSize: customer.safaSize,
           notes: customer.notes,
           items,
-          totalAmount: calculateTotal(),
+          // The gross; the API subtracts the discount so the two can never
+          // disagree about what was actually charged.
+          totalAmount: calculateGross(),
+          discount: discountAmount,
           tieSafa,
           safaShape: tieSafa ? selectedStyles.map(st => st.name).join(', ') : null,
           safaTyingCount: tieSafa ? Math.max(1, totalTyingCount) : 1,
@@ -289,7 +303,9 @@ export default function SalesPage() {
           pickupPhone: pickup.phone,
           pickupDate: pickup.date,
           // Blank means settled in full, which is the counter-sale default.
-          paidAmount: vendorId && paidAmount !== '' ? parseFloat(paidAmount) || 0 : undefined,
+          // A figure is an advance: the rest is collected when they come for
+          // the goods, and lands in that day's cash book, not today's.
+          paidAmount: paidAmount === '' ? undefined : advanceAmount,
         })
       });
 
@@ -303,6 +319,8 @@ export default function SalesPage() {
         generateInvoicePDF(data, 'SALE');
         setItems([]);
         setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
+        setDiscount('');
+        setPaidAmount('');
         setTieSafa(false);
         setTyingQuantities({});
         setTyingCountEdited(false);
@@ -796,9 +814,53 @@ export default function SalesPage() {
 
                   <div className="flex justify-between items-center text-xs font-black text-slate-400 uppercase tracking-widest">
                     <span>Subtotal</span>
-                    <span className="text-white text-sm">₹{calculateTotal().toFixed(2)}</span>
+                    <span className="text-white text-sm">₹{calculateGross().toFixed(2)}</span>
                   </div>
                   
+                  {/* Discount and advance apply to every sale, not just a
+                      wholesale one. Staff were reducing a line's rate to fake a
+                      discount, which put the wrong price on the bill. */}
+                  <div className="pt-3 border-t border-white/10 space-y-2">
+                    <label className="block text-[10px] font-black text-amber-300 uppercase tracking-widest">
+                      छूट / Discount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white outline-none focus:border-amber-300"
+                      value={discount}
+                      onChange={e => setDiscount(e.target.value)}
+                    />
+                    {discountAmount > 0 && (
+                      <p className="text-[10px] font-bold text-amber-300">
+                        ₹{calculateGross().toFixed(2)} − ₹{discountAmount.toFixed(2)} = ₹
+                        {payable.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-3 border-t border-white/10 space-y-2">
+                    <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                      अभी प्राप्त / Advance (blank = full)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={payable.toFixed(0)}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white outline-none focus:border-emerald-400"
+                      value={paidAmount}
+                      onChange={e => setPaidAmount(e.target.value)}
+                    />
+                    <p className="text-[10px] font-bold text-slate-300">
+                      {paidAmount === ''
+                        ? '✓ पूरा भुगतान (Paid in Full)'
+                        : balanceDue > 0
+                        ? `बकाया ₹${balanceDue.toFixed(2)} — सामान लेने आयें तब लें`
+                        : '✓ पूरा भुगतान'}
+                    </p>
+                  </div>
+
                   {vendorId && (
                     <div className="pt-3 border-t border-white/10 space-y-2 bg-indigo-950/60 -mx-4 px-4 py-3 border-l-4 border-l-indigo-400">
                       <div className="flex items-center justify-between">

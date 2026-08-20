@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { recordPayment } from '@/lib/payments';
 
 export async function POST(request: Request) {
   try {
@@ -62,6 +63,17 @@ export async function POST(request: Request) {
           paidAmount: newPaidAmount,
           remainingAmount: newRemaining,
         }
+      });
+
+      // Money taken at the return desk — a damage charge settled, or the last
+      // of a balance — belongs in today's till, not the booking day's.
+      await recordPayment(tx, {
+        rentalId,
+        storeId: rental.storeId,
+        amount: parseFloat(paidNow?.toString() || '0') || 0,
+        method: rental.paymentMethod,
+        kind: 'BALANCE',
+        note: additionalDamageCharge > 0 ? 'Collected at return (incl. damage)' : 'Collected at return',
       });
 
       if (rental.invoice) {
