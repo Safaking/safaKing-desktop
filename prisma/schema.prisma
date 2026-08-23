@@ -440,6 +440,14 @@ model CashBook {
   submitted      Boolean     @default(false)
   submittedAt    DateTime?
   submittedBy    String?
+  /// The admin confirming the cash actually reached them. Submitting is the
+  /// shop floor saying it handed the money over; this is the other end of that
+  /// saying it arrived. Until both exist, the day is money in transit.
+  approvedAt     DateTime?
+  approvedBy     String?
+  /// What the admin actually counted, which is not always what was sent.
+  approvedAmount Float?
+  approvalNote   String?
   notes          String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt

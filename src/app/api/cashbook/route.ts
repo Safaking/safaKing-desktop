@@ -60,6 +60,14 @@ export async function GET(request: Request) {
       submitted: book.submitted,
       submittedAt: book.submittedAt,
       submittedBy: book.submittedBy,
+      approvedAt: (book as any).approvedAt ?? null,
+      approvedBy: (book as any).approvedBy ?? null,
+      approvedAmount: (book as any).approvedAmount ?? null,
+      approvalNote: (book as any).approvalNote ?? null,
+      /** What the floor says it handed over on this day. */
+      handedOver: book.entries
+        .filter((e: any) => ['BANK', 'OFFICE'].includes(e.type))
+        .reduce((sum: number, e: any) => sum + (e.amount || 0), 0),
       notes: book.notes,
     });
   } catch (error: any) {
@@ -86,7 +94,50 @@ export async function POST(request: Request) {
       }
       const updated = await prisma.cashBook.update({
         where: { id: book.id },
-        data: { submitted: false, submittedAt: null, submittedBy: null },
+        data: {
+          submitted: false,
+          submittedAt: null,
+          submittedBy: null,
+          // A reopened day is no longer a day whose cash was confirmed.
+          approvedAt: null,
+          approvedBy: null,
+          approvedAmount: null,
+          approvalNote: null,
+        } as any,
+      });
+      return NextResponse.json(updated);
+    }
+
+    if (action === 'approve') {
+      // Only the person the money reaches can say it reached them.
+      if (body.role !== 'ADMIN') {
+        return NextResponse.json(
+          { error: 'Only an admin can confirm the cash was received' },
+          { status: 403 }
+        );
+      }
+      if (!book.submitted) {
+        return NextResponse.json(
+          { error: 'This day has not been submitted yet, so there is nothing to confirm' },
+          { status: 400 }
+        );
+      }
+
+      const raw = body.approvedAmount;
+      const counted =
+        raw === undefined || raw === null || raw === '' ? null : parseFloat(raw.toString());
+      if (counted !== null && (!Number.isFinite(counted) || counted < 0)) {
+        return NextResponse.json({ error: 'Counted amount is not a number' }, { status: 400 });
+      }
+
+      const updated = await prisma.cashBook.update({
+        where: { id: book.id },
+        data: {
+          approvedAt: new Date(),
+          approvedBy: body.approvedBy?.trim() || null,
+          approvedAmount: counted,
+          approvalNote: body.approvalNote?.trim() || null,
+        } as any,
       });
       return NextResponse.json(updated);
     }
@@ -158,11 +209,74 @@ export async function POST(request: Request) {
 
     if (action === 'submit') {
       const collections = await collectionsFor(storeId, date);
-      const fresh = await prisma.cashBook.findUnique({
+      let fresh = await prisma.cashBook.findUnique({
         where: { id: book.id },
         include: { entries: true },
       });
-      const { closing } = closingOf(fresh!.openingBalance, collections.collected, fresh!.entries);
+      let { closing } = closingOf(fresh!.openingBalance, collections.collected, fresh!.entries);
+
+      /**
+       * Handing the day's cash over as part of closing the account.
+       *
+       * Before this, submitting only locked the day and the closing balance
+       * carried to tomorrow. To actually start the next day at zero, staff had
+       * to remember to add a separate entry first, and had to decide between
+       * "bank remittance" and "cash to office" with nothing telling them which
+       * — so most days it simply was not done and the balance rolled on.
+       *
+       * The handover is now part of submitting: one figure, defaulting to
+       * everything in the drawer, recorded as an entry so it shows in the
+       * day's list like any other cash going out.
+       */
+      if (body.handOver !== undefined && body.handOver !== null && body.handOver !== '') {
+        const amount = parseFloat(body.handOver?.toString() ?? '');
+        if (!Number.isFinite(amount) || amount < 0) {
+          return NextResponse.json({ error: 'Hand-over amount is not a number' }, { status: 400 });
+        }
+        // More than is in the drawer cannot leave it.
+        if (amount > closing + 0.001) {
+          return NextResponse.json(
+            {
+              error: `Only ${closing.toFixed(2)} is in the drawer — you cannot hand over ${amount.toFixed(2)}.`,
+            },
+            { status: 400 }
+          );
+        }
+
+        if (amount > 0) {
+          // Who took the cash. Required: money leaving the drawer with nobody
+          // named against it is exactly the gap this whole screen exists to
+          // close, and "it went to the office" is not an answer anyone can
+          // follow up on a week later.
+          const handedTo = (body.handOverTo || '').trim();
+          if (!handedTo) {
+            return NextResponse.json(
+              { error: 'Name the person the cash was handed to' },
+              { status: 400 }
+            );
+          }
+
+          const handOverType = String(body.handOverType || 'OFFICE').toUpperCase();
+          await prisma.cashEntry.create({
+            data: {
+              cashBookId: book.id,
+              type: ['BANK', 'OFFICE'].includes(handOverType) ? handOverType : 'OFFICE',
+              amount,
+              reference: handedTo,
+              notes: body.handOverReference?.trim()
+                ? `Handed over at day close · ${body.handOverReference.trim()}`
+                : 'Handed over at day close',
+              createdBy: body.submittedBy?.trim() || null,
+            },
+          });
+
+          fresh = await prisma.cashBook.findUnique({
+            where: { id: book.id },
+            include: { entries: true },
+          });
+          closing = closingOf(fresh!.openingBalance, collections.collected, fresh!.entries).closing;
+        }
+      }
 
       const updated = await prisma.cashBook.update({
         where: { id: book.id },

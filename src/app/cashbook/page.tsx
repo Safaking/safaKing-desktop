@@ -105,24 +105,80 @@ export default function CashBookPage() {
     }
   };
 
-  const submitDay = async () => {
-    if (
-      !window.confirm(
-        `Submit ${displayDate(date)}?\n\n` +
-          `Closing ${money(data?.closing)} carries to the next day, this day locks, ` +
-          `and you will be signed out for the day.`
-      )
-    )
-      return;
+  /**
+   * Closing the day, and handing the cash over in the same step.
+   *
+   * Submitting used to only lock the day; to start tomorrow at zero, staff had
+   * to remember a separate entry first and choose between "bank remittance"
+   * and "cash to office" with nothing telling them which. So it mostly was not
+   * done, and the balance rolled on for weeks.
+   */
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [handOver, setHandOver] = useState('');
+  const [handOverTo, setHandOverTo] = useState('');
+  const [handOverType, setHandOverType] = useState<'OFFICE' | 'BANK'>('OFFICE');
+  const [handOverRef, setHandOverRef] = useState('');
 
-    const ok = await post({ action: 'submit', submittedBy: user?.username || user?.name || '' });
+  const openClose = () => {
+    // Everything in the drawer, by default: that is what closing a day means.
+    setHandOver(String(Math.max(0, Math.round((data?.closing ?? 0) * 100) / 100)));
+    setHandOverTo('');
+    setHandOverType('OFFICE');
+    setHandOverRef('');
+    setCloseOpen(true);
+  };
+
+  const handingOver = Math.max(0, parseFloat(handOver) || 0);
+  const keptBack = Math.max(0, (data?.closing ?? 0) - handingOver);
+
+  const submitDay = async () => {
+    if (handingOver > (data?.closing ?? 0) + 0.001) {
+      alert(`Only ${money(data?.closing)} is in the drawer.`);
+      return;
+    }
+    if (handingOver > 0 && !handOverTo.trim()) {
+      alert('Name the person you handed the cash to.');
+      return;
+    }
+
+    const ok = await post({
+      action: 'submit',
+      submittedBy: user?.username || user?.name || '',
+      handOver: handingOver,
+      handOverTo: handOverTo.trim(),
+      handOverType,
+      handOverReference: handOverRef.trim(),
+    });
     // Closing the account ends the shift, so signing off is part of the same
     // action rather than something staff have to remember separately.
     if (ok) {
-      alert(`Account submitted for ${displayDate(date)}. Closing ${money(data?.closing)} carries to tomorrow.`);
+      setCloseOpen(false);
+      alert(
+        keptBack > 0
+          ? `Account submitted for ${displayDate(date)}. ${money(keptBack)} stays in the drawer and opens tomorrow.`
+          : `Account submitted for ${displayDate(date)}. Tomorrow opens at ${money(0)}.`
+      );
       logout('CASHBOOK');
       router.replace('/login');
     }
+  };
+
+  /** The admin end of the same handover: confirming the cash arrived. */
+  const approveDay = async () => {
+    const counted = window.prompt(
+      `Confirm the cash for ${displayDate(date)}.\n\nThe branch says it handed over ${money(
+        data?.handedOver
+      )}. How much did you actually count?`,
+      String(data?.handedOver ?? 0)
+    );
+    if (counted === null) return;
+    const ok = await post({
+      action: 'approve',
+      role: user?.role,
+      approvedBy: user?.username || user?.name || '',
+      approvedAmount: counted,
+    });
+    if (ok) alert('Recorded as received.');
   };
 
   const reopenDay = async () => {
@@ -357,12 +413,62 @@ export default function CashBookPage() {
           )}
         </div>
 
+        {/* Whether the money actually reached the office. Submitting is the
+            branch saying it handed the cash over; this is the other end saying
+            it arrived. Until both exist, the day is money in transit. */}
+        {locked && (
+          <div
+            className={`rounded-2xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${
+              data?.approvedAt
+                ? 'bg-emerald-50 border-emerald-200'
+                : 'bg-amber-50 border-amber-200'
+            }`}
+          >
+            <div className="min-w-0">
+              <p
+                className={`text-xs font-black uppercase tracking-widest ${
+                  data?.approvedAt ? 'text-emerald-800' : 'text-amber-800'
+                }`}
+              >
+                {data?.approvedAt ? 'Cash received' : 'Waiting for the office to confirm'}
+              </p>
+              <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                Branch handed over {money(data?.handedOver)}
+                {data?.approvedAt && (
+                  <>
+                    {' · '}counted {money(data?.approvedAmount ?? data?.handedOver)}
+                    {data?.approvedBy ? ` by ${data.approvedBy}` : ''}
+                  </>
+                )}
+              </p>
+              {data?.approvedAt &&
+                Math.abs((data?.approvedAmount ?? data?.handedOver ?? 0) - (data?.handedOver ?? 0)) >
+                  0.01 && (
+                  <p className="text-[11px] font-black text-rose-600 mt-0.5">
+                    Short by {money((data?.handedOver ?? 0) - (data?.approvedAmount ?? 0))}
+                  </p>
+                )}
+            </div>
+
+            {isAdmin && !data?.approvedAt && (
+              <button
+                onClick={approveDay}
+                disabled={busy}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xs font-black shrink-0"
+              >
+                Confirm I received it
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Day close */}
         <div className="flex gap-3">
           {locked ? (
             isAdmin ? (
               <button
                 onClick={reopenDay}
+                data-reopen
                 disabled={busy}
                 className="flex-1 py-3.5 rounded-2xl bg-white border border-slate-200 text-slate-700 font-black text-sm hover:border-slate-300"
               >{t('reopen_day')}</button>
@@ -373,7 +479,7 @@ export default function CashBookPage() {
             )
           ) : dayEditable ? (
             <button
-              onClick={submitDay}
+              onClick={openClose}
               disabled={busy || isLoading}
               className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-sm shadow-lg shadow-emerald-600/20"
             >
@@ -386,6 +492,127 @@ export default function CashBookPage() {
           )}
         </div>
       </main>
+
+      {closeOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/60">
+              <h3 className="font-black text-emerald-900 text-sm">
+                Close {displayDate(date)}
+              </h3>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                Hand the cash over now, so tomorrow starts clean.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              <div className="rounded-xl bg-slate-900 text-white px-4 py-3">
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                  In the drawer
+                </p>
+                <p className="text-3xl font-black text-emerald-400 leading-tight">
+                  {money(data?.closing)}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  Handing over
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={handOver}
+                  onChange={e => setHandOver(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-black text-lg text-right"
+                />
+                <p
+                  className={`text-[11px] font-bold mt-1 ${
+                    keptBack > 0 ? 'text-amber-600' : 'text-emerald-600'
+                  }`}
+                >
+                  {keptBack > 0
+                    ? `${money(keptBack)} stays in the drawer and opens tomorrow`
+                    : 'Tomorrow opens at ₹0'}
+                </p>
+              </div>
+
+              {handingOver > 0 && (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                      Handed to *
+                    </label>
+                    <input
+                      value={handOverTo}
+                      onChange={e => setHandOverTo(e.target.value)}
+                      placeholder="Name of the person who took the cash"
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-bold text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                      Where it went
+                    </label>
+                    <div className="flex gap-2">
+                      {([
+                        { key: 'OFFICE', label: t('cash_to_office') },
+                        { key: 'BANK', label: t('bank_remittance') },
+                      ] as const).map(o => (
+                        <button
+                          key={o.key}
+                          type="button"
+                          onClick={() => setHandOverType(o.key)}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                            handOverType === o.key
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                      Slip / reference (optional)
+                    </label>
+                    <input
+                      value={handOverRef}
+                      onChange={e => setHandOverRef(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-bold text-xs"
+                    />
+                  </div>
+                </>
+              )}
+
+              <p className="text-[11px] font-semibold text-slate-400">
+                This locks the day and signs you out. The office confirms the cash separately.
+              </p>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex flex-col gap-2">
+              <button
+                onClick={submitDay}
+                disabled={busy}
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-sm"
+              >
+                {busy ? 'Saving…' : `${t('submit_account')} ${t('and_sign_out')}`}
+              </button>
+              <button
+                onClick={() => setCloseOpen(false)}
+                className="w-full text-slate-500 font-medium py-1 hover:text-slate-700 text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

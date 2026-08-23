@@ -295,6 +295,12 @@ export async function ensureDbSchema(force = false) {
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistRate" DOUBLE PRECISION DEFAULT 0;`,
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistPaid" BOOLEAN DEFAULT false;`,
 
+      // ── CashBook — admin confirmation of receipt ──────────────────────────
+      `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3);`,
+      `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedBy" TEXT;`,
+      `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedAmount" DOUBLE PRECISION;`,
+      `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvalNote" TEXT;`,
+
       // ── Store — new columns ───────────────────────────────────────────────
       `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "logo" TEXT;`,
       // Partapur keeps the mark it has always traded under. Matched on the name
