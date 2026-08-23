@@ -36,6 +36,18 @@ export async function POST(request: Request, { params }: { params: any }) {
     const newPaid = (sale.paidAmount || 0) + paidNow;
     const newRemaining = Math.max(0, sale.totalAmount - newPaid);
 
+    // Nothing leaves the shop against an unpaid bill. Once the goods are gone
+    // the balance is a debt to chase, so the handover is refused until it is
+    // settled rather than recorded and hoped for.
+    if (newRemaining > 0) {
+      return NextResponse.json(
+        {
+          error: `₹${newRemaining.toFixed(2)} is still due. Collect the full balance before handing the goods over.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const updated = await prisma.sale.update({
       where: { id },
       data: {

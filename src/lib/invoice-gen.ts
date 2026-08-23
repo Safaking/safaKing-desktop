@@ -171,14 +171,39 @@ export async function generateInvoicePDF(
       data.safaTyingAddress ? `Venue: ${data.safaTyingAddress}` : ''
     ].filter(Boolean).join(' | ');
     
-    const splitTyingInfo = doc.splitTextToSize(tyingInfoStr, 125);
-    doc.text(splitTyingInfo, 65, detailY);
-    detailY += splitTyingInfo.length * 6;
+    // One straight line. Indented to 65 and capped at 125 wide it broke into
+    // three ragged lines that were hard to read across; given the full 20..195
+    // span and shrunk to fit, it reads as one run.
+    const tyingLabelWidth = doc.getTextWidth('Safa Tying Info:') + 3;
+    const available = 195 - (20 + tyingLabelWidth);
+
+    let tyingSize = 12;
+    doc.setFontSize(tyingSize);
+    while (tyingSize > 7 && doc.getTextWidth(tyingInfoStr) > available) {
+      tyingSize -= 0.5;
+      doc.setFontSize(tyingSize);
+    }
+
+    if (doc.getTextWidth(tyingInfoStr) <= available) {
+      doc.text(tyingInfoStr, 20 + tyingLabelWidth, detailY);
+      detailY += 7;
+    } else {
+      // Longer than a page is wide even at the smallest size — wrap rather
+      // than run off the edge.
+      const wrapped = doc.splitTextToSize(tyingInfoStr, available);
+      doc.text(wrapped, 20 + tyingLabelWidth, detailY);
+      detailY += wrapped.length * 5 + 2;
+    }
+    doc.setFontSize(12);
   }
 
   let currentY = detailY + 5;
 
-  const tableItems = data.items.map((item: any, index: number) => [
+  // A tying-only sale has no lines, and an order can arrive without them
+  // loaded. Neither should stop a bill printing.
+  const billItems: any[] = Array.isArray(data.items) ? data.items : [];
+
+  const tableItems = billItems.map((item: any, index: number) => [
     index + 1,
     item.product?.name || item.name || 'Item',
     item.quantity,
@@ -234,7 +259,7 @@ export async function generateInvoicePDF(
   const totalValueX = 195;
   let currentTotalY = finalY;
 
-  const itemTotal = data.items.reduce((sum: number, item: any) => sum + ((item.pricePerDay || item.price) * item.quantity), 0);
+  const itemTotal = billItems.reduce((sum: number, item: any) => sum + ((item.pricePerDay || item.price) * item.quantity), 0);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Item Total:', totalLabelX, currentTotalY, { align: 'right' });

@@ -82,7 +82,6 @@ export default function SalesPage() {
   // Who is collecting the goods and when. A rental records this when the order
   // is activated at the counter; a sale has no such later step, so it is asked
   // for here.
-  const [pickup, setPickup] = useState({ name: '', phone: '', date: '' });
   // Barati orders pause here first, to show what that date already carries.
   const [showLoadCheck, setShowLoadCheck] = useState(false);
   const [tyingCountEdited, setTyingCountEdited] = useState(false);
@@ -91,6 +90,10 @@ export default function SalesPage() {
   const [vendorId, setVendorId] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [discount, setDiscount] = useState('');
+  // Retail or wholesale is the staff's choice, not something inferred from
+  // whether a vendor happens to be selected — otherwise the vendor list sat on
+  // screen during an ordinary walk-in sale and got picked by accident.
+  const [wholesale, setWholesale] = useState(false);
   const [safaTyingDetails, setSafaTyingDetails] = useState({ name: '', address: '', time: '', marriageDate: '' });
   const [recentSale, setRecentSale] = useState<any>(null);
 
@@ -239,6 +242,15 @@ export default function SalesPage() {
   const advanceAmount = paidAmount === '' ? payable : Math.max(0, parseFloat(paidAmount) || 0);
   const balanceDue = Math.max(0, payable - advanceAmount);
 
+  /**
+   * Is there anything to sell?
+   *
+   * Tying on its own is a real sale — a customer brings their own safa and
+   * pays only to have it tied — so an empty cart is not by itself a reason to
+   * refuse the payment.
+   */
+  const sellable = items.length > 0 || (tieSafa && totalTyingCount > 0);
+
   // Barati tying is the only kind that sends artists out to the event, so it is
   // the only kind whose date has a capacity worth checking before the sale.
   const baratiSafas = React.useMemo(
@@ -255,8 +267,12 @@ export default function SalesPage() {
     baratiSafas > 0 && /^\d{4}-\d{2}-\d{2}$/.test(safaTyingDetails.marriageDate || '');
 
   const handleSale = async () => {
-    if (!customer.name || !customer.phone || items.length === 0) {
+    if (!customer.name || !customer.phone) {
       alert('Please fill in Customer Name and Phone');
+      return;
+    }
+    if (!sellable) {
+      alert('Add an item to the cart, or turn on safa tying');
       return;
     }
 
@@ -299,9 +315,6 @@ export default function SalesPage() {
           // did not, so their bills, prices and stock had no branch to follow.
           storeId: user?.storeId || null,
           vendorId: vendorId || null,
-          pickupName: pickup.name,
-          pickupPhone: pickup.phone,
-          pickupDate: pickup.date,
           // Blank means settled in full, which is the counter-sale default.
           // A figure is an advance: the rest is collected when they come for
           // the goods, and lands in that day's cash book, not today's.
@@ -326,7 +339,6 @@ export default function SalesPage() {
         setTyingCountEdited(false);
         setVendorId('');
         setPaidAmount('');
-        setPickup({ name: '', phone: '', date: '' });
       }
     } catch (error) {
       alert('Network error');
@@ -417,28 +429,31 @@ export default function SalesPage() {
               <div className="bg-slate-100 p-1 rounded-xl flex gap-1 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={() => handleVendorSelect('')}
+                  onClick={() => {
+                    setWholesale(false);
+                    handleVendorSelect('');
+                  }}
                   className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    !vendorId ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    !wholesale ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <User size={14} /> रिटेल (Walk-in)
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (vendors.length > 0) handleVendorSelect(vendors[0].id);
-                  }}
+                  onClick={() => setWholesale(true)}
                   className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    vendorId ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    wholesale ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <Building2 size={14} /> होलसेल (व्यापारी)
                 </button>
               </div>
 
-              {/* Vendor Selection Card */}
-              {vendorId ? (
+              {/* Only under wholesale. On a walk-in this used to sit here as an
+                  "optional vendor tag", which is how ordinary counter sales
+                  ended up tagged to a vendor nobody meant to bill. */}
+              {wholesale && (
                 <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3 space-y-2">
                   <label className="block text-[11px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1">
                     <Building2 size={14} className="text-indigo-600" /> व्यापारी चुनें (Select Vendor) *
@@ -457,32 +472,16 @@ export default function SalesPage() {
                         </option>
                       ))}
                   </select>
-                  <p className="text-[10px] text-indigo-700 font-bold">
-                    ✓ यह बिल व्यापारी के खाते (Ledger) में खुद-ब-खुद जुड़ जाएगा!
-                  </p>
+                  {vendorId ? (
+                    <p className="text-[10px] text-indigo-700 font-bold">
+                      ✓ यह बिल व्यापारी के खाते (Ledger) में खुद-ब-खुद जुड़ जाएगा!
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-rose-600 font-bold">
+                      व्यापारी चुनना ज़रूरी है, वरना रिटेल चुनें
+                    </p>
+                  )}
                 </div>
-              ) : (
-                vendors.length > 0 && (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                      होलसेल / व्यापारी (Optional Vendor Tag)
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold"
-                      value={vendorId}
-                      onChange={e => handleVendorSelect(e.target.value)}
-                    >
-                      <option value="">Walk-in Customer (कोई व्यापारी नहीं)</option>
-                      {vendors
-                        .filter(v => v.isActive)
-                        .map(v => (
-                          <option key={v.id} value={v.id}>
-                            {v.name}{v.phone ? ` — ${v.phone}` : ''}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )
               )}
 
               <div className="relative">
@@ -525,41 +524,6 @@ export default function SalesPage() {
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none h-16 text-xs resize-none"
                   value={customer.address}
                   onChange={e => setCustomer({...customer, address: e.target.value})}
-                />
-              </div>
-
-              {/* Collection — often somebody other than the buyer turns up for
-                  the goods, and the counter needs to know who to hand them to. */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                  {t('delivery')}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input
-                      type="text"
-                      placeholder={`${t('collected_by')}${t('optional')}`}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
-                      value={pickup.name}
-                      onChange={e => setPickup({ ...pickup, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input
-                      type="tel"
-                      placeholder={`${t('phone')}${t('optional')}`}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
-                      value={pickup.phone}
-                      onChange={e => setPickup({ ...pickup, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <DateInput
-                  className="mt-2 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
-                  value={pickup.date}
-                  onChange={v => setPickup({ ...pickup, date: v })}
                 />
               </div>
 
@@ -852,13 +816,24 @@ export default function SalesPage() {
                       value={paidAmount}
                       onChange={e => setPaidAmount(e.target.value)}
                     />
-                    <p className="text-[10px] font-bold text-slate-300">
-                      {paidAmount === ''
-                        ? '✓ पूरा भुगतान (Paid in Full)'
-                        : balanceDue > 0
-                        ? `बकाया ₹${balanceDue.toFixed(2)} — सामान लेने आयें तब लें`
-                        : '✓ पूरा भुगतान'}
-                    </p>
+                    {/* The balance is what staff read back to the customer and
+                        what has to be collected later, so it is set at a size
+                        that can be read across the counter. */}
+                    {paidAmount !== '' && balanceDue > 0 ? (
+                      <div className="rounded-lg bg-rose-950/60 border border-rose-500/40 px-3 py-2">
+                        <span className="block text-[10px] font-black text-rose-300 uppercase tracking-widest">
+                          बकाया / Balance
+                        </span>
+                        <span className="block text-2xl font-black leading-tight text-rose-300">
+                          ₹{balanceDue.toFixed(2)}
+                        </span>
+                        <span className="block text-[10px] font-bold text-slate-300 mt-0.5">
+                          सामान लेने आयें तब लें
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-emerald-300">✓ पूरा भुगतान (Paid in Full)</p>
+                    )}
                   </div>
 
                   {vendorId && (
@@ -897,7 +872,7 @@ export default function SalesPage() {
                      </div>
                      <button 
                       onClick={handleSale}
-                      disabled={loading || items.length === 0 || !customer.name || !customer.phone}
+                      disabled={loading || !sellable || !customer.name || !customer.phone}
                       className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 text-white px-6 py-3 rounded font-black text-sm shadow-lg transition-all flex items-center gap-2"
                     >
                       <CreditCard size={18} /> {loading ? '...' : t('validate_payment')}

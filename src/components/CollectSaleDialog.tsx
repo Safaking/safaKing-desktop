@@ -48,6 +48,10 @@ export default function CollectSaleDialog({ sale, onClose, onSuccess }: Props) {
       setError('Who collected the goods, and their phone number, are both required.');
       return;
     }
+    if (stillOwed > 0) {
+      setError(`₹${stillOwed.toFixed(2)} is still due. Collect the full balance before handing over.`);
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -153,10 +157,12 @@ export default function CollectSaleDialog({ sale, onClose, onSuccess }: Props) {
                 className="w-full pl-8 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-bold text-sm"
               />
             </div>
-            {paying > 0 && (
-              <p className="text-[11px] font-bold text-slate-600 mt-1.5">
-                {stillOwed > 0 ? `₹${stillOwed.toFixed(2)} still owing` : '✓ Settled in full'}
+            {stillOwed > 0 ? (
+              <p className="text-[11px] font-black text-rose-600 mt-1.5">
+                ₹{stillOwed.toFixed(2)} still owing — the goods cannot go out until this is paid
               </p>
+            ) : (
+              <p className="text-[11px] font-bold text-emerald-700 mt-1.5">✓ Settled in full</p>
             )}
           </div>
 
@@ -171,10 +177,10 @@ export default function CollectSaleDialog({ sale, onClose, onSuccess }: Props) {
           <button
             type="button"
             onClick={submit}
-            disabled={saving}
+            disabled={saving || stillOwed > 0}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white py-3 rounded-xl font-bold text-sm"
           >
-            {saving ? 'Saving…' : 'Record handover'}
+            {saving ? 'Saving…' : stillOwed > 0 ? `₹${stillOwed.toFixed(2)} still due` : 'Record handover'}
           </button>
           <button
             type="button"

@@ -30,6 +30,18 @@ export async function POST(
     const newPaidAmount = (rental.paidAmount || 0) + additionalPaid;
     const newRemainingAmount = Math.max(0, rental.totalAmount - newPaidAmount);
 
+    // Same rule as a sale: nothing leaves against an unpaid bill. On a rental
+    // the goods are coming back, but the money is far harder to collect once
+    // the customer has walked out with them.
+    if (newRemainingAmount > 0) {
+      return NextResponse.json(
+        {
+          error: `Rs.${newRemainingAmount.toFixed(2)} is still due. Collect the full balance before handing the order over.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const updatedRental = await prisma.rental.update({
       where: { id },
       data: {

@@ -79,8 +79,19 @@ export async function POST(request: Request) {
     createdBy,
   } = body;
 
-  if (!customerName || !customerPhone || !items || items.length === 0) {
+  // Tying on its own is a real sale: the customer brings their own safa and
+  // pays only to have it tied, so an empty cart is not by itself invalid.
+  const hasLines = Array.isArray(items) && items.length > 0;
+  const hasTying = !!tieSafa && (parseInt(safaTyingCount?.toString() || '0') || 0) > 0;
+
+  if (!customerName || !customerPhone) {
     return NextResponse.json({ error: 'Name and Phone are required' }, { status: 400 });
+  }
+  if (!hasLines && !hasTying) {
+    return NextResponse.json(
+      { error: 'Add something to the sale — an item, or safa tying' },
+      { status: 400 }
+    );
   }
 
   const pickupReady = await hasSalePickupColumns();
@@ -193,7 +204,13 @@ export async function POST(request: Request) {
         receivedBy: createdBy?.trim() || null,
       });
 
-      return newSale;
+      // Read it back with its lines. Created without this, the sale returned
+      // to the till had no items on it, and the bill preview fell over trying
+      // to list them.
+      return await tx.sale.findUnique({
+        where: { id: newSale.id },
+        include: { items: { include: { product: true } }, invoice: true },
+      });
     });
 
     return NextResponse.json(sale);

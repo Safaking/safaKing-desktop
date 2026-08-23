@@ -20,6 +20,8 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
   const remaining = rental.remainingAmount ?? (rental.totalAmount - (rental.paidAmount || 0));
   const paidNowAmt = parseFloat(paidNow) || 0;
   const stillOwed = Math.max(0, remaining - paidNowAmt);
+  // Goods do not go out against an unpaid bill.
+  const blocked = stillOwed > 0;
 
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,14 +119,12 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
                   onChange={e => setPaidNow(e.target.value)}
                 />
               </div>
-              {paidNowAmt > 0 && (
-                <p className={`text-xs mt-1 font-bold ${
-                  stillOwed === 0 ? 'text-emerald-600' : 'text-amber-600'
-                }`}>
-                  {stillOwed === 0
-                    ? '✓ पूरा भुगतान हो जाएगा'
-                    : `₹${stillOwed.toLocaleString('en-IN')} अभी भी बाकी रहेगा`}
+              {blocked ? (
+                <p className="text-xs mt-1 font-black text-rose-600">
+                  ₹{stillOwed.toLocaleString('en-IN')} अभी भी बाकी है — पूरा भुगतान लिए बिना सामान नहीं जाएगा
                 </p>
+              ) : (
+                <p className="text-xs mt-1 font-bold text-emerald-600">✓ पूरा भुगतान हो जाएगा</p>
               )}
             </div>
           )}
@@ -180,10 +180,16 @@ export default function ActivateRentalDialog({ rental, onClose, onSuccess }: Act
           <div className="pt-4 flex flex-col gap-2">
             <button 
               type="submit"
-              disabled={loading}
+              disabled={loading || blocked}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold transition-all shadow-md shadow-blue-500/10 flex items-center justify-center gap-2"
             >
-              {loading ? 'Confirming...' : <><CheckCircle2 size={18} /> Move to Active State</>}
+              {loading ? (
+                'Confirming...'
+              ) : blocked ? (
+                `₹${stillOwed.toLocaleString('en-IN')} बाकी है`
+              ) : (
+                <><CheckCircle2 size={18} /> Move to Active State</>
+              )}
             </button>
             <button type="button" onClick={onClose} className="w-full text-slate-500 font-medium py-2 hover:text-slate-700 transition-colors text-xs">
               Cancel
