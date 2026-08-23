@@ -158,7 +158,7 @@ export default function RentalsPage() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/rentals/${rental.id}`, {
+      const res = await fetch(`/api/rentals/${rental.id}?role=${user?.role ?? ''}`, {
         method: 'DELETE',
       });
       if (res.ok) {

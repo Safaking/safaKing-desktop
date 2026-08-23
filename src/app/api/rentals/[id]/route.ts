@@ -14,6 +14,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Rental ID is required' }, { status: 400 });
     }
 
+    // The menu only offers this to an admin; the server has to say so too, or
+    // the rule is only a suggestion.
+    const role = new URL(request.url).searchParams.get('role');
+    if (role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Only an admin can delete an order' }, { status: 403 });
+    }
+
     const rental = await prisma.rental.findUnique({
       where: { id },
     });
@@ -23,6 +30,13 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
+      // Everything hanging off the order goes with it. The live tables carry
+      // no foreign keys, so nothing is cascaded for us: leaving these behind
+      // kept a deleted order's money in the cash book, where the day would
+      // never tally again, and kept an artist owed for work that no longer
+      // existed.
+      await tx.orderPayment.deleteMany({ where: { rentalId: id } });
+      await tx.tyingAssignment.deleteMany({ where: { rentalId: id } });
       // Delete invoice
       await tx.invoice.deleteMany({
         where: { rentalId: id }

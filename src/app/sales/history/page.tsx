@@ -14,12 +14,17 @@ import {
   Plus,
   Eye,
   Palette,
-  Tag
+  Tag,
+  Truck,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import SaleDetailsDialog from '@/components/SaleDetailsDialog';
+import EditSaleDialog from '@/components/EditSaleDialog';
+import CollectSaleDialog from '@/components/CollectSaleDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
 import { needsArtist } from '@/lib/barati';
 import { artistLabel, artistTitle, isFullyAssigned } from '@/lib/tying-split';
@@ -28,10 +33,31 @@ import DeliveryLine from '@/components/DeliveryLine';
 export default function SalesHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewSale, setViewSale] = useState<any | null>(null);
+  const [editSale, setEditSale] = useState<any | null>(null);
+  const [collectSale, setCollectSale] = useState<any | null>(null);
+
   const [artistSale, setArtistSale] = useState<any | null>(null);
-  const { user, isSuperOrAdmin } = useAuth();
+  const { user, isSuperOrAdmin, isAdmin } = useAuth();
   const { data, isLoading: loading, mutate: refreshSales } = useSales();
   const sales: any[] = Array.isArray(data) ? data : [];
+
+  /** Admin only, and it takes the sale's receipts with it. */
+  const removeSale = async (sale: any) => {
+    if (
+      !confirm(
+        `Delete ${sale.orderNumber} for ${sale.customerName}? Its money comes out of the cash book too. This cannot be undone.`
+      )
+    )
+      return;
+    const res = await fetch(`/api/sales/${sale.id}?role=${user?.role ?? ''}`, { method: 'DELETE' });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(payload.error || 'Could not delete the sale');
+      return;
+    }
+    await invalidateAfterSale();
+    refreshSales();
+  };
 
   const filteredSales = sales.filter(s => {
     const q = searchQuery.toLowerCase().trim();
@@ -230,6 +256,39 @@ export default function SalesHistoryPage() {
                       >
                         <Download size={17} />
                       </button>
+
+                      {/* Goods left behind for later. Records who came, when,
+                          and the balance — which lands in that day's cash
+                          book, not the day of the sale. */}
+                      {!sale.pickupDate && (
+                        <button
+                          onClick={() => setCollectSale(sale)}
+                          className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-400 transition-colors"
+                          title="Hand over the goods"
+                        >
+                          <Truck size={17} />
+                        </button>
+                      )}
+
+                      {(!sale.pickupDate || isAdmin) && (
+                        <button
+                          onClick={() => setEditSale(sale)}
+                          className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-400 transition-colors"
+                          title={sale.pickupDate ? 'Correct this sale' : 'Edit this sale'}
+                        >
+                          <Edit3 size={17} />
+                        </button>
+                      )}
+
+                      {isAdmin && (
+                        <button
+                          onClick={() => removeSale(sale)}
+                          className="p-2 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 transition-colors"
+                          title="Delete this sale"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -240,6 +299,24 @@ export default function SalesHistoryPage() {
       </main>
 
       {/* Sale View Details Modal */}
+      <EditSaleDialog
+        sale={editSale}
+        onClose={() => setEditSale(null)}
+        onSuccess={() => {
+          setEditSale(null);
+          refreshSales();
+        }}
+      />
+
+      <CollectSaleDialog
+        sale={collectSale}
+        onClose={() => setCollectSale(null)}
+        onSuccess={() => {
+          setCollectSale(null);
+          refreshSales();
+        }}
+      />
+
       <SaleDetailsDialog
         sale={viewSale}
         onClose={() => setViewSale(null)}
