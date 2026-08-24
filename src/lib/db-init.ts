@@ -312,6 +312,14 @@ export async function ensureDbSchema(force = false) {
 
       // ── Invoice — new columns ─────────────────────────────────────────────
       `ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT DEFAULT 'CASH';`,
+
+      // ── WebCommitted — how much SafaKing's web storefront has sold, per SKU ─
+      `CREATE TABLE IF NOT EXISTS "WebCommitted" (
+        "sku" TEXT NOT NULL,
+        "webCommitted" INTEGER NOT NULL DEFAULT 0,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "WebCommitted_pkey" PRIMARY KEY ("sku")
+      );`,
     ];
 
     for (const sql of statements) {

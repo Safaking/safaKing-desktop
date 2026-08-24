@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { pushProductSync, pushProductListing } from '@/lib/sync';
 
 /**
  * The catalog, priced for whoever is asking.
@@ -79,16 +80,19 @@ export async function GET(request: Request) {
                  WHEN p."productType" = ANY(${['Barati safa']}::text[])
                    OR split."productId" IS NULL THEN
                    GREATEST(0, p."totalQuantity"
-                     - COALESCE(sold.all_qty, 0) - COALESCE(out_on_rent.all_qty, 0))
+                     - COALESCE(sold.all_qty, 0) - COALESCE(out_on_rent.all_qty, 0)
+                     - COALESCE(web."webCommitted", 0))
                  ELSE
                    GREATEST(0, COALESCE(shelf."quantity", 0)
-                     - COALESCE(sold.branch_qty, 0) - COALESCE(out_on_rent.branch_qty, 0))
+                     - COALESCE(sold.branch_qty, 0) - COALESCE(out_on_rent.branch_qty, 0)
+                     - COALESCE(web."webCommitted", 0))
                END::int AS "availableQuantity"
         FROM "Product" p
         LEFT JOIN sold ON sold."productId" = p."id"
         LEFT JOIN out_on_rent ON out_on_rent."productId" = p."id"
         LEFT JOIN shelf ON shelf."productId" = p."id"
         LEFT JOIN split ON split."productId" = p."id"
+        LEFT JOIN "WebCommitted" web ON web."sku" = p."sku"
       `
       : await prisma.$queryRaw`
         WITH sold AS (
@@ -112,10 +116,12 @@ export async function GET(request: Request) {
                FALSE AS "stockSplit",
                GREATEST(0,
                  p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0)
+                   - COALESCE(web."webCommitted", 0)
                )::int AS "availableQuantity"
         FROM "Product" p
         LEFT JOIN sold s ON s."productId" = p."id"
         LEFT JOIN out_on_rent o ON o."productId" = p."id"
+        LEFT JOIN "WebCommitted" web ON web."sku" = p."sku"
       `;
 
     const products = productsWithAvailability as any[];
@@ -191,6 +197,9 @@ export async function POST(request: Request) {
         image: body.image || null,
       } as any,
     });
+
+    await pushProductListing(product.id);
+
     return NextResponse.json(product);
   } catch (error: any) {
     console.error('POST /api/products error:', error);
@@ -241,6 +250,12 @@ export async function PUT(request: Request) {
       where: { id },
       data: updateData,
     });
+
+    // Baseline stock changed — SafaKing's own copy of it needs the update too.
+    await pushProductSync([product.id]);
+    // Catalogue fields (name/price/image/etc) may also have changed.
+    await pushProductListing(product.id);
+
     return NextResponse.json(product);
   } catch (error: any) {
     console.error('PUT /api/products error:', error);

@@ -51,11 +51,12 @@ export async function GET() {
           COUNT(*)::bigint AS product_count,
           COALESCE(SUM(p."totalQuantity"), 0)::bigint AS total_stock,
           COALESCE(SUM(GREATEST(0,
-            p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0)
+            p."totalQuantity" - COALESCE(s.qty, 0) - COALESCE(o.qty, 0) - COALESCE(web."webCommitted", 0)
           )), 0)::bigint AS available_stock
         FROM "Product" p
         LEFT JOIN sold s ON s."productId" = p."id"
         LEFT JOIN out_on_rent o ON o."productId" = p."id"
+        LEFT JOIN "WebCommitted" web ON web."sku" = p."sku"
       `,
       prisma.sale.count(),
       prisma.rental.aggregate({

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
+import { pushProductSync } from '@/lib/sync';
 
 export async function GET() {
   try {
@@ -212,6 +213,10 @@ export async function POST(request: Request) {
         include: { items: { include: { product: true } }, invoice: true },
       });
     });
+
+    if (hasLines) {
+      await pushProductSync((items as any[]).map((item) => item.productId));
+    }
 
     return NextResponse.json(sale);
   } catch (error: any) {

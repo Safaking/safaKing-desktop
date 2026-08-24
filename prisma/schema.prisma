@@ -35,6 +35,17 @@ model Product {
   storeStock    StoreStock[]
 }
 
+/// How many of one SKU the web storefront (SafaKing, a separate database)
+/// has committed against non-cancelled orders. Pushed here by SafaKing's
+/// checkout/admin, one row per Product.sku — see /api/sync/web-committed and
+/// src/lib/inventory.ts, which subtracts this from what this shop itself has
+/// sold/rented so nobody oversells across the two.
+model WebCommitted {
+  sku          String   @id
+  webCommitted Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}
+
 /// One payment actually received, on the day it was received.
 ///
 /// Rental.paidAmount and Sale.paidAmount are running totals: an advance at

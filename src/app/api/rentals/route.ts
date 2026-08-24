@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
 import { checkMultiProductAvailability } from '@/lib/inventory';
+import { pushProductSync } from '@/lib/sync';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -221,6 +222,8 @@ export async function POST(request: Request) {
 
       return newRental;
     });
+
+    await pushProductSync((items as any[]).map((item) => item.productId));
 
     return NextResponse.json(rental);
   } catch (error: any) {

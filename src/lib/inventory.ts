@@ -2,7 +2,12 @@ import { prisma } from './prisma';
 
 /**
  * Availability Algorithm (CRITICAL)
- * Available quantity = totalQuantity − soldQuantity − maxOverlappingRentals
+ * Available quantity = totalQuantity − soldQuantity − maxOverlappingRentals − webCommitted
+ *
+ * webCommitted is how many SafaKing's web storefront (a separate database)
+ * has sold against this SKU — pushed here by POST /api/sync/web-committed.
+ * Not date-windowed like rentals: a web sale is a permanent commitment
+ * against this shop's stock, not tied to a rental period.
  */
 export async function getProductAvailability(
   productId: string,
@@ -35,14 +40,18 @@ export async function getProductAvailability(
   if (!product) throw new Error('Product not found');
 
   const soldQuantity = product.sales.reduce((sum, item) => sum + item.quantity, 0);
-  
+
   // Calculate unreturned rental quantity within the date range
   const unreturnedRentalQuantity = product.rentals.reduce((sum, item) => {
     const outstanding = item.quantity - item.returnedQuantity;
     return sum + Math.max(0, outstanding);
   }, 0);
 
-  const available = product.totalQuantity - soldQuantity - unreturnedRentalQuantity;
+  const webCommitted = product.sku
+    ? (await prisma.webCommitted.findUnique({ where: { sku: product.sku } }))?.webCommitted ?? 0
+    : 0;
+
+  const available = product.totalQuantity - soldQuantity - unreturnedRentalQuantity - webCommitted;
 
   return Math.max(0, available);
 }

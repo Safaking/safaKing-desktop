@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
+import { pushProductSync } from '@/lib/sync';
 
 export async function DELETE(
   request: Request,
@@ -23,6 +24,7 @@ export async function DELETE(
 
     const rental = await prisma.rental.findUnique({
       where: { id },
+      include: { items: true },
     });
 
     if (!rental) {
@@ -50,6 +52,8 @@ export async function DELETE(
         where: { id }
       });
     });
+
+    await pushProductSync(rental.items.map((item) => item.productId));
 
     return NextResponse.json({ success: true, message: 'Rental order deleted successfully' });
   } catch (error: any) {
@@ -227,6 +231,12 @@ export async function PUT(
         receivedBy: body?.editedBy || null,
       });
     }
+
+    const affectedProductIds = [
+      ...existingRental.items.map((item) => item.productId),
+      ...(items ?? []).map((item: any) => item.productId),
+    ];
+    await pushProductSync(affectedProductIds);
 
     return NextResponse.json(updatedRental);
   } catch (error: any) {
