@@ -63,8 +63,10 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     description: '',
     image: '',
   });
+  const [alternateImages, setAlternateImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [imageCompressing, setImageCompressing] = useState(false);
+  const [altImageCompressing, setAltImageCompressing] = useState(false);
 
   // Poli is cut from a roll: its stock is metres and its rate is per metre.
   const meterBased = isMeterBased({ productType: formData.productType });
@@ -90,17 +92,19 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         description: product.description || '',
         image: product.image || '',
       });
+      setAlternateImages(Array.isArray(product.alternateImages) ? product.alternateImages : []);
     } else {
       setFormData(prev => ({
         ...prev,
         sku: generateSku(),
       }));
+      setAlternateImages([]);
     }
   }, [product]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (imageCompressing) {
+    if (imageCompressing || altImageCompressing) {
       alert('Please wait while the image is being processed');
       return;
     }
@@ -113,6 +117,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         salePrice: parseFloat(formData.salePrice || '0'),
         discount: parseFloat(formData.discount || '0'),
         totalQuantity: parseInt(formData.totalQuantity || '0'),
+        alternateImages,
       };
 
       const method = product ? 'PUT' : 'POST';
@@ -294,6 +299,57 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
               </div>
             </div>
 
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Alternate Photos <span className="normal-case tracking-normal text-slate-300">(shown as a gallery on the website — angles, close-ups, etc.)</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {alternateImages.map((src, i) => (
+                  <div key={i} className="relative w-20 h-20 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden group">
+                    <img src={src} alt={`Alternate ${i + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setAlternateImages(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                      aria-label={`Remove alternate photo ${i + 1}`}
+                    >
+                      <Trash2 size={16} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+                <label className="w-20 h-20 flex flex-col items-center justify-center gap-1 bg-indigo-50 text-indigo-600 rounded-xl border border-dashed border-indigo-200 font-bold text-[10px] cursor-pointer hover:bg-indigo-100 transition-all">
+                  {altImageCompressing ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      Add Photo
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={altImageCompressing}
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setAltImageCompressing(true);
+                      try {
+                        const compressedDataUrl = await compressImage(file);
+                        setAlternateImages(prev => [...prev, compressedDataUrl]);
+                      } catch (err) {
+                        console.error('Failed to compress alternate image', err);
+                      } finally {
+                        setAltImageCompressing(false);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Rental Price{meterBased && ' / metre'}</label>
               <div className="relative">
@@ -379,14 +435,14 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
           <div className="shrink-0 flex flex-col gap-3 border-t border-slate-100 bg-white px-6 py-4">
             <button 
               type="submit"
-              disabled={loading || imageCompressing}
+              disabled={loading || imageCompressing || altImageCompressing}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
                   <Loader2 size={18} className="animate-spin" /> Saving...
                 </>
-              ) : imageCompressing ? (
+              ) : imageCompressing || altImageCompressing ? (
                 <>
                   <Loader2 size={18} className="animate-spin" /> Optimizing Image...
                 </>

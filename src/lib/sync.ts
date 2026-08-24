@@ -67,13 +67,20 @@ export async function pushProductListing(productId: string) {
   }
 
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: {
-        sku: true, name: true, description: true, category: true, image: true,
-        salePrice: true, isRentable: true, rentPrice: true,
-      },
-    });
+    const [product, images] = await Promise.all([
+      prisma.product.findUnique({
+        where: { id: productId },
+        select: {
+          sku: true, name: true, description: true, category: true, image: true,
+          salePrice: true, isRentable: true, rentPrice: true,
+        },
+      }),
+      prisma.productImage.findMany({
+        where: { productId },
+        orderBy: { sortOrder: 'asc' },
+        select: { url: true },
+      }),
+    ]);
     if (!product?.sku) return;
 
     const res = await fetch(webProductSyncUrl, {
@@ -85,6 +92,7 @@ export async function pushProductListing(productId: string) {
         description: product.description,
         category: product.category,
         image: product.image,
+        alternateImages: images.map((i) => i.url),
         desktopPrice: product.salePrice,
         isRentable: product.isRentable,
         rentPricePerDay: product.rentPrice,

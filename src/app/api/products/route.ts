@@ -2,6 +2,19 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { pushProductSync, pushProductListing } from '@/lib/sync';
 
+/** Replace-all: whatever the form last submitted is the full, current set of alternate photos. */
+async function saveAlternateImages(productId: string, alternateImages: unknown) {
+  if (!Array.isArray(alternateImages)) return;
+  const urls = alternateImages.filter((u): u is string => typeof u === 'string' && u.length > 0);
+
+  await prisma.productImage.deleteMany({ where: { productId } });
+  if (urls.length > 0) {
+    await prisma.productImage.createMany({
+      data: urls.map((url, i) => ({ productId, url, sortOrder: i })),
+    });
+  }
+}
+
 /**
  * The catalog, priced for whoever is asking.
  *
@@ -126,10 +139,21 @@ export async function GET(request: Request) {
 
     const products = productsWithAvailability as any[];
 
+    // One extra query, not one per product — grouped in JS below. The admin
+    // list only needs this to prefill the edit dialog's alternate-photos strip.
+    const allImages = await prisma.productImage.findMany({ orderBy: { sortOrder: 'asc' } });
+    const imagesByProduct = new Map<string, string[]>();
+    for (const img of allImages) {
+      const list = imagesByProduct.get(img.productId) ?? [];
+      list.push(img.url);
+      imagesByProduct.set(img.productId, list);
+    }
+
     // The base rate is always reported, so an admin screen can show what a
     // branch changed and what it left alone.
     const withBase = products.map(p => ({
       ...p,
+      alternateImages: imagesByProduct.get(p.id) ?? [],
       baseRentPrice: p.rentPrice,
       baseSalePrice: p.salePrice,
       rentPriceOverridden: false,
@@ -198,6 +222,7 @@ export async function POST(request: Request) {
       } as any,
     });
 
+    await saveAlternateImages(product.id, body.alternateImages);
     await pushProductListing(product.id);
 
     return NextResponse.json(product);
@@ -250,6 +275,10 @@ export async function PUT(request: Request) {
       where: { id },
       data: updateData,
     });
+
+    if (data.alternateImages !== undefined) {
+      await saveAlternateImages(product.id, data.alternateImages);
+    }
 
     // Baseline stock changed — SafaKing's own copy of it needs the update too.
     await pushProductSync([product.id]);

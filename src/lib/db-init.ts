@@ -320,6 +320,17 @@ export async function ensureDbSchema(force = false) {
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "WebCommitted_pkey" PRIMARY KEY ("sku")
       );`,
+
+      // ── ProductImage — extra photos beyond Product.image ──────────────────
+      `CREATE TABLE IF NOT EXISTS "ProductImage" (
+        "id" TEXT NOT NULL,
+        "productId" TEXT NOT NULL,
+        "url" TEXT NOT NULL,
+        "sortOrder" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
+      );`,
+      `CREATE INDEX IF NOT EXISTS "ProductImage_productId_idx" ON "ProductImage"("productId");`,
     ];
 
     for (const sql of statements) {
