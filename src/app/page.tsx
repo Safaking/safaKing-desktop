@@ -18,6 +18,7 @@ import {
   LogOut,
   User as UserIcon,
   ShieldCheck,
+  Building2,
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
@@ -194,6 +195,19 @@ export default function Dashboard() {
                       <ShoppingCart size={20} className="stroke-[3]" />
                     </div>
                     <span className="uppercase tracking-wider text-sm">{t('new_sell')}</span>
+                  </Link>
+
+                  {/* Wholesale is a different kind of sale — a vendor, a
+                      ledger, part payment — so it gets its own way in rather
+                      than a toggle inside the till that staff had to notice. */}
+                  <Link
+                    href="/sales?mode=wholesale"
+                    className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-7 py-4 rounded-2xl font-black text-base shadow-xl shadow-amber-600/30 hover:shadow-amber-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 border border-amber-400/20 group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Building2 size={20} className="stroke-[3]" />
+                    </div>
+                    <span className="uppercase tracking-wider text-sm">होलसेल / व्यापारी</span>
                   </Link>
                 </div>
               </div>

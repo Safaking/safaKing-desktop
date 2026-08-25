@@ -94,6 +94,16 @@ export default function SalesPage() {
   // whether a vendor happens to be selected — otherwise the vendor list sat on
   // screen during an ordinary walk-in sale and got picked by accident.
   const [wholesale, setWholesale] = useState(false);
+
+  // Which kind of sale this is comes from the dashboard, not from a switch
+  // buried in this screen — the two are different jobs and staff pick one on
+  // the way in. Read off the URL rather than through useSearchParams, which
+  // would force this page out of static rendering for one query string.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mode = new URLSearchParams(window.location.search).get('mode');
+    if (mode === 'wholesale') setWholesale(true);
+  }, []);
   const [safaTyingDetails, setSafaTyingDetails] = useState({ name: '', address: '', time: '', marriageDate: '' });
   const [recentSale, setRecentSale] = useState<any>(null);
 
@@ -425,29 +435,38 @@ export default function SalesPage() {
                 </div>
               </div>
 
-              {/* Wholesale / Retail Toggle Button Bar */}
-              <div className="bg-slate-100 p-1 rounded-xl flex gap-1 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWholesale(false);
-                    handleVendorSelect('');
-                  }}
-                  className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    !wholesale ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              {/* Which kind of sale, chosen on the way in from the
+                  dashboard. Shown rather than switched: the toggle that used
+                  to live here was easy to miss, and a walk-in sale billed to a
+                  vendor is hard to notice afterwards. */}
+              <div
+                className={`rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 border ${
+                  wholesale
+                    ? 'bg-amber-50 border-amber-300'
+                    : 'bg-slate-100 border-slate-200'
+                }`}
+              >
+                <span
+                  className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider ${
+                    wholesale ? 'text-amber-800' : 'text-slate-700'
                   }`}
                 >
-                  <User size={14} /> रिटेल (Walk-in)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWholesale(true)}
-                  className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    wholesale ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <Building2 size={14} /> होलसेल (व्यापारी)
-                </button>
+                  {wholesale ? <Building2 size={15} /> : <User size={15} />}
+                  {wholesale ? 'होलसेल (व्यापारी)' : 'रिटेल (Walk-in)'}
+                </span>
+
+                {items.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWholesale(w => !w);
+                      handleVendorSelect('');
+                    }}
+                    className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 underline underline-offset-2 shrink-0"
+                  >
+                    {wholesale ? 'रिटेल करें' : 'होलसेल करें'}
+                  </button>
+                )}
               </div>
 
               {/* Only under wholesale. On a walk-in this used to sit here as an
