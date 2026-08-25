@@ -70,6 +70,16 @@ export default function OdooBookingPage() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCatalogTypes, setSelectedCatalogTypes] = useState<string[]>([]);
+
+  /**
+   * Which of the three steps is on screen.
+   *
+   * Kept as plain state and applied by hiding panels rather than unmounting
+   * them: every field keeps its value when stepping back and forth, which a
+   * remount would throw away mid-sale.
+   */
+  const [step, setStep] = useState(1);
+  const STEP_LABELS = ['सामान', 'ग्राहक व तारीख', 'भुगतान'];
   const [showSuccess, setShowSuccess] = useState(false);
   const [previewBill, setPreviewBill] = useState<any | null>(null);
   const [recentBooking, setRecentBooking] = useState<any>(null);
@@ -251,6 +261,23 @@ export default function OdooBookingPage() {
     return Math.max(0, sum - discountVal);
   };
 
+
+  /** What still has to be filled before this step can be left. */
+  const stepBlocker =
+    step === 1 ? items.length === 0
+        ? 'सामान जोड़ें'
+        : null : step === 2 ? !customer.name.trim()
+      ? 'ग्राहक का नाम भरें'
+      : !customer.phone.trim()
+      ? 'मोबाइल नंबर भरें'
+      : !dates.start || !dates.end
+      ? 'किराये की तारीख भरें'
+      : null : null;
+  const canLeaveStep = !stepBlocker;
+  const goNext = () => {
+    if (canLeaveStep) setStep(s => Math.min(3, s + 1));
+  };
+
   // Barati tying is the only kind that sends artists out to the event, so it is
   // the only kind whose date has a capacity worth checking before the order is
   // taken.
@@ -389,9 +416,46 @@ export default function OdooBookingPage() {
         </div>
       </div>
 
-      <main className="flex-1 flex overflow-hidden p-2 gap-2">
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* One thing at a time.
+             All three panels at once meant staff had to decide where to start,
+             and the answer was never obvious from the screen. The counter does
+             this in a fixed order anyway: pick the goods, take the details,
+             take the money. */}
+        <div className="shrink-0 bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-2 overflow-x-auto">
+          {STEP_LABELS.map((label, i) => {
+            const n = i + 1;
+            const done = step > n;
+            const here = step === n;
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => { if (n < step) setStep(n); }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg shrink-0 transition-colors ${
+                  here
+                    ? 'bg-indigo-600 text-white'
+                    : done
+                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    : 'text-slate-400'
+                }`}
+              >
+                <span
+                  className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${
+                    here ? 'bg-white/25' : done ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  {done ? '✓' : n}
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider whitespace-nowrap">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 flex overflow-hidden p-2 gap-2">
         {/* COLUMN 1: CUSTOMER DETAILS (35%) */}
-        <div className="w-[30%] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+        <div className={`${step === 2 ? 'w-full max-w-3xl mx-auto' : 'hidden'} bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden`}>
            <div className="p-3 border-b border-slate-50 flex items-center gap-2 shrink-0">
              <User size={18} className="text-indigo-600" />
              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">{t('customer_details')}</h3>
@@ -533,7 +597,7 @@ export default function OdooBookingPage() {
         </div>
 
         {/* COLUMN 2: CATALOG (40%) */}
-        <div className="w-[42%] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+        <div className={`${step === 1 ? 'w-[68%]' : 'hidden'} bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden`}>
            <div className="p-3 border-b border-slate-50 flex justify-between items-center shrink-0">
              <div className="flex items-center gap-2">
                <Package size={16} className="text-indigo-600" />
@@ -667,7 +731,7 @@ export default function OdooBookingPage() {
         </div>
 
         {/* COLUMN 3: CART & BILLING (25%) */}
-        <div className="w-[28%] flex flex-col gap-2 shrink-0 overflow-hidden">
+        <div className={`${step === 1 ? 'w-[32%]' : step === 3 ? 'w-full max-w-2xl mx-auto' : 'hidden'} flex flex-col gap-2 shrink-0 overflow-hidden`}>
           {/* Cart Header & Items */}
           <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
             <div className="p-3 border-b border-slate-50 flex justify-between items-center shrink-0">
@@ -786,7 +850,7 @@ export default function OdooBookingPage() {
           </div>
 
           {/* Billing Summary */}
-          <div className="bg-indigo-900 text-white rounded-lg shadow-xl p-4 shrink-0">
+          <div className={`${step === 3 ? '' : 'hidden'} bg-indigo-900 text-white rounded-lg shadow-xl p-4 shrink-0`}>
              <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs font-black text-indigo-300 uppercase tracking-widest">
                   <span>Days</span>
@@ -898,6 +962,40 @@ export default function OdooBookingPage() {
                   </button>
                 </div>
              </div>
+          </div>
+        </div>
+        </div>
+
+        {/* The running total stays in view at every step, so nobody has to go
+             back a screen to check what the customer is paying. */}
+        <div className="shrink-0 bg-white border-t border-slate-200 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {t('total_payable')}
+            </span>
+            <span className="block text-2xl font-black leading-none text-indigo-600">₹{calculateTotal().toFixed(0)}</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep(s => s - 1)}
+                className="px-4 py-3 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-xs"
+              >
+                ← पीछे
+              </button>
+            )}
+            {step < 3 && (
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={!canLeaveStep}
+                className="px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 text-white font-black text-sm"
+              >
+                {stepBlocker || 'आगे बढ़ें →'}
+              </button>
+            )}
           </div>
         </div>
       </main>
