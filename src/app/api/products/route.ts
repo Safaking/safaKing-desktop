@@ -30,7 +30,12 @@ async function saveAlternateImages(productId: string, alternateImages: unknown) 
  */
 export async function GET(request: Request) {
   try {
-    const storeId = new URL(request.url).searchParams.get('storeId');
+    const url = new URL(request.url);
+    const storeId = url.searchParams.get('storeId');
+    // Alternate photos are data URIs too. Only the admin edit dialog needs
+    // them, so the till and the booking screen do not carry them at all —
+    // otherwise this response grows back the moment more photos are added.
+    const withImages = url.searchParams.get('withImages') === 'true';
 
     // Availability is aggregated in SQL. Previously every product was loaded
     // with all of its sale and rental rows so they could be summed in JS, which
@@ -137,16 +142,26 @@ export async function GET(request: Request) {
         LEFT JOIN "WebCommitted" web ON web."sku" = p."sku"
       `;
 
-    const products = productsWithAvailability as any[];
+    // The photos come out of the listing entirely. They are data URIs on the
+    // row, and shipping them inline made this response 6.8 MB — of which 6.5 MB
+    // was base64 — and 25 seconds slow, before a single safa appeared. Screens
+    // fetch each photo from /api/products/[id]/image, so the browser loads only
+    // what is on screen and caches it.
+    const products = (productsWithAvailability as any[]).map(p => {
+      const { image, ...rest } = p;
+      return { ...rest, hasImage: !!image };
+    });
 
     // One extra query, not one per product — grouped in JS below. The admin
     // list only needs this to prefill the edit dialog's alternate-photos strip.
-    const allImages = await prisma.productImage.findMany({ orderBy: { sortOrder: 'asc' } });
     const imagesByProduct = new Map<string, string[]>();
-    for (const img of allImages) {
-      const list = imagesByProduct.get(img.productId) ?? [];
-      list.push(img.url);
-      imagesByProduct.set(img.productId, list);
+    if (withImages) {
+      const allImages = await prisma.productImage.findMany({ orderBy: { sortOrder: 'asc' } });
+      for (const img of allImages) {
+        const list = imagesByProduct.get(img.productId) ?? [];
+        list.push(img.url);
+        imagesByProduct.set(img.productId, list);
+      }
     }
 
     // The base rate is always reported, so an admin screen can show what a

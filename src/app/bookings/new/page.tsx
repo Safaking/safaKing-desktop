@@ -31,6 +31,7 @@ import { isMeterBased, unitLabel, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } fro
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useBranchLogo } from '@/lib/branding';
+import { productImageUrl } from '@/lib/product-image';
 
 interface Product {
   id: string;
@@ -687,10 +688,15 @@ export default function OdooBookingPage() {
                     }`}
                   >
                     <div className="h-20 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 border-b border-slate-50 relative">
-                      {p.image ? (
+                      {productImageUrl(p) ? (
                         <img
-                          src={p.image}
+                          src={productImageUrl(p) as string}
                           alt=""
+                          /* Only what is scrolled into view is fetched, and the
+                             URL is cache-busted by updatedAt so a photo is
+                             never downloaded twice. */
+                          loading="lazy"
+                          decoding="async"
                           className={`w-full h-full object-cover transition-transform ${
                             soldOut ? 'grayscale' : 'group-hover:scale-110'
                           }`}

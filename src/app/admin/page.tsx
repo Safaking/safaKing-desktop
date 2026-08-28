@@ -33,6 +33,7 @@ import WorkingHoursPanel from '@/components/WorkingHoursPanel';
 import StorePricesPanel from '@/components/StorePricesPanel';
 import ArtistLedgerDialog from '@/components/ArtistLedgerDialog';
 import { useAuth } from '@/lib/AuthContext';
+import { productImageUrl } from '@/lib/product-image';
 
 interface StoreData {
   id: string;
@@ -117,7 +118,7 @@ export default function AdminPage() {
   // existing post-mutation call sites still work — they now force a
   // revalidation of that one key instead of an uncached refetch.
   const storesSWR = useStores();
-  const productsSWR = useProducts();
+  const productsSWR = useProducts(null, true);
   const usersSWR = useUsers();
   const safaOptionsSWR = useSafaOptions();
   const artistsSWR = useArtists();
@@ -607,8 +608,14 @@ export default function AdminPage() {
               ) : filteredProducts.map(product => (
                 <div key={product.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-indigo-200 transition-all group relative">
                   <div className="h-40 bg-slate-50 border-b border-slate-100 flex items-center justify-center overflow-hidden relative">
-                    {(product as any).image ? (
-                      <img src={(product as any).image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    {productImageUrl(product) ? (
+                      <img
+                        src={productImageUrl(product) as string}
+                        alt={product.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
                     ) : (
                       <Package size={48} className="text-slate-200 group-hover:text-indigo-200 transition-colors" />
                     )}

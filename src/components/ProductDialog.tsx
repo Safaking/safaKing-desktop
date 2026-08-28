@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Package, Plus, Trash2, Loader2 } from 'lucide-react';
 import { PRODUCT_TYPES, isMeterBased } from '@/lib/product-types';
+import { productImageUrl } from '@/lib/product-image';
 
 interface ProductDialogProps {
   product?: any | null;
@@ -66,6 +67,15 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
   const [alternateImages, setAlternateImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [imageCompressing, setImageCompressing] = useState(false);
+  /**
+   * Whether the main photo was actually changed in this sitting.
+   *
+   * The listing no longer carries the photo itself, only a flag — so the form
+   * starts with an empty image field even when the product has one. Sending
+   * that empty value would wipe the photo on every unrelated edit, so the
+   * field is only submitted once somebody has touched it.
+   */
+  const [imageTouched, setImageTouched] = useState(false);
   const [altImageCompressing, setAltImageCompressing] = useState(false);
 
   // Poli is cut from a roll: its stock is metres and its rate is per metre.
@@ -92,6 +102,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         description: product.description || '',
         image: product.image || '',
       });
+      setImageTouched(false);
       setAlternateImages(Array.isArray(product.alternateImages) ? product.alternateImages : []);
     } else {
       setFormData(prev => ({
@@ -111,14 +122,18 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     setLoading(true);
     
     try {
-      const formattedBody = {
-        ...formData,
+      const { image, ...rest } = formData;
+      const formattedBody: any = {
+        ...rest,
         rentPrice: parseFloat(formData.rentPrice || '0'),
         salePrice: parseFloat(formData.salePrice || '0'),
         discount: parseFloat(formData.discount || '0'),
         totalQuantity: parseInt(formData.totalQuantity || '0'),
         alternateImages,
       };
+      // Left out entirely unless it changed: the API only writes the keys it
+      // is sent, so an untouched photo survives an edit to anything else.
+      if (imageTouched || !product) formattedBody.image = image;
 
       const method = product ? 'PUT' : 'POST';
       const res = await fetch('/api/products', {
@@ -237,8 +252,12 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Product Image</label>
               <div className="flex gap-4 items-start">
                 <div className="w-24 h-24 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                  {formData.image ? (
-                    <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                  {formData.image || (!imageTouched && productImageUrl(product)) ? (
+                    <img
+                      src={formData.image || (productImageUrl(product) as string)}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <Package size={32} className="text-slate-300" />
                   )}
@@ -267,6 +286,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                             try {
                               const compressedDataUrl = await compressImage(file);
                               setFormData(prev => ({ ...prev, image: compressedDataUrl }));
+                              setImageTouched(true);
                             } catch (err) {
                               console.error('Failed to compress image', err);
                             } finally {
@@ -276,10 +296,13 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                         }}
                       />
                     </label>
-                    {formData.image && (
+                    {(formData.image || (!imageTouched && productImageUrl(product))) && (
                       <button 
                         type="button" 
-                        onClick={() => setFormData({ ...formData, image: '' })}
+                        onClick={() => {
+                          setFormData({ ...formData, image: '' });
+                          setImageTouched(true);
+                        }}
                         className="px-4 py-2 bg-rose-50 text-rose-600 rounded-lg border border-rose-100 font-bold text-xs hover:bg-rose-100 transition-all"
                       >
                         <Trash2 size={14} />
@@ -292,7 +315,10 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                       placeholder="Or paste image URL..."
                       className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 text-xs transition-all"
                       value={formData.image.startsWith('data:') ? '' : formData.image}
-                      onChange={e => setFormData({...formData, image: e.target.value})}
+                      onChange={e => {
+                        setFormData({ ...formData, image: e.target.value });
+                        setImageTouched(true);
+                      }}
                     />
                   </div>
                 </div>

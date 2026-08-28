@@ -58,8 +58,14 @@ export const KEYS = {
  * price. Invalidation matches on prefix, so one branch's key clearing clears
  * them all.
  */
-export function useProducts(storeId?: string | null) {
-  return useSWR(storeId ? `${KEYS.products}?storeId=${storeId}` : KEYS.products, defaultConfig);
+export function useProducts(storeId?: string | null, withImages = false) {
+  const params = new URLSearchParams();
+  if (storeId) params.set('storeId', storeId);
+  // Only the admin edit dialog needs the alternate photos; asking for them on
+  // the shop floor would put megabytes of base64 back into every catalog load.
+  if (withImages) params.set('withImages', 'true');
+  const qs = params.toString();
+  return useSWR(qs ? `${KEYS.products}?${qs}` : KEYS.products, defaultConfig);
 }
 
 /** One branch's price overrides, for the admin screen that edits them. */
