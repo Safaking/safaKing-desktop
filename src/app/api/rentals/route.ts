@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
 import { checkMultiProductAvailability } from '@/lib/inventory';
 import { pushProductSync } from '@/lib/sync';
+import { orderItemsInclude, orderProductSelect } from '@/lib/order-selects';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -182,7 +183,7 @@ export async function POST(request: Request) {
         },
         include: { 
           items: {
-            include: { product: true }
+            include: { product: { select: orderProductSelect } }
           }
         },
       });

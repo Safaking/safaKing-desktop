@@ -57,6 +57,16 @@ export async function GET(request: Request) {
     // no booking can be taken until somebody has typed in the whole inventory.
     // Splitting a product is therefore something admin opts into, per product,
     // by giving it a quantity at any branch.
+    // Kicked off together, not one after the other: the branch's price
+    // overrides do not depend on the availability figures, and each round trip
+    // to the database is the expensive part here.
+    const overridesPromise = storeId
+      ? prisma.storePrice.findMany({ where: { storeId } })
+      : Promise.resolve([] as any[]);
+    const altImagesPromise = withImages
+      ? prisma.productImage.findMany({ orderBy: { sortOrder: 'asc' } })
+      : Promise.resolve([] as any[]);
+
     const productsWithAvailability = storeId
       ? await prisma.$queryRaw`
         WITH sold AS (
@@ -155,13 +165,10 @@ export async function GET(request: Request) {
     // One extra query, not one per product — grouped in JS below. The admin
     // list only needs this to prefill the edit dialog's alternate-photos strip.
     const imagesByProduct = new Map<string, string[]>();
-    if (withImages) {
-      const allImages = await prisma.productImage.findMany({ orderBy: { sortOrder: 'asc' } });
-      for (const img of allImages) {
-        const list = imagesByProduct.get(img.productId) ?? [];
-        list.push(img.url);
-        imagesByProduct.set(img.productId, list);
-      }
+    for (const img of await altImagesPromise) {
+      const list = imagesByProduct.get(img.productId) ?? [];
+      list.push(img.url);
+      imagesByProduct.set(img.productId, list);
     }
 
     // The base rate is always reported, so an admin screen can show what a
@@ -177,7 +184,7 @@ export async function GET(request: Request) {
 
     if (!storeId) return NextResponse.json(withBase);
 
-    const overrides = await prisma.storePrice.findMany({ where: { storeId } });
+    const overrides = await overridesPromise;
     const byProduct = new Map(overrides.map(o => [o.productId, o]));
 
     // A null override means "use the shop rate", not "free" — so only a real

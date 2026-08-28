@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
 import { pushProductSync } from '@/lib/sync';
+import { orderItemsInclude, orderProductSelect } from '@/lib/order-selects';
 
 export async function DELETE(
   request: Request,
@@ -197,7 +198,7 @@ export async function PUT(
             }
           } : {})
         },
-        include: { items: { include: { product: true } }, invoice: true }
+        include: { items: orderItemsInclude, invoice: true }
       });
 
       // Update associated invoice

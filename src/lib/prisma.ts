@@ -18,12 +18,25 @@ function normalizeDatabaseUrl(raw: string | undefined): string | undefined {
     const isPooled =
       url.port === '6543' || url.hostname.includes('pooler.supabase.com')
 
-    if (isPooled && url.searchParams.get('pgbouncer') !== 'true') {
+    if (!isPooled) return raw
+
+    let changed = false
+    if (url.searchParams.get('pgbouncer') !== 'true') {
       url.searchParams.set('pgbouncer', 'true')
-      return url.toString()
+      changed = true
     }
 
-    return raw
+    // One connection per function instance, which is what Supabase and Prisma
+    // both recommend behind a transaction pooler. A serverless instance only
+    // ever serves one request at a time, so a larger pool buys nothing and
+    // costs a handshake per extra connection — and enough cold instances at
+    // once will exhaust the pooler and start refusing queries outright.
+    if (!url.searchParams.has('connection_limit')) {
+      url.searchParams.set('connection_limit', '1')
+      changed = true
+    }
+
+    return changed ? url.toString() : raw
   } catch {
     // Not a parseable URL — leave it alone and let Prisma report the problem.
     return raw

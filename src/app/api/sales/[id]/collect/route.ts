@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
+import { orderItemsInclude, orderProductSelect } from '@/lib/order-selects';
 
 /**
  * Handing the goods over on a sale the customer left behind.
@@ -60,7 +61,7 @@ export async function POST(request: Request, { params }: { params: any }) {
         readyAt: sale.readyAt ?? new Date(),
         readyBy: sale.readyBy ?? (body?.collectedBy || null),
       },
-      include: { items: { include: { product: true } }, invoice: true },
+      include: { items: orderItemsInclude, invoice: true },
     });
 
     if (updated.invoice) {

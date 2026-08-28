@@ -2,16 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
 import { pushProductSync } from '@/lib/sync';
+import { orderItemsInclude, orderProductSelect } from '@/lib/order-selects';
 
 export async function GET() {
   try {
     const sales = await prisma.sale.findMany({
       include: {
-        items: {
-          include: {
-            product: true
-          }
-        },
+        items: orderItemsInclude,
         invoice: true,
         artist: { select: { id: true, name: true } },
         tyingAssignments: {
@@ -210,7 +207,7 @@ export async function POST(request: Request) {
       // to list them.
       return await tx.sale.findUnique({
         where: { id: newSale.id },
-        include: { items: { include: { product: true } }, invoice: true },
+        include: { items: orderItemsInclude, invoice: true },
       });
     });
 

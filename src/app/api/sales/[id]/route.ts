@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { recordPayment } from '@/lib/payments';
+import { orderItemsInclude, orderProductSelect } from '@/lib/order-selects';
 
 /**
  * Correcting or removing a sale after the bill has been raised.
@@ -135,7 +136,7 @@ export async function PUT(request: Request, { params }: { params: any }) {
               }
             : {}),
         },
-        include: { items: { include: { product: true } }, invoice: true },
+        include: { items: orderItemsInclude, invoice: true },
       });
 
       // The bill on file must agree with the corrected sale.
