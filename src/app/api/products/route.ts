@@ -323,3 +323,60 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+/**
+ * Remove a product. Admin only.
+ *
+ * A product that has been on an order is deactivated rather than deleted: the
+ * order lines point at it, and the history of what was rented or sold has to
+ * keep reading correctly. Only something nobody has ever transacted is
+ * actually removed, along with its gallery.
+ */
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
+    }
+    if (searchParams.get('role') !== 'ADMIN') {
+      return NextResponse.json({ error: 'Only an admin can delete a product' }, { status: 403 });
+    }
+
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const [rented, sold] = await Promise.all([
+      prisma.rentalItem.count({ where: { productId: id } }),
+      prisma.saleItem.count({ where: { productId: id } }),
+    ]);
+
+    if (rented + sold > 0) {
+      const updated = await prisma.product.update({
+        where: { id },
+        data: { isRentable: false, isSellable: false },
+      });
+      return NextResponse.json({
+        ...updated,
+        deactivated: true,
+        message: `This product is on ${rented + sold} order${
+          rented + sold === 1 ? '' : 's'
+        }, so it was hidden from the catalog instead of deleted.`,
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.productImage.deleteMany({ where: { productId: id } }),
+      prisma.storePrice.deleteMany({ where: { productId: id } }),
+      prisma.storeStock.deleteMany({ where: { productId: id } }),
+      prisma.product.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('DELETE /api/products error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete the product' }, { status: 500 });
+  }
+}
