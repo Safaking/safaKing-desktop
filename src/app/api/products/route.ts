@@ -1,11 +1,21 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { pushProductSync, pushProductListing } from '@/lib/sync';
+import { MAX_ALTERNATE_IMAGES } from '@/lib/product-image-limits';
 
-/** Replace-all: whatever the form last submitted is the full, current set of alternate photos. */
+/**
+ * Replace-all: whatever the form last submitted is the full, current set of
+ * alternate photos.
+ *
+ * Capped here rather than only in the dialog. The photos are base64 on the
+ * row, so an unbounded gallery is unbounded weight in every response that
+ * carries it, and the form is not the only thing that can post here.
+ */
 async function saveAlternateImages(productId: string, alternateImages: unknown) {
   if (!Array.isArray(alternateImages)) return;
-  const urls = alternateImages.filter((u): u is string => typeof u === 'string' && u.length > 0);
+  const urls = alternateImages
+    .filter((u): u is string => typeof u === 'string' && u.length > 0)
+    .slice(0, MAX_ALTERNATE_IMAGES);
 
   await prisma.productImage.deleteMany({ where: { productId } });
   if (urls.length > 0) {

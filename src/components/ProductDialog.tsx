@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Package, Plus, Trash2, Loader2 } from 'lucide-react';
+import { X, Save, Package, Plus, Trash2, Loader2, Star } from 'lucide-react';
 import { PRODUCT_TYPES, isMeterBased } from '@/lib/product-types';
 import { productImageUrl } from '@/lib/product-image';
+import { MAX_ALTERNATE_IMAGES } from '@/lib/product-image-limits';
 
 interface ProductDialogProps {
   product?: any | null;
@@ -77,6 +78,61 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
    */
   const [imageTouched, setImageTouched] = useState(false);
   const [altImageCompressing, setAltImageCompressing] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+
+  const galleryFull = alternateImages.length >= MAX_ALTERNATE_IMAGES;
+
+  /**
+   * Make one of the alternates the front photo.
+   *
+   * A straight swap, so nothing is thrown away: the photo that was on the
+   * front takes the slot the chosen one came from. Staff shoot several angles
+   * and only afterwards decide which one sells the safa — before this the only
+   * way to change it was to re-upload from the computer.
+   *
+   * On a product that already exists, the current front photo is not in the
+   * form at all: the listing only carries a flag and the image is fetched
+   * separately. So it is pulled back as data before the swap, or it would be
+   * lost the moment somebody promoted an alternate.
+   */
+  const makeFrontPhoto = async (index: number) => {
+    const chosen = alternateImages[index];
+    if (!chosen || promoting) return;
+
+    setPromoting(true);
+    try {
+      let previousFront = formData.image;
+
+      if (!previousFront && !imageTouched && product?.id && product?.hasImage) {
+        try {
+          const url = productImageUrl(product);
+          const res = url ? await fetch(url) : null;
+          if (res?.ok) {
+            const blob = await res.blob();
+            previousFront = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          // Could not fetch it back. Better to promote the new front photo and
+          // drop the old one than to refuse the change outright.
+        }
+      }
+
+      setFormData(prev => ({ ...prev, image: chosen }));
+      setImageTouched(true);
+      setAlternateImages(prev =>
+        previousFront
+          ? prev.map((src, i) => (i === index ? previousFront : src))
+          : prev.filter((_, i) => i !== index)
+      );
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   // Poli is cut from a roll: its stock is metres and its rate is per metre.
   const meterBased = isMeterBased({ productType: formData.productType });
@@ -327,22 +383,54 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
 
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                Alternate Photos <span className="normal-case tracking-normal text-slate-300">(shown as a gallery on the website — angles, close-ups, etc.)</span>
+                Alternate Photos{' '}
+                <span className="normal-case tracking-normal text-slate-300">
+                  (gallery on the website — angles, close-ups)
+                </span>
+                <span
+                  className={`ml-2 normal-case tracking-normal font-black ${
+                    galleryFull ? 'text-amber-600' : 'text-slate-400'
+                  }`}
+                >
+                  {alternateImages.length} / {MAX_ALTERNATE_IMAGES}
+                </span>
               </label>
               <div className="flex flex-wrap gap-3">
                 {alternateImages.map((src, i) => (
                   <div key={i} className="relative w-20 h-20 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden group">
                     <img src={src} alt={`Alternate ${i + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setAlternateImages(prev => prev.filter((_, idx) => idx !== i))}
-                      className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                      aria-label={`Remove alternate photo ${i + 1}`}
-                    >
-                      <Trash2 size={16} className="text-white" />
-                    </button>
+                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => makeFrontPhoto(i)}
+                        disabled={promoting}
+                        title="Make this the front photo"
+                        aria-label={`Make photo ${i + 1} the front photo`}
+                        className="p-1.5 rounded-lg bg-white/15 hover:bg-amber-500 disabled:opacity-50"
+                      >
+                        {promoting ? (
+                          <Loader2 size={14} className="animate-spin text-white" />
+                        ) : (
+                          <Star size={14} className="text-white" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAlternateImages(prev => prev.filter((_, idx) => idx !== i))}
+                        title="Remove this photo"
+                        aria-label={`Remove alternate photo ${i + 1}`}
+                        className="p-1.5 rounded-lg bg-white/15 hover:bg-rose-500"
+                      >
+                        <Trash2 size={14} className="text-white" />
+                      </button>
+                    </div>
                   </div>
                 ))}
+                {galleryFull ? (
+                  <p className="w-full text-[11px] font-bold text-amber-600 mt-1">
+                    {MAX_ALTERNATE_IMAGES} photos is the limit. Remove one to add another.
+                  </p>
+                ) : (
                 <label className="w-20 h-20 flex flex-col items-center justify-center gap-1 bg-indigo-50 text-indigo-600 rounded-xl border border-dashed border-indigo-200 font-bold text-[10px] cursor-pointer hover:bg-indigo-100 transition-all">
                   {altImageCompressing ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -363,7 +451,11 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                       setAltImageCompressing(true);
                       try {
                         const compressedDataUrl = await compressImage(file);
-                        setAlternateImages(prev => [...prev, compressedDataUrl]);
+                        setAlternateImages(prev =>
+                          prev.length >= MAX_ALTERNATE_IMAGES
+                            ? prev
+                            : [...prev, compressedDataUrl]
+                        );
                       } catch (err) {
                         console.error('Failed to compress alternate image', err);
                       } finally {
@@ -373,6 +465,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                     }}
                   />
                 </label>
+                )}
               </div>
             </div>
 
