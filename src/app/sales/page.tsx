@@ -272,17 +272,28 @@ export default function SalesPage() {
    */
   const sellable = items.length > 0 || (tieSafa && totalTyingCount > 0);
 
-  /** What still has to be filled before this step can be left. */
+  /**
+   * What still has to be filled before this step can be left.
+   *
+   * Each check has to name something on the step it belongs to. Asking for the
+   * vendor on step 1 was a dead end: the vendor picker is part of who is
+   * buying, so it lives on step 2, and the button was demanding a choice that
+   * was nowhere on screen.
+   */
   const stepBlocker =
-    step === 1 ? !sellable
+    step === 1
+      ? !sellable
         ? 'सामान या बंधाई जोड़ें'
+        : null
+      : step === 2
+      ? !customer.name.trim()
+        ? 'ग्राहक का नाम भरें'
+        : !customer.phone.trim()
+        ? 'मोबाइल नंबर भरें'
         : wholesale && !vendorId
         ? 'व्यापारी चुनें'
-        : null : step === 2 ? !customer.name.trim()
-      ? 'ग्राहक का नाम भरें'
-      : !customer.phone.trim()
-      ? 'मोबाइल नंबर भरें'
-      : null : null;
+        : null
+      : null;
   const canLeaveStep = !stepBlocker;
   const goNext = () => {
     if (canLeaveStep) setStep(s => Math.min(3, s + 1));
@@ -419,6 +430,15 @@ export default function SalesPage() {
               <img src={branchLogo} alt="Logo" className="h-full w-auto object-contain" />
             </div>
             <h1 className="text-lg font-bold text-slate-800 uppercase tracking-wider">{t('new_sale')}</h1>
+            {/* In the header, so it is visible on every step. The banner that
+                says which kind of sale this is sits with the customer fields,
+                which are only on step 2 — so while picking goods there was
+                nothing on screen saying this was a wholesale bill. */}
+            {wholesale && (
+              <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 size={13} /> होलसेल
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <button 
