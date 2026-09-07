@@ -1,0 +1,39 @@
+plugins { id "com.android.application" }
+
+android {
+  namespace "in.safaking.store"
+  compileSdk 34
+
+  defaultConfig {
+    applicationId "in.safaking.store"
+    minSdk 24
+    targetSdk 34
+    versionCode 1
+    versionName "1.0"
+  }
+
+  buildTypes {
+    release {
+      // Signed with the debug key: this is handed to shop staff directly, the
+      // same way the Windows installer is, not published to Play.
+      signingConfig signingConfigs.debug
+      minifyEnabled false
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+// kotlin-stdlib has folded jdk7/jdk8 into itself since 1.8, but an older
+// transitive still asks for them by name, and every class then appears twice.
+configurations.all {
+  exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7"
+  exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8"
+}
+
+dependencies {
+  implementation "androidx.appcompat:appcompat:1.7.0"
+}

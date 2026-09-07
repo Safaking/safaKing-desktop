@@ -45,3 +45,9 @@ next-env.d.ts
 
 /src/generated/prisma
 .claude/
+
+# Android build output
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
