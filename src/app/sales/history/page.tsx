@@ -1,5 +1,6 @@
 'use client';
 
+import { askConfirm } from '@/lib/dialogs';
 import React, { useState } from 'react';
 import { useSales, invalidateAfterSale } from '@/lib/data';
 import { useAuth } from '@/lib/AuthContext';
@@ -44,9 +45,10 @@ export default function SalesHistoryPage() {
   /** Admin only, and it takes the sale's receipts with it. */
   const removeSale = async (sale: any) => {
     if (
-      !confirm(
-        `Delete ${sale.orderNumber} for ${sale.customerName}? Its money comes out of the cash book too. This cannot be undone.`
-      )
+      !(await askConfirm(
+        `Delete ${sale.orderNumber} for ${sale.customerName}? Its money comes out of the cash book too. This cannot be undone.`,
+        { confirmLabel: 'Delete', danger: true }
+      ))
     )
       return;
     const res = await fetch(`/api/sales/${sale.id}?role=${user?.role ?? ''}`, { method: 'DELETE' });

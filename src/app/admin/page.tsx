@@ -1,5 +1,6 @@
 'use client';
 
+import { askConfirm } from '@/lib/dialogs';
 import React, { useState, useEffect } from 'react';
 import { useProducts, useStores, useUsers, useSafaOptions, useArtists, invalidateAfterArtistChange, invalidate, KEYS } from '@/lib/data';
 import { PRODUCT_TYPES, UNCATEGORISED, isMeterBased, rateSuffix } from '@/lib/product-types';
@@ -193,7 +194,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteArtist = async (artist: any) => {
-    if (!window.confirm(`Remove artist "${artist.name}"?`)) return;
+    if (!(await askConfirm(`Remove artist "${artist.name}"?`, { confirmLabel: 'Remove', danger: true }))) return;
     try {
       const res = await fetch(`/api/artists?id=${artist.id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -262,7 +263,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteSafaOption = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}" safa style?`)) return;
+    if (!(await askConfirm(`Are you sure you want to delete "${name}" safa style?`, { confirmLabel: 'Delete', danger: true }))) return;
 
     try {
       const res = await fetch(`/api/safa-options?id=${id}`, { method: 'DELETE' });
@@ -359,7 +360,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!(await askConfirm('Are you sure you want to delete this user?', { confirmLabel: 'Delete', danger: true }))) return;
     try {
       const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
       if (res.ok) fetchUsers();

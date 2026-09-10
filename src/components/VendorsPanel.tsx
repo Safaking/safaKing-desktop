@@ -1,5 +1,6 @@
 'use client';
 
+import { askConfirm } from '@/lib/dialogs';
 import React, { useState } from 'react';
 import { Building2, Edit3, Trash2, Search, BookOpen } from 'lucide-react';
 import { useVendors, invalidateAfterVendorChange } from '@/lib/data';
@@ -76,7 +77,7 @@ export default function VendorsPanel() {
   };
 
   const handleDeleteVendor = async (vendor: any) => {
-    if (!window.confirm(`Remove vendor "${vendor.name}"?`)) return;
+    if (!(await askConfirm(`Remove vendor "${vendor.name}"?`, { confirmLabel: 'Remove', danger: true }))) return;
     try {
       const res = await fetch(`/api/vendors?id=${vendor.id}`, { method: 'DELETE' });
       const data = await res.json();

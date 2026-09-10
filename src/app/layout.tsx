@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/lib/LanguageContext";
 import { AuthProvider } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import ExpirationDisplay from "@/components/ExpirationDisplay";
+import { DialogHost } from "@/lib/dialogs";
 
 export default function RootLayout({
   children,
@@ -32,6 +33,7 @@ export default function RootLayout({
             </LanguageProvider>
           </AuthGuard>
         </AuthProvider>
+        <DialogHost />
       </body>
     </html>
   );

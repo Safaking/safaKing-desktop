@@ -1,5 +1,6 @@
 'use client';
 
+import { askConfirm } from '@/lib/dialogs';
 import React from 'react';
 import { X, Plus, Trash2, IndianRupee, Loader2, BookOpen, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -65,7 +66,7 @@ export default function ArtistLedgerDialog({ artist, onClose }: Props) {
   };
 
   const handleDelete = async (paymentId: string) => {
-    if (!confirm('हटाना चाहते हैं?')) return;
+    if (!(await askConfirm('हटाना चाहते हैं?', { confirmLabel: 'हटाएँ', cancelLabel: 'रहने दें', danger: true }))) return;
     setDeleting(paymentId);
     try {
       const res = await fetch(`/api/artists/${artist.id}/payments?paymentId=${paymentId}`, {

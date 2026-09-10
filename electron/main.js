@@ -26,6 +26,12 @@ function createWindow() {
 
   win.loadURL(APP_URL);
 
+  // On Windows, closing a native alert()/confirm() hands focus back to the
+  // window but not to the page inside it, so text boxes show a cursor and
+  // ignore the keyboard until the window is clicked away from and back. The
+  // web app no longer opens native popups; this covers any that slip through.
+  win.on('focus', () => win.webContents.focus());
+
   // A blank white window is indistinguishable from a hung app, so surface the
   // actual reason the page could not load (offline, DNS, 404, server down).
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, failedUrl) => {

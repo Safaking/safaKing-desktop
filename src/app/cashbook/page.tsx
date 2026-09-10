@@ -1,5 +1,6 @@
 'use client';
 
+import { askConfirm, askPrompt, notify } from '@/lib/dialogs';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -153,10 +154,12 @@ export default function CashBookPage() {
     // action rather than something staff have to remember separately.
     if (ok) {
       setCloseOpen(false);
-      alert(
+      // Logging out follows immediately, so this one waits to be read.
+      await notify(
         keptBack > 0
           ? `Account submitted for ${displayDate(date)}. ${money(keptBack)} stays in the drawer and opens tomorrow.`
-          : `Account submitted for ${displayDate(date)}. Tomorrow opens at ${money(0)}.`
+          : `Account submitted for ${displayDate(date)}. Tomorrow opens at ${money(0)}.`,
+        { sticky: true }
       );
       logout('CASHBOOK');
       router.replace('/login');
@@ -165,7 +168,7 @@ export default function CashBookPage() {
 
   /** The admin end of the same handover: confirming the cash arrived. */
   const approveDay = async () => {
-    const counted = window.prompt(
+    const counted = await askPrompt(
       `Confirm the cash for ${displayDate(date)}.\n\nThe branch says it handed over ${money(
         data?.handedOver
       )}. How much did you actually count?`,
@@ -182,24 +185,24 @@ export default function CashBookPage() {
   };
 
   const reopenDay = async () => {
-    if (!window.confirm('Reopen this day for editing?')) return;
+    if (!(await askConfirm('Reopen this day for editing?'))) return;
     await post({ action: 'reopen', role: user?.role });
   };
 
   const editEntry = async (entry: any) => {
-    const amount = window.prompt(`New amount for ${entry.reference || entry.type}`, String(entry.amount));
+    const amount = await askPrompt(`New amount for ${entry.reference || entry.type}`, String(entry.amount));
     if (amount === null) return;
     const parsed = parseFloat(amount);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       alert('Enter an amount greater than zero.');
       return;
     }
-    const reference = window.prompt('Reference (optional)', entry.reference || '');
+    const reference = await askPrompt('Reference (optional)', entry.reference || '');
     await post({ action: 'editEntry', entryId: entry.id, amount: parsed, reference: reference ?? entry.reference });
   };
 
   const removeEntry = async (entryId: string) => {
-    if (!window.confirm('Remove this entry?')) return;
+    if (!(await askConfirm('Remove this entry?', { confirmLabel: 'Remove', danger: true }))) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/cashbook?entryId=${entryId}&role=${user?.role ?? ''}`, { method: 'DELETE' });

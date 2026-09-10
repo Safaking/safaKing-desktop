@@ -1,5 +1,6 @@
 'use client';
 
+import { askConfirm } from '@/lib/dialogs';
 import React, { useState, useEffect } from 'react';
 import { useRentals, invalidateAfterRentalChange } from '@/lib/data';
 import {
@@ -154,7 +155,10 @@ export default function RentalsPage() {
   };
 
   const handleDeleteRental = async (rental: Rental) => {
-    const confirmed = window.confirm(`Are you sure you want to delete order ${rental.orderNumber}? This action cannot be undone.`);
+    const confirmed = await askConfirm(
+      `Are you sure you want to delete order ${rental.orderNumber}? This action cannot be undone.`,
+      { confirmLabel: 'Delete', danger: true }
+    );
     if (!confirmed) return;
 
     try {
