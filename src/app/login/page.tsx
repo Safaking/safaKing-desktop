@@ -107,9 +107,20 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center pt-4 border-t border-slate-100">
-          <p className="text-[11px] text-slate-400 font-medium">Default admin login: <span className="font-mono text-slate-600">admin / admin123</span></p>
-        </div>
+        {/* What to do when nobody can get in. The screen used to print the
+            default admin password here instead, which is only safe on a
+            machine nobody else can reach. */}
+        <details className="mt-6 pt-4 border-t border-slate-100 group">
+          <summary className="cursor-pointer list-none text-center text-[12px] font-bold text-indigo-600 hover:text-indigo-700">
+            {t('forgot_password')}
+          </summary>
+          <div className="mt-3 space-y-2 text-[11px] leading-relaxed text-slate-500">
+            <p>{t('forgot_ask_admin')}</p>
+            <p>{t('forgot_nobody')}</p>
+            <p className="rounded-lg bg-slate-100 px-3 py-2 font-mono text-[11px] text-slate-700">npm run reset-password</p>
+            <p>{t('forgot_script_note')}</p>
+          </div>
+        </details>
       </div>
     </div>
   );

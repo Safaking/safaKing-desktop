@@ -167,6 +167,10 @@ export const translations = {
     password: 'Password',
     sign_in: 'Sign In',
     enter_password: 'Enter password',
+    forgot_password: 'Forgot your password?',
+    forgot_ask_admin: 'Ask an admin to set a new one for you: Admin → Users → the pencil beside your name → new password → Save.',
+    forgot_nobody: 'If nobody can sign in at all, on the computer where this app is installed open a terminal in the app folder and run:',
+    forgot_script_note: 'It asks for the username and a new password, and changes nothing else.',
 
     // ── artists & vendors ─────────────────────────────────────────────────
     artists: 'Artists',
@@ -373,6 +377,10 @@ export const translations = {
     password: 'पासवर्ड',
     sign_in: 'लॉग इन करें',
     enter_password: 'पासवर्ड डालें',
+    forgot_password: 'पासवर्ड भूल गए?',
+    forgot_ask_admin: 'किसी एडमिन से नया पासवर्ड लगवाएँ: Admin → Users → अपने नाम के आगे वाली पेंसिल → नया पासवर्ड → Save।',
+    forgot_nobody: 'अगर कोई भी लॉग इन नहीं कर पा रहा, तो जिस कंप्यूटर पर यह ऐप लगा है उसमें ऐप के फ़ोल्डर में टर्मिनल खोलकर यह चलाएँ:',
+    forgot_script_note: 'यह यूज़रनेम और नया पासवर्ड पूछता है, और कुछ नहीं बदलता।',
 
     // ── artists & vendors ─────────────────────────────────────────────────
     artists: 'आर्टिस्ट',
