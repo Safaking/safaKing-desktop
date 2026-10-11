@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 
 // The desktop app is a shell around the hosted site and always loads it.
@@ -25,6 +25,19 @@ function createWindow() {
   });
 
   win.loadURL(APP_URL);
+
+  // A WhatsApp or map link belongs to Windows, not to this window: handing it
+  // to the system opens WhatsApp Desktop with the message already written.
+  // Anything the app opens for itself — the print preview windows, a blob
+  // invoice — must still open here, or printing stops working.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    const external = /^(https?|mailto|tel|whatsapp):/i.test(url) && !url.startsWith(APP_URL);
+    if (external) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
 
   // On Windows, closing a native alert()/confirm() hands focus back to the
   // window but not to the page inside it, so text boxes show a cursor and

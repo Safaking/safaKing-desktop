@@ -25,6 +25,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import ReturnDialog from '@/components/ReturnDialog';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import ActivateRentalDialog from '@/components/ActivateRentalDialog';
 import RentalDetailsDialog from '@/components/RentalDetailsDialog';
 import AllocateArtistDialog from '@/components/AllocateArtistDialog';
@@ -337,6 +338,20 @@ export default function RentalsPage() {
                           {artistLabel(rental, t('allocate'))}
                         </button>
                       )}
+
+                      {/* One click writes the message; the person at the counter presses send. */}
+                      <WhatsAppButton
+                        compact
+                        phone={rental.customerPhone}
+                        subject={{
+                          customerName: rental.customerName,
+                          orderNumber: rental.orderNumber,
+                          remaining: rental.remainingAmount,
+                          startDate: rental.startDate,
+                          endDate: rental.endDate,
+                          pickupDate: rental.pickupDate,
+                        }}
+                      />
 
                       <button
                         onClick={() => setViewRental(rental)}
