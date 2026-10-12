@@ -30,16 +30,28 @@ function createWindow() {
   // site is refused it by default — getUserMedia simply fails, with nothing
   // on screen to explain why. The camera is allowed for our own pages and
   // nothing else; every other permission a page might ask for is refused.
-  win.webContents.session.setPermissionRequestHandler((contents, permission, callback) => {
-    const fromOurApp = (contents.getURL() || '').startsWith(APP_URL);
-    callback(fromOurApp && permission === 'media');
+  // Electron grants every permission a page asks for unless a handler says
+  // otherwise, so this is a restriction rather than an unlocking: the camera
+  // is allowed for our own pages and refused to anything else, and every
+  // other permission a page might ask for is refused outright.
+  //
+  // The URL is read from details.requestingUrl, not from the window: when a
+  // page embeds an iframe, the window's own address is the wrong thing to
+  // judge by, and an embedded third party could inherit a permission the
+  // page never had.
+  const ours = (url) => typeof url === 'string' && url.startsWith(APP_URL);
+
+  win.webContents.session.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const asking = details?.requestingUrl || contents?.getURL?.() || '';
+    callback(permission === 'media' && ours(asking));
   });
 
-  // Chromium also asks this synchronously before listing devices.
+  // Chromium also asks this one synchronously, before listing the cameras.
   if (typeof win.webContents.session.setPermissionCheckHandler === 'function') {
-    win.webContents.session.setPermissionCheckHandler((_contents, permission, origin) =>
-      permission === 'media' && (origin || '').startsWith(new URL(APP_URL).origin)
-    );
+    win.webContents.session.setPermissionCheckHandler((_contents, permission, origin, details) => {
+      const asking = details?.requestingUrl || origin || '';
+      return permission === 'media' && ours(asking);
+    });
   }
 
   // A WhatsApp or map link belongs to Windows, not to this window: handing it
