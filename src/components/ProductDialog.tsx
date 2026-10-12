@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Package, Plus, Trash2, Loader2, Star } from 'lucide-react';
+import { X, Save, Package, Plus, Trash2, Loader2, Star, Camera} from 'lucide-react';
 import { PRODUCT_TYPES, isMeterBased } from '@/lib/product-types';
 import { productImageUrl } from '@/lib/product-image';
+import { CameraCapture } from '@/components/CameraCapture';
 import { MAX_ALTERNATE_IMAGES } from '@/lib/product-image-limits';
 
 interface ProductDialogProps {
@@ -78,6 +79,8 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
    */
   const [imageTouched, setImageTouched] = useState(false);
   const [altImageCompressing, setAltImageCompressing] = useState(false);
+  /** 'front' for the main photo, 'alternate' for the gallery, null when closed. */
+  const [cameraFor, setCameraFor] = useState<'front' | 'alternate' | null>(null);
   const [promoting, setPromoting] = useState(false);
 
   const galleryFull = alternateImages.length >= MAX_ALTERNATE_IMAGES;
@@ -168,6 +171,31 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
       setAlternateImages([]);
     }
   }, [product]);
+
+  /**
+   * Takes a photograph and puts it where it was asked for. The camera hands
+   * back an ordinary file, so it goes through the same compression as one
+   * chosen from disk and nothing downstream can tell them apart.
+   */
+  const usePhoto = async (file: File, slot: 'front' | 'alternate') => {
+    const setBusy = slot === 'front' ? setImageCompressing : setAltImageCompressing;
+    setBusy(true);
+    try {
+      const compressed = await compressImage(file);
+      if (slot === 'front') {
+        setFormData(prev => ({ ...prev, image: compressed }));
+        setImageTouched(true);
+      } else {
+        setAlternateImages(prev =>
+          prev.length >= MAX_ALTERNATE_IMAGES ? prev : [...prev, compressed]
+        );
+      }
+    } catch (err) {
+      console.error('Could not use that photo', err);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,6 +380,14 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                         }}
                       />
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => setCameraFor('front')}
+                      disabled={imageCompressing}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 font-bold text-xs hover:bg-emerald-100 disabled:opacity-50 transition-all"
+                    >
+                      <Camera size={14} /> Take Photo
+                    </button>
                     {(formData.image || (!imageTouched && productImageUrl(product))) && (
                       <button 
                         type="button" 
@@ -466,6 +502,17 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                   />
                 </label>
                 )}
+                {!galleryFull && (
+                  <button
+                    type="button"
+                    onClick={() => setCameraFor('alternate')}
+                    disabled={altImageCompressing}
+                    className="w-20 h-20 flex flex-col items-center justify-center gap-1 bg-emerald-50 text-emerald-700 rounded-xl border border-dashed border-emerald-200 font-bold text-[10px] hover:bg-emerald-100 disabled:opacity-50 transition-all"
+                  >
+                    <Camera size={16} />
+                    Camera
+                  </button>
+                )}
               </div>
             </div>
 
@@ -577,6 +624,13 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
           </div>
         </form>
       </div>
+      {cameraFor && (
+        <CameraCapture
+          title={cameraFor === 'front' ? 'Take the product photo' : 'Take another photo'}
+          onClose={() => setCameraFor(null)}
+          onCapture={(file) => void usePhoto(file, cameraFor)}
+        />
+      )}
     </div>
   );
 }

@@ -26,6 +26,22 @@ function createWindow() {
 
   win.loadURL(APP_URL);
 
+  // Taking a product photo needs the camera, and a window showing a hosted
+  // site is refused it by default — getUserMedia simply fails, with nothing
+  // on screen to explain why. The camera is allowed for our own pages and
+  // nothing else; every other permission a page might ask for is refused.
+  win.webContents.session.setPermissionRequestHandler((contents, permission, callback) => {
+    const fromOurApp = (contents.getURL() || '').startsWith(APP_URL);
+    callback(fromOurApp && permission === 'media');
+  });
+
+  // Chromium also asks this synchronously before listing devices.
+  if (typeof win.webContents.session.setPermissionCheckHandler === 'function') {
+    win.webContents.session.setPermissionCheckHandler((_contents, permission, origin) =>
+      permission === 'media' && (origin || '').startsWith(new URL(APP_URL).origin)
+    );
+  }
+
   // A WhatsApp or map link belongs to Windows, not to this window: handing it
   // to the system opens WhatsApp Desktop with the message already written.
   // Anything the app opens for itself — the print preview windows, a blob
