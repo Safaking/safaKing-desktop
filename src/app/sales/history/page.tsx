@@ -97,8 +97,8 @@ export default function SalesHistoryPage() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 py-3 sm:py-0 sm:h-16">
+            <div className="flex items-center gap-3 sm:gap-4">
               <Link href="/" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                 <ArrowLeft size={20} className="text-slate-500" />
               </Link>
@@ -108,18 +108,18 @@ export default function SalesHistoryPage() {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <div className="relative group">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative group flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
                 <input 
                   type="text" 
                   placeholder="Search by Bill No, Name, Phone..."
-                  className="pl-10 pr-4 py-2 bg-slate-100 border-transparent border focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl outline-none w-72 text-xs font-semibold transition-all"
+                  className="pl-10 pr-4 py-2 bg-slate-100 border-transparent border focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl outline-none w-full sm:w-72 text-xs font-semibold transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Link href="/sales" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs">
+              <Link href="/sales" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm transition-all font-bold text-xs whitespace-nowrap shrink-0">
                 <Plus size={16} /> POS / New Sale
               </Link>
             </div>
@@ -129,34 +129,37 @@ export default function SalesHistoryPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          {/* On a phone the far columns step aside rather than running off the
+              screen; tapping the order number still opens the full details. */}
+          <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Order / Bill</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status & Options</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                <th className="px-3 sm:px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Order / Bill</th>
+                <th className="px-3 sm:px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Customer</th>
+                <th className="hidden lg:table-cell px-3 sm:px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                <th className="px-3 sm:px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Total</th>
+                <th className="hidden md:table-cell px-3 sm:px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status & Options</th>
+                <th className="px-3 sm:px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={6} className="px-3 sm:px-6 py-12 text-center text-slate-400">
                     <Clock className="animate-spin mx-auto mb-2 text-indigo-600" size={24} />
                     Loading orders...
                   </td>
                 </tr>
               ) : filteredSales.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={6} className="px-3 sm:px-6 py-12 text-center text-slate-400 font-medium">
                     No sales orders found.
                   </td>
                 </tr>
               ) : filteredSales.map(sale => (
                 <tr key={sale.id} className="hover:bg-slate-50/80 transition-colors group">
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-6 py-4">
                     <div className="flex flex-col">
                       <span className="font-mono text-indigo-600 font-bold text-sm cursor-pointer hover:underline" onClick={() => setViewSale(sale)}>
                         {sale.orderNumber}
@@ -168,7 +171,7 @@ export default function SalesHistoryPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-6 py-4">
                     <div className="flex items-center gap-2">
                       <User size={14} className="text-slate-400 shrink-0" />
                       <div>
@@ -180,13 +183,13 @@ export default function SalesHistoryPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-xs text-slate-600">
+                  <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-xs text-slate-600">
                     <div className="flex items-center gap-1.5 font-medium">
                       <Calendar size={14} className="text-slate-400" />
                       {format(new Date(sale.createdAt), 'dd MMM yyyy HH:mm')}
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-bold text-slate-800 text-sm">
+                  <td className="px-3 sm:px-6 py-4 font-bold text-slate-800 text-sm">
                     ₹{sale.totalAmount.toLocaleString('en-IN')}
                     {sale.remainingAmount > 0 && (
                       <span className="block text-[10px] text-rose-600 font-bold">
@@ -194,7 +197,7 @@ export default function SalesHistoryPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="hidden md:table-cell px-3 sm:px-6 py-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 ${
                         (sale.remainingAmount || 0) <= 0
@@ -242,7 +245,7 @@ export default function SalesHistoryPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-3 sm:px-6 py-4 text-right">
                     <div className="flex justify-end gap-1">
                       <button
                         onClick={() => setViewSale(sale)}
@@ -297,6 +300,7 @@ export default function SalesHistoryPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </main>
 
