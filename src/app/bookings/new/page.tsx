@@ -18,8 +18,7 @@ import {
   MapPin,
   CreditCard,
   FileText,
-  Clock
-} from 'lucide-react';
+  Clock, ZoomIn} from 'lucide-react';
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import BillPreviewDialog from '@/components/BillPreviewDialog';
@@ -32,6 +31,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useBranchLogo } from '@/lib/branding';
 import { productImageUrl } from '@/lib/product-image';
+import { PhotoLightbox } from '@/components/ProductPhoto';
 
 interface Product {
   id: string;
@@ -71,6 +71,13 @@ export default function OdooBookingPage() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCatalogTypes, setSelectedCatalogTypes] = useState<string[]>([]);
+  /**
+   * The safa being looked at full size. A catalogue thumbnail is too small to
+   * tell one red safa from another — "छोटा फोटो आने से पकड़ नही पा रहे है" —
+   * so every card has a magnifier that opens the photograph without adding
+   * anything to the booking.
+   */
+  const [zoomed, setZoomed] = useState<{ src: string; name: string } | null>(null);
 
   /**
    * Which of the three steps is on screen.
@@ -669,9 +676,21 @@ export default function OdooBookingPage() {
                   const remaining = available - inCart;
                   const soldOut = available <= 0;
                   const maxedOut = !soldOut && remaining <= 0;
+                  const photo = productImageUrl(p);
                   return (
+                  <div key={p.id} className="relative">
+                  {photo && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomed({ src: photo, name: p.name })}
+                      title="See the photo big"
+                      aria-label={`See ${p.name} full size`}
+                      className="absolute top-1 right-1 z-10 rounded-md bg-slate-900/55 p-1 text-white hover:bg-slate-900/80"
+                    >
+                      <ZoomIn size={13} />
+                    </button>
+                  )}
                   <button
-                    key={p.id}
                     onClick={() => addToBooking(p)}
                     disabled={soldOut || maxedOut}
                     title={
@@ -730,6 +749,7 @@ export default function OdooBookingPage() {
                       </p>
                     </div>
                   </button>
+                  </div>
                   );
                 })}
              </div>
@@ -1074,6 +1094,10 @@ export default function OdooBookingPage() {
         onConfirm={handleBooking}
       />
       <BillPreviewDialog order={previewBill} type='RENTAL' onClose={() => setPreviewBill(null)} />
+
+      {zoomed && (
+        <PhotoLightbox src={zoomed.src} name={zoomed.name} onClose={() => setZoomed(null)} />
+      )}
     </div>
   );
 }

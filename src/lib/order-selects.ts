@@ -14,6 +14,10 @@ export const orderProductSelect = {
   salePrice: true,
   rentPrice: true,
   productType: true,
+  // Not the photo itself — that is fetched from /api/products/[id]/image —
+  // but the stamp that makes a replaced photo appear immediately while still
+  // letting the browser cache the old one forever.
+  updatedAt: true,
 } as const;
 
 /** The lines of an order, without dragging the photos along. */

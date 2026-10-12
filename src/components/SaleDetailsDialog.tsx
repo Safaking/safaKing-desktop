@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { X, User, Phone, MapPin, Calendar, Tag, Package, Palette, IndianRupee, FileText, CheckCircle2, Truck } from 'lucide-react';
+import { ProductPhoto } from '@/components/ProductPhoto';
 import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import { unassignedCount } from '@/lib/tying-split';
@@ -89,8 +90,15 @@ export default function SaleDetailsDialog({ sale, onClose }: SaleDetailsDialogPr
             </p>
             <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
               {sale.items?.map((item: any, idx: number) => (
-                <div key={idx} className="p-3 flex justify-between items-center text-xs">
-                  <div>
+                <div key={idx} className="p-3 flex justify-between items-center gap-3 text-xs">
+                  {/* Tap it to fill the screen — this is how the goods get
+                      found on the shelf when the slip has gone missing. */}
+                  <ProductPhoto
+                    productId={item.product?.id ?? item.productId}
+                    updatedAt={item.product?.updatedAt}
+                    name={item.product?.name || item.name}
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-800">{item.product?.name || item.name || 'Product'}</p>
                     <p className="text-slate-500">Qty: {item.quantity} × ₹{item.price}</p>
                   </div>

@@ -5,6 +5,7 @@ import { X, Phone, MapPin, Calendar, User, Package, IndianRupee, Clock, StickyNo
 import { format } from 'date-fns';
 import { unitLabel, rateSuffix } from '@/lib/product-types';
 import { unassignedCount, orderOwed } from '@/lib/tying-split';
+import { ProductPhoto } from '@/components/ProductPhoto';
 
 interface Props {
   rental: any | null;
@@ -106,6 +107,16 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
             <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
               {fmtDate(rental.startDate)} → {fmtDate(rental.endDate)}
             </p>
+            {/* Who took the booking, and when. Stored on every order since the
+                booking form started sending it; older orders simply have no
+                name to show. */}
+            {(rental.createdBy || rental.createdAt) && (
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Booked by{' '}
+                <span className="font-bold text-slate-500">{rental.createdBy || '—'}</span>
+                {rental.createdAt ? ` · ${fmtDate(rental.createdAt)}` : ''}
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -135,7 +146,14 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
               <div className="space-y-1.5">
                 {items.map((item: any, idx: number) => (
                   <div key={item.id ?? idx} className="flex items-center justify-between gap-3 text-xs">
-                    <div className="min-w-0">
+                    {/* Tap it to fill the screen — this is how the goods get
+                        found on the shelf when the slip has gone missing. */}
+                    <ProductPhoto
+                      productId={item.product?.id ?? item.productId}
+                      updatedAt={item.product?.updatedAt}
+                      name={item.product?.name || item.name}
+                    />
+                    <div className="min-w-0 flex-1">
                       <p className="font-bold text-slate-800 truncate">
                         {item.product?.name || item.name || 'Product'}
                       </p>
