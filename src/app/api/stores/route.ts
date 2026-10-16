@@ -36,7 +36,18 @@ export async function POST(req: Request) {
 }
 
 /**
- * Update a branch. Currently only the mark it trades under.
+ * The branch details that only a GST tax invoice needs. Each branch bills
+ * under its own GSTIN and address, so they are held per store rather than in
+ * one shop-wide setting.
+ */
+const GST_TEXT_FIELDS = [
+  'legalName', 'addressLine1', 'addressLine2', 'city', 'pincode',
+  'stateName', 'stateCode', 'phones', 'email', 'gstin', 'msmeNumber',
+  'bankName', 'bankAccount', 'bankIfsc', 'invoiceTerms', 'jurisdiction',
+] as const;
+
+/**
+ * Update a branch: the mark it trades under, and its billing details.
  *
  * Sending logo: null puts the branch back on the shop default rather than
  * blanking the bill, which is what "no choice made" has always meant here.
@@ -60,6 +71,15 @@ export async function PUT(req: Request) {
     }
     if (typeof body.name === 'string' && body.name.trim()) data.name = body.name.trim();
     if ('location' in body) data.location = body.location?.trim() || null;
+
+    for (const field of GST_TEXT_FIELDS) {
+      if (!(field in body)) continue;
+      const value = typeof body[field] === 'string' ? body[field].trim() : '';
+      // A GSTIN is always written in capitals, and is what the tax side of the
+      // bill keys off — a lower-case one would not match the buyer's records.
+      data[field] = value ? (field === 'gstin' ? value.toUpperCase() : value) : null;
+    }
+    if ('pricesIncludeTax' in body) data.pricesIncludeTax = !!body.pricesIncludeTax;
 
     if (!Object.keys(data).length) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });

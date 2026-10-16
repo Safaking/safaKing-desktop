@@ -295,6 +295,26 @@ export async function ensureDbSchema(force = false) {
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistRate" DOUBLE PRECISION DEFAULT 0;`,
       `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "artistPaid" BOOLEAN DEFAULT false;`,
 
+      // ── GST billing ───────────────────────────────────────────────────────
+      // A tax invoice is optional per sale: ticked at the till, off by default,
+      // because most counter customers want a plain bill.
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "gstBill" BOOLEAN DEFAULT false;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "customerGstin" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "customerStateCode" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "ewayBillNo" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "transport" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "lrNumber" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "station" TEXT;`,
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "freightAmount" DOUBLE PRECISION DEFAULT 0;`,
+      // The rate charged is stamped onto the line when the sale is made, so
+      // re-rating a product later cannot rewrite a bill already issued.
+      `ALTER TABLE "SaleItem" ADD COLUMN IF NOT EXISTS "hsnCode" TEXT;`,
+      `ALTER TABLE "SaleItem" ADD COLUMN IF NOT EXISTS "gstPercent" DOUBLE PRECISION;`,
+      // 5% is the rate on made-up textiles, which is nearly everything sold
+      // here; anything else is corrected per product.
+      `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "hsnCode" TEXT;`,
+      `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "gstPercent" DOUBLE PRECISION DEFAULT 5;`,
+
       // ── CashBook — admin confirmation of receipt ──────────────────────────
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3);`,
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedBy" TEXT;`,
@@ -303,6 +323,27 @@ export async function ensureDbSchema(force = false) {
 
       // ── Store — new columns ───────────────────────────────────────────────
       `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "logo" TEXT;`,
+      // Everything the law wants printed on a tax invoice. Held per branch
+      // because each one bills under its own GSTIN and address.
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "legalName" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "addressLine1" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "addressLine2" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "city" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "pincode" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "stateName" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "stateCode" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "phones" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "email" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "gstin" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "msmeNumber" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "bankName" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "bankAccount" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "bankIfsc" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "invoiceTerms" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "jurisdiction" TEXT;`,
+      // Counter prices are what the customer pays, tax included, so the bill
+      // works back from the price rather than adding to it.
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "pricesIncludeTax" BOOLEAN DEFAULT true;`,
       // Partapur keeps the mark it has always traded under. Matched on the name
       // because that is the only thing that identifies it across databases, and
       // only where nothing has been chosen yet, so an admin's pick is never

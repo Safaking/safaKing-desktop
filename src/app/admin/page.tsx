@@ -32,6 +32,7 @@ import EditUserDialog from '@/components/EditUserDialog';
 import VendorsPanel from '@/components/VendorsPanel';
 import WorkingHoursPanel from '@/components/WorkingHoursPanel';
 import StorePricesPanel from '@/components/StorePricesPanel';
+import StoreGstDialog from '@/components/StoreGstDialog';
 import ArtistLedgerDialog from '@/components/ArtistLedgerDialog';
 import { useAuth } from '@/lib/AuthContext';
 import { productImageUrl } from '@/lib/product-image';
@@ -76,6 +77,8 @@ export default function AdminPage() {
   
   // Stores state
   const [stores, setStores] = useState<StoreData[]>([]);
+  // Which branch's billing details are open for editing, if any.
+  const [gstStore, setGstStore] = useState<any | null>(null);
   const [newStoreName, setNewStoreName] = useState('');
   const [newStoreLocation, setNewStoreLocation] = useState('');
   const [addStoreLoading, setAddStoreLoading] = useState(false);
@@ -822,6 +825,27 @@ export default function AdminPage() {
                           );
                         })}
                       </div>
+
+                      {/* Everything a GST tax invoice has to carry. Filled in
+                          once per branch; until a GSTIN is there, a bill can
+                          only print as a bill of supply. */}
+                      <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            GSTIN
+                          </span>
+                          <span className={`text-xs font-bold ${(store as any).gstin ? 'text-slate-700' : 'text-amber-600'}`}>
+                            {(store as any).gstin || 'नहीं भरा — bill of supply ही छपेगा'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setGstStore(store)}
+                          className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold border bg-white text-slate-600 border-slate-200 hover:border-amber-400 hover:text-amber-700 transition-all"
+                        >
+                          GST details
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1292,6 +1316,12 @@ export default function AdminPage() {
           onClose={() => setArtistLedger(null)}
         />
       )}
+
+      <StoreGstDialog
+        store={gstStore}
+        onSaved={fetchStores}
+        onClose={() => setGstStore(null)}
+      />
     </div>
   );
 }

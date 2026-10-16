@@ -65,6 +65,10 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     isSellable: true,
     description: '',
     image: '',
+    // Only a GST tax invoice uses these. 5% is the rate on made-up textiles,
+    // which is nearly everything here.
+    hsnCode: '',
+    gstPercent: '5',
   });
   const [alternateImages, setAlternateImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -160,6 +164,8 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         isSellable: product.isSellable ?? true,
         description: product.description || '',
         image: product.image || '',
+        hsnCode: (product as any).hsnCode || '',
+        gstPercent: ((product as any).gstPercent ?? 5).toString(),
       });
       setImageTouched(false);
       setAlternateImages(Array.isArray(product.alternateImages) ? product.alternateImages : []);
@@ -213,6 +219,8 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         salePrice: parseFloat(formData.salePrice || '0'),
         discount: parseFloat(formData.discount || '0'),
         totalQuantity: parseInt(formData.totalQuantity || '0'),
+        hsnCode: formData.hsnCode,
+        gstPercent: parseFloat(formData.gstPercent || '5'),
         alternateImages,
       };
       // Left out entirely unless it changed: the API only writes the keys it
@@ -561,6 +569,32 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                   onChange={e => setFormData({...formData, discount: e.target.value})}
                 />
               </div>
+            </div>
+
+            {/* Printed on a GST bill only. Left alone, every item bills at
+                5% with a blank HSN, which is right for cloth and safas. */}
+            <div>
+              <label className="block text-xs font-bold text-amber-600 uppercase tracking-widest mb-1">HSN / SAC</label>
+              <input
+                type="text"
+                placeholder="54071011"
+                className="w-full px-4 py-3 bg-amber-50/40 border border-amber-200 rounded-xl outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/5 transition-all font-bold text-amber-900"
+                value={formData.hsnCode}
+                onChange={e => setFormData({...formData, hsnCode: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-amber-600 uppercase tracking-widest mb-1">GST %</label>
+              <select
+                className="w-full px-4 py-3 bg-amber-50/40 border border-amber-200 rounded-xl outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/5 transition-all font-bold text-amber-900"
+                value={formData.gstPercent}
+                onChange={e => setFormData({...formData, gstPercent: e.target.value})}
+              >
+                {['0', '5', '12', '18', '28'].map(rate => (
+                  <option key={rate} value={rate}>{rate}%</option>
+                ))}
+              </select>
             </div>
 
             <div>

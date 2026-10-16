@@ -20,6 +20,10 @@ model Product {
   productType   String?
   rentPrice     Float        @default(0)
   salePrice     Float        @default(0)
+  /// The code and rate this item is taxed under. Both appear on every line of
+  /// a tax invoice, and a wrong one is the shop's problem, not the customer's.
+  hsnCode       String?
+  gstPercent    Float        @default(5)
   discount      Float        @default(0)
   totalQuantity Int          @default(0)
   isRentable    Boolean      @default(true)
@@ -221,6 +225,21 @@ model Sale {
   totalAmount      Float
   storeId          String?
   discount         Float             @default(0)
+  /// Whether this sale is to be billed as a GST tax invoice. Most counter
+  /// sales are not — the customer wants a plain bill — so it is asked for at
+  /// the till and off by default.
+  gstBill          Boolean           @default(false)
+  /// A registered buyer claims the tax back, so their number and state go on
+  /// the bill. A blank GSTIN simply means an unregistered customer.
+  customerGstin    String?
+  customerStateCode String?
+  /// What the trade writes on a cloth bill: who carried it and under what
+  /// paperwork.
+  ewayBillNo       String?
+  transport        String?
+  lrNumber         String?
+  station          String?
+  freightAmount    Float             @default(0)
   // Safa tying can be bought outright too, not just with a rental, so these
   // mirror the equivalent fields on Rental.
   tieSafa          Boolean           @default(false)
@@ -268,6 +287,10 @@ model SaleItem {
   productId String
   quantity  Int
   price     Float
+  /// Copied from the product when the sale is made. A rate changed next year
+  /// must never rewrite last year's tax invoice.
+  hsnCode    String?
+  gstPercent Float?
   product   Product @relation(fields: [productId], references: [id])
   sale      Sale    @relation(fields: [saleId], references: [id])
 }
@@ -290,6 +313,31 @@ model Store {
   id         String           @id @default(uuid())
   name       String
   location   String?
+  /// Everything a GST tax invoice has to say about the seller. Empty until an
+  /// admin fills it in, and the bill says plainly that it is not a tax invoice
+  /// until the GSTIN is there — a bill claiming to be one without it is worse
+  /// than no bill.
+  legalName    String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  pincode      String?
+  stateName    String?
+  /// The two digits that decide CGST+SGST against IGST. Rajasthan is 08.
+  stateCode    String?
+  phones       String?
+  email        String?
+  gstin        String?
+  msmeNumber   String?
+  bankName     String?
+  bankAccount  String?
+  bankIfsc     String?
+  invoiceTerms String?
+  jurisdiction String?
+  /// Whether the shop's prices already hold the tax. A counter that quotes
+  /// "₹400" to a customer means ₹400 all in; a wholesaler quoting a rate per
+  /// metre usually adds tax on top.
+  pricesIncludeTax Boolean @default(true)
   /// This branch's logo, as a public asset path. Partapur trades under the
   /// old Joshi Safa House mark; the newer branches use Safa King. Null means
   /// the shop default, so a new branch works before anyone sets one.

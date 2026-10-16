@@ -95,6 +95,11 @@ export default function SalesPage() {
   // whether a vendor happens to be selected — otherwise the vendor list sat on
   // screen during an ordinary walk-in sale and got picked by accident.
   const [wholesale, setWholesale] = useState(false);
+  // A GST tax invoice is the exception, not the rule: most people at the
+  // counter want a plain bill. Asked for with a tick at payment time, and the
+  // buyer's GSTIN only appears once it is ticked.
+  const [gstBill, setGstBill] = useState(false);
+  const [gstBuyer, setGstBuyer] = useState({ gstin: '', stateCode: '' });
 
   /**
    * Which of the three steps is on screen.
@@ -367,6 +372,9 @@ export default function SalesPage() {
           // A figure is an advance: the rest is collected when they come for
           // the goods, and lands in that day's cash book, not today's.
           paidAmount: paidAmount === '' ? undefined : advanceAmount,
+          gstBill,
+          customerGstin: gstBill ? gstBuyer.gstin : null,
+          customerStateCode: gstBill ? gstBuyer.stateCode : null,
         })
       });
 
@@ -377,7 +385,10 @@ export default function SalesPage() {
         await invalidateAfterSale();
         setRecentSale(data);
         setShowSuccess(true);
-        generateInvoicePDF(data, 'SALE');
+        // A GST sale prints the tax invoice; everything else prints the
+        // ordinary bill, exactly as before.
+        if (gstBill && data?.id) window.open(`/api/bill/sale/${data.id}`, '_blank');
+        else generateInvoicePDF(data, 'SALE');
         setItems([]);
         setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
         setDiscount('');
@@ -387,6 +398,8 @@ export default function SalesPage() {
         setTyingCountEdited(false);
         setVendorId('');
         setPaidAmount('');
+        setGstBill(false);
+        setGstBuyer({ gstin: '', stateCode: '' });
       }
     } catch (error) {
       alert('Network error');
@@ -972,6 +985,80 @@ export default function SalesPage() {
                       </p>
                     </div>
                   )}
+
+                  {/* GST bill — off unless asked for. A plain bill is what
+                       nearly every counter customer wants; a firm buying for
+                       its own books needs the tax invoice, and that is the
+                       only time a GSTIN is worth typing. */}
+                  <div className="pt-3 border-t border-white/10 space-y-2">
+                    <div
+                      onClick={() => setGstBill(v => !v)}
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none transition-all ${
+                        gstBill
+                          ? 'bg-amber-500/10 border-amber-400/50'
+                          : 'bg-white/5 border-white/20 hover:border-white/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={gstBill}
+                          readOnly
+                          className="w-4 h-4 accent-amber-500 pointer-events-none"
+                        />
+                        <span className="text-xs font-black text-white">GST बिल / Tax Invoice</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {gstBill ? 'ON' : 'वैकल्पिक'}
+                      </span>
+                    </div>
+
+                    {gstBill && (
+                      <div className="space-y-2 rounded-lg bg-amber-500/5 border border-amber-400/30 p-2.5">
+                        <div>
+                          <label className="block text-[10px] font-black text-amber-300 uppercase tracking-widest mb-1">
+                            ग्राहक GSTIN (optional)
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={15}
+                            placeholder="08ABCDE1234F1Z5"
+                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white uppercase tracking-wider outline-none focus:border-amber-400 placeholder:text-slate-500 placeholder:tracking-normal"
+                            value={gstBuyer.gstin}
+                            onChange={e => {
+                              const gstin = e.target.value.toUpperCase();
+                              // The first two digits of a GSTIN *are* the
+                              // state code, so typing one fills the other and
+                              // the two can't end up disagreeing.
+                              setGstBuyer(g => ({
+                                ...g,
+                                gstin,
+                                stateCode: /^\d{2}/.test(gstin) ? gstin.slice(0, 2) : g.stateCode,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-amber-300 uppercase tracking-widest mb-1">
+                            राज्य कोड / State code
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            placeholder="08"
+                            className="w-24 px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white outline-none focus:border-amber-400 placeholder:text-slate-500"
+                            value={gstBuyer.stateCode}
+                            onChange={e =>
+                              setGstBuyer(g => ({ ...g, stateCode: e.target.value.replace(/\D/g, '') }))
+                            }
+                          />
+                          <p className="text-[10px] font-bold text-slate-400 mt-1">
+                            अपने राज्य में CGST+SGST, बाहर IGST — यही कोड तय करता है
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="pt-3 border-t border-white/10 flex justify-between items-end">
                      <div>

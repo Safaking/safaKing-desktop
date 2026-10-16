@@ -46,6 +46,26 @@ async function hasSalePickupColumns() {
   return salePickupColumns;
 }
 
+/**
+ * Whether Sale carries the GST billing columns yet. Same reason as the pickup
+ * probe above: the deploy can land before anyone runs the migration, and a
+ * sale that fails at the till is worse than a sale with no GST flag.
+ */
+let saleGstColumns: boolean | null = null;
+
+async function hasSaleGstColumns() {
+  if (saleGstColumns !== null) return saleGstColumns;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok FROM information_schema.columns
+      WHERE table_name = 'Sale' AND column_name = 'gstBill' LIMIT 1`;
+    saleGstColumns = rows.length > 0;
+  } catch {
+    saleGstColumns = false;
+  }
+  return saleGstColumns;
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
   const { 
@@ -75,6 +95,9 @@ export async function POST(request: Request) {
     pickupPhone,
     pickupDate,
     createdBy,
+    gstBill,
+    customerGstin,
+    customerStateCode,
   } = body;
 
   // Tying on its own is a real sale: the customer brings their own safa and
@@ -93,6 +116,27 @@ export async function POST(request: Request) {
   }
 
   const pickupReady = await hasSalePickupColumns();
+  const gstReady = await hasSaleGstColumns();
+
+  // The tax rate in force on the day of sale, stamped onto each line. Read
+  // once here rather than per line, and only when the columns exist: a bill
+  // reprinted next year must show what was actually charged, not whatever the
+  // product has been re-rated to since.
+  const taxByProduct = new Map<string, { hsnCode: string | null; gstPercent: number | null }>();
+  if (gstReady && Array.isArray(items) && items.length > 0) {
+    try {
+      const rows = await prisma.product.findMany({
+        where: { id: { in: items.map((item: any) => item.productId) } },
+        select: { id: true, hsnCode: true, gstPercent: true },
+      });
+      for (const row of rows) {
+        taxByProduct.set(row.id, { hsnCode: row.hsnCode, gstPercent: row.gstPercent });
+      }
+    } catch {
+      // Not yet migrated on this database — the bill falls back to the
+      // product's current rate, which is no worse than before.
+    }
+  }
 
   try {
     const total = parseFloat(totalAmount?.toString() || '0') || 0;
@@ -145,6 +189,15 @@ export async function POST(request: Request) {
                 pickupDate: pickupDate?.trim() || null,
               }
             : {}),
+          // A GST bill is asked for at the till; the buyer's own GSTIN and
+          // state only mean anything on one, so they are dropped otherwise.
+          ...(gstReady
+            ? {
+                gstBill: !!gstBill,
+                customerGstin: gstBill ? (customerGstin?.trim()?.toUpperCase() || null) : null,
+                customerStateCode: gstBill ? (customerStateCode?.trim() || null) : null,
+              }
+            : {}),
           tieSafa: !!tieSafa,
           safaShape: tieSafa ? (safaShape || null) : null,
           safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,
@@ -163,6 +216,7 @@ export async function POST(request: Request) {
               productId: item.productId,
               quantity: parseInt(item.quantity?.toString() || '1') || 1,
               price: parseFloat(item.price?.toString() || '0') || 0,
+              ...(taxByProduct.has(item.productId) ? taxByProduct.get(item.productId)! : {}),
             })),
           },
         },

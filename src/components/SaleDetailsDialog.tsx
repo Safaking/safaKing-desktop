@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, User, Phone, MapPin, Calendar, Tag, Package, Palette, IndianRupee, FileText, CheckCircle2, Truck } from 'lucide-react';
+import { X, User, Phone, MapPin, Calendar, Tag, Package, Palette, IndianRupee, FileText, CheckCircle2, Truck, Receipt } from 'lucide-react';
 import { ProductPhoto } from '@/components/ProductPhoto';
 import { format } from 'date-fns';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
@@ -204,13 +204,28 @@ export default function SaleDetailsDialog({ sale, onClose }: SaleDetailsDialogPr
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
-          <button
-            onClick={() => generateInvoicePDF(sale, 'SALE')}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm"
-          >
-            <FileText size={15} /> Download Invoice
-          </button>
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => generateInvoicePDF(sale, 'SALE')}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm"
+            >
+              <FileText size={15} /> Download Invoice
+            </button>
+            {/* Offered on every sale, not only the ones ticked for GST at the
+                till: customers come back a week later asking for a tax
+                invoice, and refusing them would mean re-entering the sale. */}
+            <button
+              onClick={() => window.open(`/api/bill/sale/${sale.id}`, '_blank')}
+              className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm ${
+                sale.gstBill
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-700'
+              }`}
+            >
+              <Receipt size={15} /> GST Bill
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs transition-all"

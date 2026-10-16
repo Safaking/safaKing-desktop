@@ -244,6 +244,10 @@ export async function POST(request: Request) {
         description: body.description || null,
         category: body.category || null,
         productType: body.productType || null,
+        hsnCode: body.hsnCode?.trim() || null,
+        // Made-up textiles are 5%, which is nearly everything on these
+        // shelves; a product on another rate is corrected individually.
+        gstPercent: Number.isFinite(parseFloat(body.gstPercent)) ? parseFloat(body.gstPercent) : 5,
         rentPrice,
         salePrice,
         discount,
@@ -278,7 +282,7 @@ export async function PUT(request: Request) {
     const allowedFields = [
       'name', 'sku', 'description', 'category', 'productType',
       'rentPrice', 'salePrice', 'discount', 'totalQuantity', 
-      'isRentable', 'isSellable', 'image'
+      'isRentable', 'isSellable', 'image', 'hsnCode', 'gstPercent'
     ];
 
     Object.keys(data).forEach(key => {
@@ -287,6 +291,15 @@ export async function PUT(request: Request) {
       }
     });
     
+    if (updateData.hsnCode !== undefined) {
+      updateData.hsnCode = updateData.hsnCode?.toString().trim() || null;
+    }
+
+    if (updateData.gstPercent !== undefined) {
+      const rate = parseFloat(updateData.gstPercent?.toString() || '');
+      updateData.gstPercent = Number.isFinite(rate) ? rate : 5;
+    }
+
     if (updateData.rentPrice !== undefined) {
       updateData.rentPrice = parseFloat(updateData.rentPrice?.toString() || '0') || 0;
     }
