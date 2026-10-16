@@ -783,8 +783,13 @@ export default function SalesPage() {
          </div>
 
          {/* COLUMN 3: CART & TOTALS (28%) */}
-         <div className={`${step === 1 ? 'w-[32%]' : step === 3 ? 'w-full max-w-2xl mx-auto' : 'hidden'} flex flex-col gap-2 shrink-0 overflow-hidden`}>
-            <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+         {/* At step 1 this column is a fixed-height cart with its own scrolling
+             list. At step 3 it carries the cart, tying and the whole payment
+             panel, which together run past the bottom of the screen — so the
+             column scrolls as one and its children size to their content.
+             Clipping them instead put the pay button out of reach. */}
+         <div className={`${step === 1 ? 'w-[32%]' : step === 3 ? 'w-full max-w-2xl mx-auto' : 'hidden'} flex flex-col gap-2 shrink-0 ${step === 3 ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+            <div className={`${step === 3 ? 'shrink-0' : 'flex-1'} bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden`}>
                <div className="p-3 border-b border-slate-50 flex justify-between items-center shrink-0">
                   <div className="flex items-center gap-2">
                     <ShoppingCart size={18} className="text-emerald-600" />
@@ -793,7 +798,7 @@ export default function SalesPage() {
                   <span className="text-[11px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full uppercase">{items.length} items</span>
                </div>
 
-               <div className="flex-1 overflow-y-auto p-3 space-y-2">
+               <div className={`${step === 3 ? 'max-h-48 overflow-y-auto' : 'flex-1 overflow-y-auto'} p-3 space-y-2`}>
                   {items.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-300">
                        <ShoppingCart size={32} strokeWidth={1} />
