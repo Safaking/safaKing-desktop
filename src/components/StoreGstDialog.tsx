@@ -44,7 +44,6 @@ export default function StoreGstDialog({ store, onSaved, onClose }: Props) {
       invoiceTerms: text(store.invoiceTerms),
       jurisdiction: text(store.jurisdiction),
       logoText: text(store.logoText),
-      rentalSacCode: text(store.rentalSacCode),
     });
     // Counter prices in this trade are quoted tax-inclusive, so that is the
     // default for a branch that has never been asked.
@@ -152,8 +151,7 @@ export default function StoreGstDialog({ store, onSaved, onClose }: Props) {
             {field("बैंक", "bankName", "PNB", "half")}
             {field("IFSC", "bankIfsc", "PUNB0356200", "half", true)}
             {field("खाता संख्या", "bankAccount", "3562002100023383", "full")}
-            {field("किराये का SAC कोड / Rental SAC", "rentalSacCode", "997329", "half")}
-            {field("न्यायक्षेत्र / Jurisdiction", "jurisdiction", "Banswara", "half")}
+            {field("न्यायक्षेत्र / Jurisdiction", "jurisdiction", "Banswara", "full")}
             <div className="col-span-2">
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
                 शर्तें / Terms (एक पंक्ति = एक शर्त)

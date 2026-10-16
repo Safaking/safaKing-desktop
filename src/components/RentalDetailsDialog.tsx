@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Phone, MapPin, Calendar, User, Package, IndianRupee, Clock, StickyNote, Receipt } from 'lucide-react';
+import { X, Phone, MapPin, Calendar, User, Package, IndianRupee, Clock, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { unitLabel, rateSuffix } from '@/lib/product-types';
 import { unassignedCount, orderOwed } from '@/lib/tying-split';
@@ -268,23 +268,11 @@ export default function RentalDetailsDialog({ rental, onClose }: Props) {
           </Section>
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3 rounded-b-3xl flex gap-2">
-          {/* Only for a hire that was ticked for GST at the counter. An
-              ordinary hire had no tax charged on it, so it has no tax invoice
-              to print. */}
-          {rental.gstBill && (
-            <button
-              type="button"
-              onClick={() => window.open(`/api/bill/rental/${rental.id}`, '_blank')}
-              className="shrink-0 px-4 py-3 rounded-2xl bg-amber-500 text-white text-sm font-black hover:bg-amber-600 transition-all flex items-center gap-2"
-            >
-              <Receipt size={15} /> GST Bill
-            </button>
-          )}
+        <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3 rounded-b-3xl">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-2xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800 transition-all"
+            className="w-full py-3 rounded-2xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800 transition-all"
           >
             Close
           </button>

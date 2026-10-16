@@ -170,11 +170,6 @@ model Rental {
   safaTyingDate    String?
   tieSafaCharge    Float             @default(0)
   discount         Float             @default(0)
-  /// Whether this hire is to be billed as a GST tax invoice. Asked for at the
-  /// counter like a sale, and off by default.
-  gstBill          Boolean           @default(false)
-  customerGstin    String?
-  customerStateCode String?
   paymentMethod    String?           @default("CASH")
   pickupName       String?
   pickupPhone      String?
@@ -344,10 +339,6 @@ model Store {
   /// "₹400" to a customer means ₹400 all in; a wholesaler quoting a rate per
   /// metre usually adds tax on top.
   pricesIncludeTax Boolean @default(true)
-  /// Renting out a safa is a supply of service, so it bills under a SAC code
-  /// rather than a product's HSN. One code covers the shop's hire business.
-  rentalSacCode    String?
-  rentalGstPercent Float             @default(5)
   /// This branch's logo, as a public asset path. Partapur trades under the
   /// old Joshi Safa House mark; the newer branches use Safa King. Null means
   /// the shop default, so a new branch works before anyone sets one.

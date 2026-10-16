@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProducts, useSafaOptions, useStores, invalidateAfterRentalChange } from '@/lib/data';
-import { buildBill } from '@/lib/gst';
 import { 
   Calendar, 
   Package, 
@@ -113,10 +112,6 @@ export default function OdooBookingPage() {
     marriageDate: '',
   });
   const [discount, setDiscount] = useState('0');
-  // A GST tax invoice is the exception on a hire too: a tick at the counter,
-  // off by default, and the hirer's GSTIN only once it is ticked.
-  const [gstBill, setGstBill] = useState(false);
-  const [gstBuyer, setGstBuyer] = useState({ gstin: '', stateCode: '' });
   const [safaPricingConfig, setSafaPricingConfig] = useState({
     roundedPrice: 50,
     jodhpuriPrice: 50,
@@ -267,53 +262,7 @@ export default function OdooBookingPage() {
     setItems(prev => prev.filter(i => i.productId !== productId));
   };
 
-  /** Days charged. A one-day hire is a day, not nothing. */
-  const hireDays = React.useMemo(() => {
-    if (!dates.start || !dates.end) return 1;
-    const from = new Date(dates.start).getTime();
-    const to = new Date(dates.end).getTime();
-    if (Number.isNaN(from) || Number.isNaN(to)) return 1;
-    return Math.max(1, Math.round((to - from) / 86400000) || 1);
-  }, [dates.start, dates.end]);
-
-  const branch: any = React.useMemo(
-    () => (Array.isArray(storeData) ? storeData : []).find((s: any) => s.id === selectedStore) ?? null,
-    [storeData, selectedStore]
-  );
-  const pricesIncludeTax = branch?.pricesIncludeTax !== false;
-
-  /**
-   * The tax invoice this hire would produce, worked out with the same
-   * function the printed bill uses — so what is taken at the counter and the
-   * NET PAYABLE on the paper cannot disagree.
-   */
-  const gstPreview = React.useMemo(() => {
-    if (!gstBill) return null;
-    const rate = branch?.rentalGstPercent ?? 5;
-    const sac = branch?.rentalSacCode ?? null;
-    const lines = items.map(i => ({
-      name: i.name,
-      hsnCode: sac,
-      gstPercent: rate,
-      quantity: i.quantity,
-      rate: i.pricePerDay * hireDays,
-    }));
-    if (tieSafa && getSafaCharge() > 0) {
-      lines.push({ name: 'Safa tying', hsnCode: sac, gstPercent: rate, quantity: 1, rate: getSafaCharge() });
-    }
-    if (lines.length === 0) return null;
-    return buildBill({
-      lines,
-      sellerStateCode: branch?.stateCode ?? null,
-      buyerStateCode: gstBuyer.stateCode || branch?.stateCode || null,
-      pricesIncludeTax,
-      discount: parseFloat(discount) || 0,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gstBill, items, tieSafa, selectedStyles, discount, branch, gstBuyer.stateCode, pricesIncludeTax, hireDays]);
-
   const calculateTotal = () => {
-    if (gstPreview) return gstPreview.net;
     let sum = items.reduce((s, i) => s + (i.pricePerDay * i.quantity), 0);
     if (tieSafa) sum += getSafaCharge();
     const discountVal = parseFloat(discount) || 0;
@@ -398,9 +347,6 @@ export default function OdooBookingPage() {
           tieSafaCharge: getSafaCharge(),
           createdBy: user?.username || user?.name || null,
           discount: parseFloat(discount || '0'),
-          gstBill,
-          customerGstin: gstBill ? gstBuyer.gstin : null,
-          customerStateCode: gstBill ? gstBuyer.stateCode : null,
           paymentMethod,
         })
       });
@@ -1026,80 +972,6 @@ export default function OdooBookingPage() {
                       onChange={(e) => setPaidAmount(e.target.value)}
                     />
                    </div>
-                </div>
-
-                {/* GST bill — off unless asked for. Renting is a supply of
-                     service, so the lines carry the shop's SAC code, not an
-                     HSN. An ordinary hire is untouched by any of this. */}
-                <div className="pt-3 border-t border-white/10 space-y-2">
-                  <div
-                    onClick={() => setGstBill(v => !v)}
-                    className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none transition-all ${
-                      gstBill ? 'bg-amber-500/10 border-amber-400/50' : 'bg-white/5 border-white/20 hover:border-white/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <input type="checkbox" checked={gstBill} readOnly className="w-4 h-4 accent-amber-500 pointer-events-none" />
-                      <span className="text-xs font-black text-white">GST बिल / Tax Invoice</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400">{gstBill ? 'ON' : 'वैकल्पिक'}</span>
-                  </div>
-
-                  {gstBill && (
-                    <div className="space-y-2 rounded-lg bg-amber-500/5 border border-amber-400/30 p-2.5">
-                      <div>
-                        <label className="block text-[10px] font-black text-amber-300 uppercase tracking-widest mb-1">
-                          ग्राहक GSTIN (optional)
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={15}
-                          placeholder="08ABCDE1234F1Z5"
-                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white uppercase tracking-wider outline-none focus:border-amber-400 placeholder:text-slate-500 placeholder:tracking-normal"
-                          value={gstBuyer.gstin}
-                          onChange={e => {
-                            const gstin = e.target.value.toUpperCase();
-                            setGstBuyer(g => ({
-                              ...g,
-                              gstin,
-                              stateCode: /^\d{2}/.test(gstin) ? gstin.slice(0, 2) : g.stateCode,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-amber-300 uppercase tracking-widest mb-1">
-                          राज्य कोड / State code
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={2}
-                          placeholder="08"
-                          className="w-24 px-3 py-2 bg-white/10 border border-white/20 rounded text-sm font-black text-white outline-none focus:border-amber-400 placeholder:text-slate-500"
-                          value={gstBuyer.stateCode}
-                          onChange={e => setGstBuyer(g => ({ ...g, stateCode: e.target.value.replace(/\D/g, '') }))}
-                        />
-                      </div>
-
-                      {gstPreview && (
-                        <div className="pt-2 border-t border-amber-400/20 space-y-1">
-                          <div className="flex justify-between text-[11px] font-bold text-slate-300">
-                            <span>{hireDays} दिन का किराया / Taxable</span>
-                            <span>₹{gstPreview.taxable.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px] font-bold text-amber-300">
-                            <span>{gstPreview.interState ? 'IGST' : 'CGST + SGST'}</span>
-                            <span>{pricesIncludeTax ? '' : '+ '}₹{gstPreview.totalTax.toFixed(2)}</span>
-                          </div>
-                          {!branch?.rentalSacCode && (
-                            <p className="text-[10px] font-bold text-amber-400/80 pt-1">
-                              SAC कोड नहीं भरा — बिल पर खाली छपेगा
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 <div className="pt-3 flex justify-between items-end">
