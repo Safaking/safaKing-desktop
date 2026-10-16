@@ -41,6 +41,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     });
     if (!sale) return plain('That sale could not be found.', 404);
 
+    // A tax invoice belongs to a sale that was rung up as one. Working tax
+    // backwards out of an ordinary sale would put a tax breakdown on a bill
+    // where none was ever charged, so that sale keeps its ordinary bill.
+    if (!sale.gstBill) {
+      return plain(
+        `${sale.orderNumber} was not billed with GST — use Download Invoice for its ordinary bill.`,
+        404
+      );
+    }
+
     // A sale without its own branch still has to print, so fall back to the
     // only store rather than refusing.
     const store = sale.store ?? (await prisma.store.findFirst());
@@ -68,12 +78,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       lines,
       sellerStateCode: store?.stateCode ?? null,
       buyerStateCode: sale.customerStateCode ?? null,
-      // Tax goes on top only for a sale that was rung up as a GST sale — that
-      // is the one where the till actually collected it. Pulling a bill for an
-      // ordinary sale afterwards must still total what the customer paid, so
-      // the tax is worked back out of the price instead of added to it.
-      // Otherwise a ₹800 sale would print a bill demanding ₹840.
-      pricesIncludeTax: sale.gstBill ? (store?.pricesIncludeTax ?? true) : true,
+      pricesIncludeTax: store?.pricesIncludeTax ?? true,
       freight: sale.freightAmount ?? 0,
       discount: sale.discount ?? 0,
     });

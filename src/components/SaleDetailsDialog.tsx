@@ -212,19 +212,17 @@ export default function SaleDetailsDialog({ sale, onClose }: SaleDetailsDialogPr
             >
               <FileText size={15} /> Download Invoice
             </button>
-            {/* Offered on every sale, not only the ones ticked for GST at the
-                till: customers come back a week later asking for a tax
-                invoice, and refusing them would mean re-entering the sale. */}
-            <button
-              onClick={() => window.open(`/api/bill/sale/${sale.id}`, '_blank')}
-              className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm ${
-                sale.gstBill
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-700'
-              }`}
-            >
-              <Receipt size={15} /> GST Bill
-            </button>
+            {/* Only for a sale that was ticked for GST at the till. An
+                ordinary sale had no tax charged on it, so it has no tax
+                invoice to print. */}
+            {sale.gstBill && (
+              <button
+                onClick={() => window.open(`/api/bill/sale/${sale.id}`, '_blank')}
+                className="px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-sm bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Receipt size={15} /> GST Bill
+              </button>
+            )}
           </div>
           <button
             onClick={onClose}
