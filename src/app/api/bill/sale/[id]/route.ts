@@ -146,19 +146,21 @@ function sampleDoc(): BillDoc {
   return {
     seller: {
       name: 'JOSHI SAFA HOUSE',
-      lines: ['Near Pandya Memorial School, Char Khamba', 'Partapur, Banswara (Raj) 327024'],
-      phone: '+91 90013 47143, 76918 56577',
-      email: 'joshisafahouse@gmail.com',
+      lines: ['Near Pandya Memorial School', 'Char Khamba', 'Partapur, Dist. Banswara (Rajasthan) 327024'],
+      phone: '+91 90013 47143, +91 76918 56577',
+      email: 'safakingn111@gmail.com',
       gstin: '08DBNPJ9280C1ZC',
       stateName: 'RAJASTHAN',
       stateCode: '08',
       // Placeholders. These were lifted off a supplier's own bill while the
       // layout was being matched, and someone's real account number has no
       // business sitting in a demo.
-      msmeNumber: 'UDYAM-RJ-00-0000000',
-      bankName: 'BANK NAME',
-      bankAccount: '0000000000000000',
-      bankIfsc: 'XXXX0000000',
+      // The shop prints no bank block and has no MSME number on the bill, so
+      // the sample does not either — it is here to check the real layout.
+      msmeNumber: null,
+      bankName: null,
+      bankAccount: null,
+      bankIfsc: null,
       terms: 'Interest at 18% is charged after 30 days from the invoice date.\nGoods are forwarded at the buyer’s risk.\nPayment by account payee cheque only.',
       jurisdiction: 'Banswara',
       logoText: '|| SHREE GANESHAY NAMAH ||',
