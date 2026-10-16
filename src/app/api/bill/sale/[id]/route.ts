@@ -68,7 +68,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       lines,
       sellerStateCode: store?.stateCode ?? null,
       buyerStateCode: sale.customerStateCode ?? null,
-      pricesIncludeTax: store?.pricesIncludeTax ?? true,
+      // Tax goes on top only for a sale that was rung up as a GST sale — that
+      // is the one where the till actually collected it. Pulling a bill for an
+      // ordinary sale afterwards must still total what the customer paid, so
+      // the tax is worked back out of the price instead of added to it.
+      // Otherwise a ₹800 sale would print a bill demanding ₹840.
+      pricesIncludeTax: sale.gstBill ? (store?.pricesIncludeTax ?? true) : true,
       freight: sale.freightAmount ?? 0,
       discount: sale.discount ?? 0,
     });
