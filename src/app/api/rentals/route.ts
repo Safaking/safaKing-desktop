@@ -61,6 +61,29 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * Whether Rental carries the GST billing columns yet.
+ *
+ * Schema changes land through /api/admin/migrate rather than on boot, so a
+ * deploy can reach Vercel minutes before the migration does. A booking that
+ * fails at the counter in that window is worse than one with no GST flag.
+ * Asked once per process and remembered.
+ */
+let rentalGstColumns: boolean | null = null;
+
+async function hasRentalGstColumns() {
+  if (rentalGstColumns !== null) return rentalGstColumns;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok FROM information_schema.columns
+      WHERE table_name = 'Rental' AND column_name = 'gstBill' LIMIT 1`;
+    rentalGstColumns = rows.length > 0;
+  } catch {
+    rentalGstColumns = false;
+  }
+  return rentalGstColumns;
+}
+
 export async function POST(request: Request) {
   console.log('RENTAL POST API HIT');
   const body = await request.json();
@@ -92,11 +115,16 @@ export async function POST(request: Request) {
     discount,
     paymentMethod,
     createdBy,
+    gstBill,
+    customerGstin,
+    customerStateCode,
   } = body;
 
   if (!customerName || !customerPhone || !startDate || !endDate || !items || items.length === 0) {
     return NextResponse.json({ error: 'Name, Phone, and Dates are required' }, { status: 400 });
   }
+  const gstReady = await hasRentalGstColumns();
+
 
   try {
     const sDate = new Date(startDate);
@@ -171,6 +199,15 @@ export async function POST(request: Request) {
           safaTyingDate: tieSafa ? (safaTyingDate || null) : null,
           tieSafaCharge: parseFloat(tieSafaCharge?.toString() || '0') || 0,
           discount: parseFloat(discount?.toString() || '0') || 0,
+          // A GST bill is asked for at the counter; the hirer's own GSTIN and
+          // state only mean anything on one, so they are dropped otherwise.
+          ...(gstReady
+            ? {
+                gstBill: !!gstBill,
+                customerGstin: gstBill ? (customerGstin?.trim()?.toUpperCase() || null) : null,
+                customerStateCode: gstBill ? (customerStateCode?.trim() || null) : null,
+              }
+            : {}),
           paymentMethod: paymentMethod || 'CASH',
           createdBy: createdBy?.trim() || null,
           items: {

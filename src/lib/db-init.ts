@@ -315,6 +315,14 @@ export async function ensureDbSchema(force = false) {
       `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "hsnCode" TEXT;`,
       `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "gstPercent" DOUBLE PRECISION DEFAULT 5;`,
 
+      // Renting is a supply of service: no HSN, a SAC code instead, held once
+      // per branch because one code covers the whole hire business.
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "gstBill" BOOLEAN DEFAULT false;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "customerGstin" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "customerStateCode" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "rentalSacCode" TEXT;`,
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "rentalGstPercent" DOUBLE PRECISION DEFAULT 5;`,
+
       // ── CashBook — admin confirmation of receipt ──────────────────────────
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3);`,
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedBy" TEXT;`,

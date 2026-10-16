@@ -51,6 +51,11 @@ export interface BillDoc {
   notATaxInvoice: boolean;
   /** The customer's number, so the bill can be sent to them from this page. */
   buyerPhone?: string | null;
+  /**
+   * A hire rather than a sale. The lorry paperwork a cloth bill carries means
+   * nothing on a service, so those slots carry the hire period instead.
+   */
+  serviceBill?: boolean;
 }
 
 const money = (n: number) =>
@@ -223,12 +228,17 @@ ${waNumber
   <div class="meta">
     <div><b>INV. NO</b>${escape(doc.invoiceNumber)}</div>
     <div><b>DATE</b>${escape(doc.invoiceDate)}</div>
-    <div><b>E-WAY BILL</b>${escape(doc.ewayBillNo ?? '—')}</div>
-    <div><b>TRANSPORT</b>${escape(doc.transport ?? '—')}</div>
-    <div><b>L.R. NO</b>${escape(doc.lrNumber ?? '—')}</div>
-    <div><b>STATION</b>${escape(doc.station ?? '—')}</div>
-    <div><b>FREIGHT</b>${money(bill.freight)}</div>
-    <div><b>WEIGHT</b>${escape(doc.weight ?? '—')}</div>
+    ${
+      doc.serviceBill
+        ? `<div><b>HIRE PERIOD</b>${escape(doc.transport ?? '—')}</div>
+           <div><b>DAYS</b>${escape(doc.station ?? '—')}</div>`
+        : `<div><b>E-WAY BILL</b>${escape(doc.ewayBillNo ?? '—')}</div>
+           <div><b>TRANSPORT</b>${escape(doc.transport ?? '—')}</div>
+           <div><b>L.R. NO</b>${escape(doc.lrNumber ?? '—')}</div>
+           <div><b>STATION</b>${escape(doc.station ?? '—')}</div>
+           <div><b>FREIGHT</b>${money(bill.freight)}</div>
+           <div><b>WEIGHT</b>${escape(doc.weight ?? '—')}</div>`
+    }
   </div>
 
   <table>
