@@ -20,6 +20,10 @@ model Product {
   productType   String?
   rentPrice     Float        @default(0)
   salePrice     Float        @default(0)
+  /// What a trade buyer pays. Null means this product has no separate trade
+  /// rate and wholesale simply pays the counter price, which is how every
+  /// product behaved before there was such a thing.
+  wholesalePrice Float?
   /// The code and rate this item is taxed under. Both appear on every line of
   /// a tax invoice, and a wrong one is the shop's problem, not the customer's.
   hsnCode       String?
@@ -129,6 +133,7 @@ model StorePrice {
   productId String
   rentPrice Float?
   salePrice Float?
+  wholesalePrice Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)

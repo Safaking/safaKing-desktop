@@ -314,6 +314,11 @@ export async function ensureDbSchema(force = false) {
       // here; anything else is corrected per product.
       `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "hsnCode" TEXT;`,
       `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "gstPercent" DOUBLE PRECISION DEFAULT 5;`,
+      // A trade rate per product, and per branch where a branch sets its own.
+      // Null means no separate trade rate: wholesale pays the counter price,
+      // exactly as it did before.
+      `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "wholesalePrice" DOUBLE PRECISION;`,
+      `ALTER TABLE "StorePrice" ADD COLUMN IF NOT EXISTS "wholesalePrice" DOUBLE PRECISION;`,
 
       // ── CashBook — admin confirmation of receipt ──────────────────────────
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3);`,

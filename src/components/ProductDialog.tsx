@@ -59,6 +59,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
     productType: '',
     rentPrice: '0',
     salePrice: '0',
+    wholesalePrice: '',
     discount: '0',
     totalQuantity: '0',
     isRentable: true,
@@ -158,6 +159,14 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         productType: (product as any).productType || '',
         rentPrice: product.rentPrice?.toString() || '0',
         salePrice: product.salePrice?.toString() || '0',
+        // Blank, not '0' — a blank box means no trade rate, and a zero would
+        // price the goods at nothing.
+        wholesalePrice:
+          typeof (product as any).baseWholesalePrice === 'number'
+            ? (product as any).baseWholesalePrice.toString()
+            : typeof (product as any).wholesalePrice === 'number'
+            ? (product as any).wholesalePrice.toString()
+            : '',
         discount: product.discount?.toString() || '0',
         totalQuantity: product.totalQuantity?.toString() || '0',
         isRentable: product.isRentable ?? true,
@@ -217,6 +226,7 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
         ...rest,
         rentPrice: parseFloat(formData.rentPrice || '0'),
         salePrice: parseFloat(formData.salePrice || '0'),
+        wholesalePrice: formData.wholesalePrice.trim() === '' ? null : parseFloat(formData.wholesalePrice),
         discount: parseFloat(formData.discount || '0'),
         totalQuantity: parseInt(formData.totalQuantity || '0'),
         hsnCode: formData.hsnCode,
@@ -552,6 +562,25 @@ export default function ProductDialog({ product, onClose, onSuccess }: ProductDi
                   value={formData.salePrice}
                   onChange={e => setFormData({...formData, salePrice: e.target.value})}
                   disabled={!formData.isSellable}
+                />
+              </div>
+            </div>
+
+            {/* Blank means wholesale pays the counter price, which is what it
+                paid before there were separate trade rates. */}
+            <div>
+              <label className="block text-xs font-bold text-amber-600 uppercase tracking-widest mb-1">
+                होलसेल रेट / Wholesale{meterBased && ' / metre'}
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-600 font-bold">₹</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="same as sale price"
+                  className="w-full pl-8 pr-4 py-3 bg-amber-50/40 border border-amber-200 rounded-xl outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/5 transition-all font-bold text-amber-900 placeholder:font-semibold placeholder:text-amber-400"
+                  value={formData.wholesalePrice}
+                  onChange={e => setFormData({...formData, wholesalePrice: e.target.value})}
                 />
               </div>
             </div>

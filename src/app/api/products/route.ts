@@ -188,8 +188,10 @@ export async function GET(request: Request) {
       alternateImages: imagesByProduct.get(p.id) ?? [],
       baseRentPrice: p.rentPrice,
       baseSalePrice: p.salePrice,
+      baseWholesalePrice: p.wholesalePrice ?? null,
       rentPriceOverridden: false,
       salePriceOverridden: false,
+      wholesalePriceOverridden: false,
     }));
 
     if (!storeId) return NextResponse.json(withBase);
@@ -203,12 +205,17 @@ export async function GET(request: Request) {
       const o = byProduct.get(p.id);
       const rent = typeof o?.rentPrice === 'number' ? o.rentPrice : null;
       const sale = typeof o?.salePrice === 'number' ? o.salePrice : null;
+      const trade = typeof o?.wholesalePrice === 'number' ? o.wholesalePrice : null;
       return {
         ...p,
         rentPrice: rent ?? p.baseRentPrice,
         salePrice: sale ?? p.baseSalePrice,
+        // Null all the way down means no trade rate was ever set, and the
+        // till falls back to the counter price — what wholesale always paid.
+        wholesalePrice: trade ?? p.baseWholesalePrice,
         rentPriceOverridden: rent !== null,
         salePriceOverridden: sale !== null,
+        wholesalePriceOverridden: trade !== null,
       };
     });
 
@@ -250,6 +257,8 @@ export async function POST(request: Request) {
         gstPercent: Number.isFinite(parseFloat(body.gstPercent)) ? parseFloat(body.gstPercent) : 5,
         rentPrice,
         salePrice,
+        // Blank means no separate trade rate, not free.
+        wholesalePrice: Number.isFinite(parseFloat(body.wholesalePrice)) ? parseFloat(body.wholesalePrice) : null,
         discount,
         totalQuantity,
         isRentable: !!body.isRentable,
@@ -281,7 +290,7 @@ export async function PUT(request: Request) {
     const updateData: any = {};
     const allowedFields = [
       'name', 'sku', 'description', 'category', 'productType',
-      'rentPrice', 'salePrice', 'discount', 'totalQuantity', 
+      'rentPrice', 'salePrice', 'wholesalePrice', 'discount', 'totalQuantity', 
       'isRentable', 'isSellable', 'image', 'hsnCode', 'gstPercent'
     ];
 
@@ -304,6 +313,11 @@ export async function PUT(request: Request) {
       updateData.rentPrice = parseFloat(updateData.rentPrice?.toString() || '0') || 0;
     }
     
+    if (updateData.wholesalePrice !== undefined) {
+      const trade = parseFloat(updateData.wholesalePrice?.toString() ?? '');
+      updateData.wholesalePrice = Number.isFinite(trade) ? trade : null;
+    }
+
     if (updateData.salePrice !== undefined) {
       updateData.salePrice = parseFloat(updateData.salePrice?.toString() || '0') || 0;
     }

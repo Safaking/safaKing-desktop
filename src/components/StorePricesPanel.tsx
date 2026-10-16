@@ -20,7 +20,7 @@ const asNumber = (v: string) => {
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
-type Draft = Record<string, { rent: string; sale: string }>;
+type Draft = Record<string, { rent: string; sale: string; trade: string }>;
 
 /**
  * Per-branch prices.
@@ -134,6 +134,7 @@ export default function StorePricesPanel() {
       next[o.productId] = {
         rent: o.rentPrice === null || o.rentPrice === undefined ? '' : String(o.rentPrice),
         sale: o.salePrice === null || o.salePrice === undefined ? '' : String(o.salePrice),
+        trade: o.wholesalePrice === null || o.wholesalePrice === undefined ? '' : String(o.wholesalePrice),
       };
     }
     setDraft(next);
@@ -141,17 +142,17 @@ export default function StorePricesPanel() {
     setError('');
   }, [priceData, storeId]);
 
-  const cell = (productId: string, field: 'rent' | 'sale') =>
+  const cell = (productId: string, field: 'rent' | 'sale' | 'trade') =>
     draft[productId]?.[field] ?? '';
 
-  const set = (productId: string, field: 'rent' | 'sale', value: string) =>
+  const set = (productId: string, field: 'rent' | 'sale' | 'trade', value: string) =>
     setDraft(d => {
-      const row = d[productId] ?? { rent: '', sale: '' };
+      const row = d[productId] ?? { rent: '', sale: '', trade: '' };
       return { ...d, [productId]: { ...row, [field]: value } };
     });
 
   const clearRow = (productId: string) =>
-    setDraft(d => ({ ...d, [productId]: { rent: '', sale: '' } }));
+    setDraft(d => ({ ...d, [productId]: { rent: '', sale: '', trade: '' } }));
 
   /** Rows whose boxes no longer match what is stored. */
   const changed = React.useMemo(() => {
@@ -161,18 +162,20 @@ export default function StorePricesPanel() {
         {
           rent: o.rentPrice === null || o.rentPrice === undefined ? '' : String(o.rentPrice),
           sale: o.salePrice === null || o.salePrice === undefined ? '' : String(o.salePrice),
+          trade: o.wholesalePrice === null || o.wholesalePrice === undefined ? '' : String(o.wholesalePrice),
         },
       ])
     );
     return products.filter(p => {
-      const now = { rent: cell(p.id, 'rent'), sale: cell(p.id, 'sale') };
-      const before = stored.get(p.id) ?? { rent: '', sale: '' };
-      return clean(now.rent) !== before.rent || clean(now.sale) !== before.sale;
+      const now = { rent: cell(p.id, 'rent'), sale: cell(p.id, 'sale'), trade: cell(p.id, 'trade') };
+      const before = stored.get(p.id) ?? { rent: '', sale: '', trade: '' };
+      return clean(now.rent) !== before.rent || clean(now.sale) !== before.sale
+        || clean(now.trade) !== before.trade;
     });
   }, [draft, overrides, products]);
 
   const hasOverride = (id: string) =>
-    clean(cell(id, 'rent')) !== '' || clean(cell(id, 'sale')) !== '';
+    clean(cell(id, 'rent')) !== '' || clean(cell(id, 'sale')) !== '' || clean(cell(id, 'trade')) !== '';
 
   const visible = products.filter(p => {
     const q = query.trim().toLowerCase();
@@ -195,6 +198,7 @@ export default function StorePricesPanel() {
             productId: p.id,
             rentPrice: clean(cell(p.id, 'rent')) === '' ? null : asNumber(cell(p.id, 'rent')),
             salePrice: clean(cell(p.id, 'sale')) === '' ? null : asNumber(cell(p.id, 'sale')),
+            wholesalePrice: clean(cell(p.id, 'trade')) === '' ? null : asNumber(cell(p.id, 'trade')),
           })),
         }),
       });
@@ -318,6 +322,8 @@ export default function StorePricesPanel() {
                 <th className="px-3 py-2 text-right">This branch</th>
                 <th className="px-3 py-2 text-right">Shop sale</th>
                 <th className="px-3 py-2 text-right">This branch</th>
+                <th className="px-3 py-2 text-right text-amber-600">Shop trade</th>
+                <th className="px-3 py-2 text-right text-amber-600">This branch</th>
                 <th className="px-3 py-2 text-right">Stock here</th>
                 <th className="px-2 py-2" />
               </tr>
@@ -325,14 +331,14 @@ export default function StorePricesPanel() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                     <Loader2 size={15} className="animate-spin inline" />
                   </td>
                 </tr>
               )}
               {!isLoading && visible.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-xs font-semibold text-slate-400">
+                  <td colSpan={9} className="px-4 py-8 text-center text-xs font-semibold text-slate-400">
                     Nothing matches this filter.
                   </td>
                 </tr>
@@ -394,6 +400,32 @@ export default function StorePricesPanel() {
                             onChange={e => set(p.id, 'sale', e.target.value)}
                             placeholder="shop"
                             className="w-full pl-6 pr-2 py-1.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500 text-xs font-bold text-right"
+                          />
+                        </div>
+                      </td>
+
+                      {/* The trade rate, shop-wide then this branch's own. A
+                          blank branch box means the shop rate; a blank shop
+                          rate means wholesale pays the counter price. */}
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-amber-500/80 whitespace-nowrap">
+                        {typeof (p as any).baseWholesalePrice === 'number'
+                          ? `₹${Number((p as any).baseWholesalePrice).toFixed(0)}${suffix}`
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="relative w-24 ml-auto">
+                          <IndianRupee
+                            size={11}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 text-amber-300"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={cell(p.id, 'trade')}
+                            onChange={e => set(p.id, 'trade', e.target.value)}
+                            placeholder="shop"
+                            className="w-full pl-6 pr-2 py-1.5 bg-amber-50/40 border border-amber-200 rounded-lg outline-none focus:border-amber-500 text-xs font-bold text-right text-amber-900"
                           />
                         </div>
                       </td>

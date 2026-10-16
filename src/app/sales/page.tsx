@@ -43,6 +43,8 @@ interface Product {
   category: string;
   productType?: string | null;
   salePrice: number;
+  /** Null when this product has no separate trade rate. */
+  wholesalePrice?: number | null;
   totalQuantity: number;
   availableQuantity: number;
   isSellable: boolean;
@@ -179,6 +181,22 @@ export default function SalesPage() {
     return p ? getAvailable(p) : 0;
   };
 
+  /**
+   * What this product fetches on this screen.
+   *
+   * A trade buyer pays the wholesale rate where the product has one; without
+   * one they pay the counter price, which is what wholesale always paid before
+   * separate rates existed. Null is "no trade rate set", never "free".
+   */
+  const priceFor = React.useCallback(
+    (product: any): number => {
+      const trade = product?.wholesalePrice;
+      if (wholesale && typeof trade === 'number') return trade;
+      return product.salePrice;
+    },
+    [wholesale]
+  );
+
   const addToCart = (product: Product) => {
     const available = getAvailable(product);
     if (available <= 0) return;
@@ -193,7 +211,7 @@ export default function SalesPage() {
         productId: product.id,
         name: product.name,
         quantity: 1,
-        price: product.salePrice,
+        price: priceFor(product),
         gstPercent: (product as any).gstPercent ?? 5,
       }];
     });
@@ -823,7 +841,9 @@ export default function SalesPage() {
                       <p className="font-bold text-slate-800 text-xs truncate leading-tight">{p.name}</p>
                       <div className="flex justify-between items-center mt-1">
                         <span className="text-[11px] text-slate-400 font-bold">{p.sku}</span>
-                        <span className="font-black text-emerald-600 text-[12px]">₹{p.salePrice.toFixed(0)}{rateSuffix(p as any)}</span>
+                        <span className={`font-black text-[12px] ${
+                          wholesale && typeof p.wholesalePrice === 'number' ? 'text-amber-600' : 'text-emerald-600'
+                        }`}>₹{priceFor(p).toFixed(0)}{rateSuffix(p as any)}</span>
                       </div>
                       <p
                         className={`text-[10px] font-black mt-0.5 ${

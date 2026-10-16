@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
  * Per-branch product prices, for the admin screen that sets them.
  *
  * GET  ?storeId=…  → every override that branch has set
- * PUT  { storeId, prices: [{ productId, rentPrice, salePrice }, ...] }
+ * PUT  { storeId, prices: [{ productId, rentPrice, salePrice, wholesalePrice }, ...] }
  *
  * A price of null (or an empty string) clears that override and puts the
  * product back on the shop-wide rate. Sending both as null removes the row
@@ -68,11 +68,12 @@ export async function PUT(request: Request) {
 
       const rentPrice = parsePrice(row.rentPrice);
       const salePrice = parsePrice(row.salePrice);
+      const wholesalePrice = parsePrice(row.wholesalePrice);
       // A price that is neither blank nor a valid number is a typo, not an
       // instruction — skip it rather than storing a zero the till would charge.
-      if (rentPrice === undefined || salePrice === undefined) continue;
+      if (rentPrice === undefined || salePrice === undefined || wholesalePrice === undefined) continue;
 
-      if (rentPrice === null && salePrice === null) {
+      if (rentPrice === null && salePrice === null && wholesalePrice === null) {
         ops.push(
           prisma.storePrice.deleteMany({ where: { storeId, productId } })
         );
@@ -83,8 +84,8 @@ export async function PUT(request: Request) {
       ops.push(
         prisma.storePrice.upsert({
           where: { storeId_productId: { storeId, productId } },
-          create: { storeId, productId, rentPrice, salePrice },
-          update: { rentPrice, salePrice },
+          create: { storeId, productId, rentPrice, salePrice, wholesalePrice },
+          update: { rentPrice, salePrice, wholesalePrice },
         })
       );
       saved += 1;
