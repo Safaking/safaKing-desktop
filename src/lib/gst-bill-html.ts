@@ -133,7 +133,13 @@ export function billHtml(doc: BillDoc): string {
          font-size: 11px; background: #f3f4f6; }
   .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; padding: 8mm;
            border: 1px solid #000; }
-  .topline { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; }
+  /* Three equal columns rather than space-between: the GSTIN on the left is
+     far wider than "Original" on the right, which pushed the invocation off
+     the page's centre and out of line with the shop name beneath it. */
+  .topline { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start;
+             font-size: 10px; font-weight: bold; }
+  .topline > :first-child { text-align: left; }
+  .topline > :last-child { text-align: right; }
   .title { text-align: center; font-size: 26px; font-weight: bold; letter-spacing: 1px; margin: 2px 0 0; }
   .seller { text-align: center; line-height: 1.45; }
   .badge { border: 1px solid #000; background: #000; color: #fff; padding: 2px 10px;
