@@ -85,7 +85,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const doc: BillDoc = {
       seller: {
-        name: store?.legalName || store?.name || 'Joshi Safa House',
+        name: store?.legalName || store?.name || 'Joshi Store',
         lines: [store?.addressLine1, store?.addressLine2, [store?.city, store?.pincode].filter(Boolean).join(' ')]
           .filter(Boolean) as string[],
         phone: store?.phones ?? null,
@@ -145,7 +145,7 @@ function sampleDoc(): BillDoc {
 
   return {
     seller: {
-      name: 'JOSHI SAFA HOUSE',
+      name: 'JOSHI STORE',
       lines: ['Near Pandya Memorial School', 'Char Khamba', 'Partapur, Dist. Banswara (Rajasthan) 327024'],
       phone: '+91 90013 47143, +91 76918 56577',
       email: 'safakingn111@gmail.com',

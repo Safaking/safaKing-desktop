@@ -131,7 +131,7 @@ export default function StoreGstDialog({ store, onSaved, onClose }: Props) {
 
           <section className="grid grid-cols-2 gap-3">
             {field("नाम के ऊपर की पंक्ति / Line above the name", "logoText", "|| SHREE GANESHAY NAMAH ||", "full")}
-            {field("बिल पर नाम / Legal name", "legalName", "JOSHI SAFA HOUSE", "full")}
+            {field("बिल पर नाम / Legal name", "legalName", "JOSHI STORE", "full")}
             {field("GSTIN", "gstin", "08ABCDE1234F1Z5", "half")}
             {field("राज्य कोड / State code", "stateCode", "08", "half")}
             {field("राज्य / State", "stateName", "RAJASTHAN", "half", true)}
