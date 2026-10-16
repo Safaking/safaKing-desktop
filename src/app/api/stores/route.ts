@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 const GST_TEXT_FIELDS = [
   'legalName', 'addressLine1', 'addressLine2', 'city', 'pincode',
   'stateName', 'stateCode', 'phones', 'email', 'gstin', 'msmeNumber',
-  'bankName', 'bankAccount', 'bankIfsc', 'invoiceTerms', 'jurisdiction',
+  'bankName', 'bankAccount', 'bankIfsc', 'invoiceTerms', 'jurisdiction', 'logoText',
 ] as const;
 
 /**

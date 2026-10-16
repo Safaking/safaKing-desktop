@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProducts, useSafaOptions, useVendors, invalidateAfterSale } from '@/lib/data';
+import { useProducts, useSafaOptions, useStores, useVendors, invalidateAfterSale } from '@/lib/data';
 import { isMeterBased, rateSuffix, PRODUCT_TYPES, UNCATEGORISED } from '@/lib/product-types';
 import SafaTyingDialog from '@/components/SafaTyingDialog';
 import TyingLoadDialog from '@/components/TyingLoadDialog';
@@ -28,6 +28,7 @@ import {
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import BillPreviewDialog from '@/components/BillPreviewDialog';
+import { buildBill } from '@/lib/gst';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useBranchLogo } from '@/lib/branding';
@@ -53,6 +54,8 @@ interface SaleItem {
   name: string;
   quantity: number;
   price: number;
+  /** Carried from the product so the till can total a GST bill itself. */
+  gstPercent?: number;
 }
 
 export default function SalesPage() {
@@ -128,6 +131,9 @@ export default function SalesPage() {
   // Tying is priced by branch too, so ask for this branch's rates.
   const { data: safaOptionData } = useSafaOptions(user?.storeId);
   const { data: vendorData } = useVendors();
+  // Needed at the till only to total a GST bill: whether this branch quotes
+  // prices with the tax inside, and which state it bills from.
+  const { data: storeData } = useStores();
   const vendors: any[] = Array.isArray(vendorData) ? vendorData : [];
   const safaOptions: any[] = Array.isArray(safaOptionData) ? safaOptionData : [];
 
@@ -183,7 +189,13 @@ export default function SalesPage() {
         if (existing.quantity >= available) return prev;
         return prev.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
-      return [...prev, { productId: product.id, name: product.name, quantity: 1, price: product.salePrice }];
+      return [...prev, {
+        productId: product.id,
+        name: product.name,
+        quantity: 1,
+        price: product.salePrice,
+        gstPercent: (product as any).gstPercent ?? 5,
+      }];
     });
   };
 
@@ -260,11 +272,55 @@ export default function SalesPage() {
     return items.reduce((s, i) => s + (i.price * i.quantity), 0) + getSafaCharge();
   };
 
+  const branch: any = React.useMemo(
+    () => (Array.isArray(storeData) ? storeData : []).find((s: any) => s.id === user?.storeId) ?? null,
+    [storeData, user?.storeId]
+  );
+  // Tax-inclusive pricing is the counter default; a branch that quotes prices
+  // without the tax adds it on top, and then the till has to collect it or the
+  // bill would ask for more than was taken.
+  const pricesIncludeTax = branch?.pricesIncludeTax !== false;
+
+  /**
+   * The tax invoice this sale would produce, worked out with the very same
+   * function the printed bill uses — so the money taken at the till and the
+   * NET PAYABLE on the paper can never disagree, rounding included.
+   */
+  const gstPreview = React.useMemo(() => {
+    if (!gstBill) return null;
+    const lines = items.map(i => ({
+      name: i.name,
+      hsnCode: null,
+      gstPercent: i.gstPercent ?? 5,
+      quantity: i.quantity,
+      rate: i.price,
+    }));
+    const tying = getSafaCharge();
+    if (tying > 0) {
+      lines.push({ name: 'Safa tying', hsnCode: null, gstPercent: 5, quantity: 1, rate: tying });
+    }
+    if (lines.length === 0) return null;
+    return buildBill({
+      lines,
+      sellerStateCode: branch?.stateCode ?? null,
+      buyerStateCode: gstBuyer.stateCode || branch?.stateCode || null,
+      pricesIncludeTax,
+      discount: Math.max(0, Math.min(parseFloat(discount) || 0, calculateGross())),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gstBill, items, selectedStyles, tieSafa, discount, branch, gstBuyer.stateCode, pricesIncludeTax]);
+
+  /** Tax added on top, which is nothing at all when prices already hold it. */
+  const gstExtra = gstPreview && !pricesIncludeTax ? gstPreview.totalTax : 0;
+
   /** What the customer actually pays. Everything downstream reads this. */
-  const calculateTotal = () => Math.max(0, calculateGross() - (Math.max(0, parseFloat(discount) || 0)));
+  const calculateTotal = () =>
+    gstPreview
+      ? gstPreview.net
+      : Math.max(0, calculateGross() - (Math.max(0, parseFloat(discount) || 0)));
   /** Never more than the bill: a discount bigger than the sale is a typo. */
   const discountAmount = Math.max(0, Math.min(parseFloat(discount) || 0, calculateGross()));
-  const payable = Math.max(0, calculateGross() - discountAmount);
+  const payable = gstPreview ? gstPreview.net : Math.max(0, calculateGross() - discountAmount);
   const advanceAmount = paidAmount === '' ? payable : Math.max(0, parseFloat(paidAmount) || 0);
   const balanceDue = Math.max(0, payable - advanceAmount);
 
@@ -352,7 +408,9 @@ export default function SalesPage() {
           items,
           // The gross; the API subtracts the discount so the two can never
           // disagree about what was actually charged.
-          totalAmount: calculateGross(),
+          // The API takes the discount off whatever it is sent, so a GST sale
+          // sends the figure that lands on the bill's own NET PAYABLE.
+          totalAmount: gstPreview ? gstPreview.net + discountAmount : calculateGross(),
           discount: discountAmount,
           tieSafa,
           safaShape: tieSafa ? selectedStyles.map(st => st.name).join(', ') : null,
@@ -1061,6 +1119,33 @@ export default function SalesPage() {
                             अपने राज्य में CGST+SGST, बाहर IGST — यही कोड तय करता है
                           </p>
                         </div>
+
+                        {/* What the tax actually adds, read off the very bill
+                            that will be printed — so what is taken at the
+                            counter is what the paper asks for. */}
+                        {gstPreview && (
+                          <div className="pt-2 border-t border-amber-400/20 space-y-1">
+                            <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                              <span>बिना टैक्स / Taxable</span>
+                              <span>₹{gstPreview.taxable.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] font-bold text-amber-300">
+                              <span>{gstPreview.interState ? 'IGST' : 'CGST + SGST'}</span>
+                              <span>{pricesIncludeTax ? '' : '+ '}₹{gstPreview.totalTax.toFixed(2)}</span>
+                            </div>
+                            {gstPreview.roundOff !== 0 && (
+                              <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                                <span>Round off</span>
+                                <span>{gstPreview.roundOff > 0 ? '+' : '−'}₹{Math.abs(gstPreview.roundOff).toFixed(2)}</span>
+                              </div>
+                            )}
+                            <p className="text-[10px] font-bold text-slate-400 pt-1">
+                              {pricesIncludeTax
+                                ? 'दाम में टैक्स शामिल है — कुल वही रहेगा'
+                                : 'दाम पर टैक्स जोड़ा गया है — ग्राहक से यही कुल लेना है'}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

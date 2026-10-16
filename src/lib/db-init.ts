@@ -340,6 +340,8 @@ export async function ensureDbSchema(force = false) {
       `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "bankAccount" TEXT;`,
       `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "bankIfsc" TEXT;`,
       `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "invoiceTerms" TEXT;`,
+      // The invocation printed above the shop name, as the trade bills do.
+      `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "logoText" TEXT;`,
       `ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "jurisdiction" TEXT;`,
       // Counter prices are what the customer pays, tax included, so the bill
       // works back from the price rather than adding to it.

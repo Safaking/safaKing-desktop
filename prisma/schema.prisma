@@ -332,6 +332,7 @@ model Store {
   bankName     String?
   bankAccount  String?
   bankIfsc     String?
+  logoText String?
   invoiceTerms String?
   jurisdiction String?
   /// Whether the shop's prices already hold the tax. A counter that quotes

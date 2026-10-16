@@ -45,14 +45,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     // only store rather than refusing.
     const store = sale.store ?? (await prisma.store.findFirst());
 
+    // Tying is charged on the sale but is not one of its items, so without
+    // this the bill's total came out short of what the customer actually paid.
+    const lines = sale.items.map((item) => ({
+      name: item.product?.name ?? 'Item',
+      hsnCode: item.hsnCode ?? item.product?.hsnCode ?? null,
+      gstPercent: item.gstPercent ?? item.product?.gstPercent ?? 0,
+      quantity: item.quantity,
+      rate: item.price,
+    }));
+    if ((sale.tieSafaCharge ?? 0) > 0) {
+      lines.push({
+        name: sale.safaShape ? `Safa tying — ${sale.safaShape}` : 'Safa tying',
+        hsnCode: null,
+        gstPercent: 5,
+        quantity: 1,
+        rate: sale.tieSafaCharge,
+      });
+    }
+
     const bill = buildBill({
-      lines: sale.items.map((item) => ({
-        name: item.product?.name ?? 'Item',
-        hsnCode: item.hsnCode ?? item.product?.hsnCode ?? null,
-        gstPercent: item.gstPercent ?? item.product?.gstPercent ?? 0,
-        quantity: item.quantity,
-        rate: item.price,
-      })),
+      lines,
       sellerStateCode: store?.stateCode ?? null,
       buyerStateCode: sale.customerStateCode ?? null,
       pricesIncludeTax: store?.pricesIncludeTax ?? true,
@@ -76,6 +89,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         bankIfsc: store?.bankIfsc ?? null,
         terms: store?.invoiceTerms ?? null,
         jurisdiction: store?.jurisdiction ?? null,
+        logoText: store?.logoText ?? null,
       },
       buyer: {
         name: sale.customerName,
@@ -94,6 +108,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       bill,
       // Without a GSTIN nothing may call itself a tax invoice.
       notATaxInvoice: !store?.gstin,
+      buyerPhone: sale.customerPhone,
     };
 
     return page(billHtml(doc));
@@ -157,5 +172,6 @@ function sampleDoc(): BillDoc {
     weight: '450.00',
     bill,
     notATaxInvoice: false,
+    buyerPhone: '9929632671',
   };
 }

@@ -1,3 +1,4 @@
+import { whatsappNumber } from '@/lib/whatsapp';
 import { Bill, amountInWords } from '@/lib/gst';
 
 /**
@@ -48,6 +49,8 @@ export interface BillDoc {
   bill: Bill;
   /** Printed when the shop has no GSTIN yet, so nothing pretends to be a tax invoice. */
   notATaxInvoice: boolean;
+  /** The customer's number, so the bill can be sent to them from this page. */
+  buyerPhone?: string | null;
 }
 
 const money = (n: number) =>
@@ -76,6 +79,12 @@ const party = (heading: string, p: BillParty) => `
 export function billHtml(doc: BillDoc): string {
   const { bill, seller, buyer } = doc;
   const taxWord = bill.interState ? 'IGST' : 'CGST / SGST';
+
+  // Click-to-send, the same way the rest of the shop does it: WhatsApp opens
+  // with the message written and the staff press send. Nothing is sent on its
+  // own, and no API or per-message fee is involved.
+  const waNumber = whatsappNumber(doc.buyerPhone);
+  const waMessage = `नमस्ते ${buyer.name} जी, आपका बिल ${doc.invoiceNumber} — ${seller.name}.`;
 
   const itemRows = bill.lines
     .map(
@@ -164,10 +173,26 @@ export function billHtml(doc: BillDoc): string {
 </style>
 </head><body>
 <div class="no-print" style="width:210mm;margin:0 auto 8px;text-align:right">
+  ${waNumber
+    ? `<button id="wa" style="padding:8px 18px;font-weight:bold;cursor:pointer;background:#25D366;color:#fff;border:1px solid #1da851;border-radius:4px;margin-right:6px">
+         WhatsApp भेजें
+       </button>`
+    : ''}
   <button onclick="window.print()" style="padding:8px 18px;font-weight:bold;cursor:pointer">
     Print / Save as PDF
   </button>
 </div>
+${waNumber
+  ? `<script>
+      document.getElementById('wa').addEventListener('click', function () {
+        // The link is built from wherever this page is actually open, so the
+        // same bill works from the shop computer and from the deployed site
+        // without a base URL having to be configured anywhere.
+        var text = ${JSON.stringify(waMessage)} + ' ' + window.location.href;
+        window.open('https://wa.me/${waNumber}?text=' + encodeURIComponent(text), '_blank');
+      });
+    </script>`
+  : ''}
 
 <div class="sheet">
   <div class="topline">

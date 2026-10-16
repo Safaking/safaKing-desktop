@@ -43,6 +43,7 @@ export default function StoreGstDialog({ store, onSaved, onClose }: Props) {
       bankIfsc: text(store.bankIfsc),
       invoiceTerms: text(store.invoiceTerms),
       jurisdiction: text(store.jurisdiction),
+      logoText: text(store.logoText),
     });
     // Counter prices in this trade are quoted tax-inclusive, so that is the
     // default for a branch that has never been asked.
@@ -129,6 +130,7 @@ export default function StoreGstDialog({ store, onSaved, onClose }: Props) {
           )}
 
           <section className="grid grid-cols-2 gap-3">
+            {field("नाम के ऊपर की पंक्ति / Line above the name", "logoText", "|| SHREE GANESHAY NAMAH ||", "full")}
             {field("बिल पर नाम / Legal name", "legalName", "JOSHI SAFA HOUSE", "full")}
             {field("GSTIN", "gstin", "08ABCDE1234F1Z5", "half")}
             {field("राज्य कोड / State code", "stateCode", "08", "half")}
