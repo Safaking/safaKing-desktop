@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, Notification, shell } = require('electron');
 const path = require('path');
 
 // The desktop app is a shell around the hosted site and always loads it.
@@ -92,10 +92,93 @@ function createWindow() {
         `)
     );
   });
+
+  // Handed back so the handover check can raise and focus this window when
+  // its notification is clicked.
+  return win;
+}
+
+/**
+ * Tell the shop what is coming, without anybody having to open the dashboard.
+ *
+ * The dashboard has always carried a "coming up this week" card, but it only
+ * says anything to somebody already looking at it. This asks the same endpoint
+ * from the desktop app itself and raises a real Windows notification, so an
+ * order wanted on Friday is heard about on Monday.
+ *
+ * Nothing is sent anywhere: it reads the shop's own API and shows the result
+ * on this machine.
+ */
+const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
+
+/** Orders already mentioned, so the same wedding is not announced all day. */
+let announced = new Set();
+let announcedOn = '';
+
+async function checkWhatIsComing(win) {
+  const todayKey = new Date().toDateString();
+  // A new day starts the list again — an order still unpacked tomorrow is
+  // worth repeating, one already mentioned this morning is not.
+  if (announcedOn !== todayKey) {
+    announced = new Set();
+    announcedOn = todayKey;
+  }
+
+  let feed;
+  try {
+    const res = await fetch(`${APP_URL}/api/dashboard/attention`, {
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) return;
+    feed = await res.json();
+  } catch {
+    // No network, or the site is down. The dashboard still carries this when
+    // it comes back, so there is nothing to report and nothing to retry.
+    return;
+  }
+
+  const due = [...(feed?.dueToday ?? []), ...(feed?.upcoming ?? [])].filter(
+    order => order?.orderNumber && !announced.has(order.orderNumber)
+  );
+  if (due.length === 0) return;
+
+  for (const order of due) announced.add(order.orderNumber);
+
+  const first = due[0];
+  const when = (() => {
+    const d = new Date(first.startDate);
+    if (Number.isNaN(d.getTime())) return '';
+    const days = Math.round((d.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    if (days <= 0) return 'आज';
+    if (days === 1) return 'कल';
+    return `${days} दिन में`;
+  })();
+
+  const body =
+    due.length === 1
+      ? `${first.customerName} — ${first.orderNumber}${when ? `, ${when}` : ''}. पैकिंग बाकी है।`
+      : `${first.customerName}${when ? ` (${when})` : ''} सहित ${due.length} ऑर्डर की पैकिंग बाकी है।`;
+
+  const note = new Notification({ title: 'साफा देना है / Handover coming up', body });
+  // Clicking it should land on the list, not just raise the window on
+  // whatever page it happened to be left on.
+  note.on('click', () => {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    win.loadURL(`${APP_URL}/`);
+  });
+  note.show();
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  const win = createWindow();
+
+  // Not at the instant of launch: the machine is busy opening the app and a
+  // notification then is missed. A minute in, it is read.
+  if (Notification.isSupported()) {
+    setTimeout(() => checkWhatIsComing(win), 60_000);
+    setInterval(() => checkWhatIsComing(win), CHECK_EVERY_MS);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

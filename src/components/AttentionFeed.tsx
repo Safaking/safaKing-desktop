@@ -106,7 +106,9 @@ function Group({
           {items.map(r => (
             <Link
               key={r.id}
-              href="/rentals"
+              // A sale card that opened the rentals list sent staff hunting
+              // for an order that was never going to be there.
+              href={r.kind === 'sale' ? '/sales/history' : '/rentals'}
               className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors group"
             >
               <span className={`w-1 self-stretch min-h-[34px] rounded-full ${c.bar} shrink-0`} />
@@ -114,6 +116,17 @@ function Group({
                 <div className="flex items-baseline gap-2">
                   <p className="text-sm font-bold text-slate-800 truncate">{r.customerName}</p>
                   <span className="font-mono text-[10px] font-bold text-slate-400 shrink-0">{r.orderNumber}</span>
+                  {/* Which book it came from — the two lists live on different
+                      screens, so the card has to say which one. */}
+                  <span
+                    className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide ${
+                      r.kind === 'sale'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-indigo-100 text-indigo-700'
+                    }`}
+                  >
+                    {r.kind === 'sale' ? 'बिक्री' : 'किराया'}
+                  </span>
                 </div>
                 <p className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">{renderMeta(r)}</p>
               </div>

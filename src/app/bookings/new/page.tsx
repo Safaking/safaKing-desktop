@@ -573,21 +573,33 @@ export default function OdooBookingPage() {
                 />
               </div>
 
-              {/* Rental Period */}
+              {/* Rental Period. The first date is when the goods are handed
+                  over, which is what the counter plans and packs against, so
+                  it is labelled as that rather than left as a bare "from". */}
               <div className="pt-2 border-t border-slate-100">
                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Rental Period</label>
                  <div className="flex items-center gap-2">
-                   <DateInput
-                     value={dates.start}
-                     className="flex-1 px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
-                     onChange={v => setDates(prev => ({ ...prev, start: v }))}
-                   />
-                   <span className="text-slate-400 text-xs font-bold">TO</span>
-                   <DateInput
-                     value={dates.end}
-                     className="flex-1 px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
-                     onChange={v => setDates(prev => ({ ...prev, end: v }))}
-                   />
+                   <div className="flex-1">
+                     <span className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">
+                       हैंड ओवर / Handover
+                     </span>
+                     <DateInput
+                       value={dates.start}
+                       className="w-full px-3 py-3 bg-amber-50/40 border border-amber-200 rounded text-sm font-bold outline-none focus:border-amber-500"
+                       onChange={v => setDates(prev => ({ ...prev, start: v }))}
+                     />
+                   </div>
+                   <span className="text-slate-400 text-xs font-bold mt-5">TO</span>
+                   <div className="flex-1">
+                     <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                       वापसी / Return
+                     </span>
+                     <DateInput
+                       value={dates.end}
+                       className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold outline-none focus:border-indigo-500"
+                       onChange={v => setDates(prev => ({ ...prev, end: v }))}
+                     />
+                   </div>
                  </div>
               </div>
 

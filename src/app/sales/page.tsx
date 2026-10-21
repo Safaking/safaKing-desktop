@@ -7,24 +7,7 @@ import SafaTyingDialog from '@/components/SafaTyingDialog';
 import TyingLoadDialog from '@/components/TyingLoadDialog';
 import { isBaratiStyle } from '@/lib/barati';
 import DateInput from '@/components/DateInput';
-import { 
-  Plus, 
-  Search, 
-  ShoppingCart, 
-  X, 
-  Package, 
-  ArrowLeft,
-  CheckCircle2,
-  Trash2,
-  CreditCard,
-  User,
-  Phone,
-  LayoutGrid,
-  MapPin,
-  Calendar,
-  Minus,
-  Building2
-} from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, CheckCircle2, CreditCard, LayoutGrid, MapPin, Minus, Package, Phone, Plus, Search, ShoppingCart, Trash2, Truck, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { generateInvoicePDF } from '@/lib/invoice-gen';
 import BillPreviewDialog from '@/components/BillPreviewDialog';
@@ -75,6 +58,10 @@ export default function SalesPage() {
     address: '',
     fatherName: '',
     weddingDate: '',
+    // When the goods are to be handed over. A walk-in who carries the safa
+    // out today leaves it blank; an order placed ahead of the wedding is the
+    // whole reason this is asked.
+    handoverDate: '',
     safaSize: '',
     notes: ''
   });
@@ -421,6 +408,7 @@ export default function SalesPage() {
           customerAddress: customer.address,
           fatherName: customer.fatherName,
           weddingDate: customer.weddingDate,
+          pickupDate: customer.handoverDate || null,
           safaSize: customer.safaSize,
           notes: customer.notes,
           items,
@@ -466,7 +454,7 @@ export default function SalesPage() {
         if (gstBill && data?.id) window.open(`/api/bill/sale/${data.id}`, '_blank');
         else generateInvoicePDF(data, 'SALE');
         setItems([]);
-        setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', safaSize: '', notes: '' });
+        setCustomer({ name: '', phone: '', address: '', fatherName: '', weddingDate: '', handoverDate: '', safaSize: '', notes: '' });
         setDiscount('');
         setPaidAmount('');
         setTieSafa(false);
@@ -684,6 +672,19 @@ export default function SalesPage() {
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:border-emerald-500 outline-none text-xs"
                   value={customer.fatherName}
                   onChange={e => setCustomer({...customer, fatherName: e.target.value})}
+                />
+              </div>
+
+              {/* When the customer is to collect. Without this nothing on the
+                  order says when it is wanted, so it cannot be packed ahead or
+                  warned about — which is exactly what the counter asked for. */}
+              <div className="relative">
+                <Truck className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" size={14} />
+                <DateInput
+                  placeholder="सामान कब देना है / Handover date (dd/mm/yyyy)"
+                  className="w-full pl-9 pr-3 py-3 bg-amber-50/40 border border-amber-200 rounded focus:border-amber-500 outline-none text-sm font-semibold"
+                  value={customer.handoverDate}
+                  onChange={v => setCustomer({...customer, handoverDate: v})}
                 />
               </div>
 
