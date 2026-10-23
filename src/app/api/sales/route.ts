@@ -47,6 +47,25 @@ async function hasSalePickupColumns() {
 }
 
 /**
+ * Whether Sale carries the grouping column yet. Same deploy-before-migration
+ * reason as the probes above.
+ */
+let saleGroupColumn: boolean | null = null;
+
+async function hasSaleGroupColumn() {
+  if (saleGroupColumn !== null) return saleGroupColumn;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok FROM information_schema.columns
+      WHERE table_name = 'Sale' AND column_name = 'groupId' LIMIT 1`;
+    saleGroupColumn = rows.length > 0;
+  } catch {
+    saleGroupColumn = false;
+  }
+  return saleGroupColumn;
+}
+
+/**
  * Whether Sale carries the GST billing columns yet. Same reason as the pickup
  * probe above: the deploy can land before anyone runs the migration, and a
  * sale that fails at the till is worse than a sale with no GST flag.
@@ -98,6 +117,8 @@ export async function POST(request: Request) {
     gstBill,
     customerGstin,
     customerStateCode,
+    groupId,
+    joinRentalId,
   } = body;
 
   // Tying on its own is a real sale: the customer brings their own safa and
@@ -117,6 +138,7 @@ export async function POST(request: Request) {
 
   const pickupReady = await hasSalePickupColumns();
   const gstReady = await hasSaleGstColumns();
+  const groupReady = await hasSaleGroupColumn();
 
   // The tax rate in force on the day of sale, stamped onto each line. Read
   // once here rather than per line, and only when the columns exist: a bill
@@ -162,6 +184,16 @@ export async function POST(request: Request) {
 
       const orderNumber = `SALE-${(lastNum + 1).toString().padStart(5, '0')}`;
 
+      // The hire was saved before anybody knew a purchase was coming; it is
+      // stamped with the group here, in the same transaction as the sale, so
+      // the visit is joined completely or not at all.
+      if (groupReady && groupId && joinRentalId) {
+        await tx.rental.update({
+          where: { id: joinRentalId },
+          data: { groupId },
+        });
+      }
+
       const newSale = await tx.sale.create({
         data: {
           orderNumber,
@@ -198,6 +230,7 @@ export async function POST(request: Request) {
                 customerStateCode: gstBill ? (customerStateCode?.trim() || null) : null,
               }
             : {}),
+          ...(groupReady ? { groupId: groupId?.trim() || null } : {}),
           tieSafa: !!tieSafa,
           safaShape: tieSafa ? (safaShape || null) : null,
           safaTyingCount: tieSafa ? (parseInt(safaTyingCount?.toString() || '1') || 1) : 1,

@@ -147,6 +147,10 @@ model Rental {
   id               String            @id @default(uuid())
   orderNumber      String            @unique
   customerName     String
+  /// Ties this order to the customer's other order from the same visit — a
+  /// bought safa and a hired one go on one bill. Null is an ordinary order
+  /// standing on its own, which is what every order has been until now.
+  groupId          String?
   customerPhone    String?
   customerAltPhone String?
   customerAddress  String?
@@ -203,6 +207,8 @@ model Rental {
   invoice          Invoice?
   items            RentalItem[]
   store            Store?            @relation(fields: [storeId], references: [id])
+
+  @@index([groupId])
 }
 
 model RentalItem {
@@ -220,6 +226,10 @@ model Sale {
   id               String            @id @default(uuid())
   orderNumber      String            @unique
   customerName     String
+  /// Ties this order to the customer's other order from the same visit — a
+  /// bought safa and a hired one go on one bill. Null is an ordinary order
+  /// standing on its own, which is what every order has been until now.
+  groupId          String?
   customerPhone    String?
   customerAltPhone String?
   customerAddress  String?
@@ -284,6 +294,8 @@ model Sale {
   items            SaleItem[]
   vendor           Vendor?           @relation(fields: [vendorId], references: [id])
   store            Store?            @relation(fields: [storeId], references: [id])
+
+  @@index([groupId])
 }
 
 model SaleItem {

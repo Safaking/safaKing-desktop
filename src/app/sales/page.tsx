@@ -109,11 +109,30 @@ export default function SalesPage() {
   // would force this page out of static rendering for one query string.
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
-    const mode = new URLSearchParams(window.location.search).get('mode');
+    const q = new URLSearchParams(window.location.search);
+    const mode = q.get('mode');
     if (mode === 'wholesale') setWholesale(true);
+    // Arriving from a booking: same customer, same visit, one bill.
+    const group = q.get('group');
+    if (group) {
+      setGroupId(group);
+      setJoinRentalId(q.get('joinRental') || '');
+      setCustomer(c => ({
+        ...c,
+        name: q.get('name') || c.name,
+        phone: q.get('phone') || c.phone,
+        address: q.get('address') || c.address,
+        fatherName: q.get('father') || c.fatherName,
+      }));
+      setStep(1);
+    }
   }, []);
   const [safaTyingDetails, setSafaTyingDetails] = useState({ name: '', address: '', time: '', marriageDate: '' });
   const [recentSale, setRecentSale] = useState<any>(null);
+  // Carried in from a booking that is adding a purchase to the same visit, so
+  // both orders land under one group and bill as one.
+  const [groupId, setGroupId] = useState('');
+  const [joinRentalId, setJoinRentalId] = useState('');
 
   // Priced for this user's branch: each area charges its own rate.
   const { data: productData } = useProducts(user?.storeId);
@@ -436,6 +455,8 @@ export default function SalesPage() {
           // A figure is an advance: the rest is collected when they come for
           // the goods, and lands in that day's cash book, not today's.
           paidAmount: paidAmount === '' ? undefined : advanceAmount,
+          groupId: groupId || null,
+          joinRentalId: joinRentalId || null,
           gstBill,
           customerGstin: gstBill ? gstBuyer.gstin : null,
           customerStateCode: gstBill ? gstBuyer.stateCode : null,
@@ -1254,6 +1275,37 @@ export default function SalesPage() {
                 {t('print_bill')}
               </button>
             </div>
+
+            {/* The groom buys one safa and hires another. Rather than typing
+                the same customer twice and handing over two bills, this opens
+                the booking screen with him already filled in and both orders
+                tied together. */}
+            {groupId ? (
+              <button
+                onClick={() => window.open(`/api/bill/group/${groupId}`, '_blank')}
+                className="w-full mb-4 py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-amber-500 text-white hover:bg-amber-600 transition-all"
+              >
+                ख़रीद + किराया — एक बिल
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const id = crypto.randomUUID();
+                  const q = new URLSearchParams({
+                    group: id,
+                    name: recentSale?.customerName || '',
+                    phone: recentSale?.customerPhone || '',
+                    address: recentSale?.customerAddress || '',
+                    father: recentSale?.fatherName || '',
+                    joinSale: recentSale?.id || '',
+                  });
+                  window.location.href = `/bookings/new?${q.toString()}`;
+                }}
+                className="w-full mb-4 py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-amber-500 text-white hover:bg-amber-600 transition-all"
+              >
+                इसी ग्राहक का किराया भी जोड़ें
+              </button>
+            )}
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button onClick={() => { setShowSuccess(false); window.location.reload(); }} className="py-3 px-4 rounded-lg font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all border border-slate-200 bg-white">

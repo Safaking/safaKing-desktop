@@ -320,6 +320,12 @@ export async function ensureDbSchema(force = false) {
       `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "wholesalePrice" DOUBLE PRECISION;`,
       `ALTER TABLE "StorePrice" ADD COLUMN IF NOT EXISTS "wholesalePrice" DOUBLE PRECISION;`,
 
+      // One customer's bought safa and hired safa, joined so they bill as one.
+      `ALTER TABLE "Sale" ADD COLUMN IF NOT EXISTS "groupId" TEXT;`,
+      `ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "groupId" TEXT;`,
+      `CREATE INDEX IF NOT EXISTS "Sale_groupId_idx" ON "Sale"("groupId");`,
+      `CREATE INDEX IF NOT EXISTS "Rental_groupId_idx" ON "Rental"("groupId");`,
+
       // ── CashBook — admin confirmation of receipt ──────────────────────────
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP(3);`,
       `ALTER TABLE "CashBook" ADD COLUMN IF NOT EXISTS "approvedBy" TEXT;`,

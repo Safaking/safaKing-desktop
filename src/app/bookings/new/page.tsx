@@ -89,6 +89,10 @@ export default function OdooBookingPage() {
   const [step, setStep] = useState(1);
   const STEP_LABELS = ['सामान', 'ग्राहक व तारीख', 'भुगतान'];
   const [showSuccess, setShowSuccess] = useState(false);
+  // Set when this booking is being added to a purchase the same customer just
+  // made, so the two bill as one visit.
+  const [groupId, setGroupId] = useState('');
+  const [joinSaleId, setJoinSaleId] = useState('');
   const [previewBill, setPreviewBill] = useState<any | null>(null);
   const [recentBooking, setRecentBooking] = useState<any>(null);
   const [paidAmount, setPaidAmount] = useState('0');
@@ -125,6 +129,24 @@ export default function OdooBookingPage() {
   // Tying is priced by branch too, so ask for this branch's rates.
   const { data: safaOptionData } = useSafaOptions(user?.storeId);
   const { data: storeData } = useStores();
+
+  // Arriving from a completed sale: the customer is already known, so he is
+  // not asked for his name and number a second time.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const group = q.get('group');
+    if (!group) return;
+    setGroupId(group);
+    setJoinSaleId(q.get('joinSale') || '');
+    setCustomer(c => ({
+      ...c,
+      name: q.get('name') || c.name,
+      phone: q.get('phone') || c.phone,
+      address: q.get('address') || c.address,
+      fatherName: q.get('father') || c.fatherName,
+    }));
+  }, []);
 
   useEffect(() => {
     if (Array.isArray(productData)) {
@@ -347,6 +369,8 @@ export default function OdooBookingPage() {
           tieSafaCharge: getSafaCharge(),
           createdBy: user?.username || user?.name || null,
           discount: parseFloat(discount || '0'),
+          groupId: groupId || null,
+          joinSaleId: joinSaleId || null,
           paymentMethod,
         })
       });
@@ -1069,6 +1093,36 @@ export default function OdooBookingPage() {
                 {t('print_bill')}
               </button>
             </div>
+
+            {/* Both halves of the visit on one sheet. Offered only when this
+                booking actually belongs to a purchase — otherwise there is
+                nothing to combine it with. */}
+            {groupId ? (
+              <button
+                onClick={() => window.open(`/api/bill/group/${groupId}`, '_blank')}
+                className="w-full mb-4 py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-amber-500 text-white hover:bg-amber-600 transition-all"
+              >
+                ख़रीद + किराया — एक बिल
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const id = crypto.randomUUID();
+                  const q = new URLSearchParams({
+                    group: id,
+                    name: recentBooking?.customerName || '',
+                    phone: recentBooking?.customerPhone || '',
+                    address: recentBooking?.customerAddress || '',
+                    father: recentBooking?.fatherName || '',
+                    joinRental: recentBooking?.id || '',
+                  });
+                  window.location.href = `/sales?${q.toString()}`;
+                }}
+                className="w-full mb-4 py-3 px-3 rounded-lg font-black text-xs uppercase tracking-widest bg-amber-500 text-white hover:bg-amber-600 transition-all"
+              >
+                इसी ग्राहक की ख़रीद भी जोड़ें
+              </button>
+            )}
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button onClick={() => { setShowSuccess(false); window.location.reload(); }} className="py-3 px-4 rounded-lg font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all border border-slate-200 bg-white">

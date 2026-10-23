@@ -61,6 +61,28 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * Whether Rental carries the grouping column yet.
+ *
+ * Schema changes land through /api/admin/migrate rather than on boot, so a
+ * deploy can reach Vercel minutes before the migration does. A booking that
+ * fails at the counter in that window is worse than one with no group on it.
+ */
+let rentalGroupColumn: boolean | null = null;
+
+async function hasRentalGroupColumn() {
+  if (rentalGroupColumn !== null) return rentalGroupColumn;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok FROM information_schema.columns
+      WHERE table_name = 'Rental' AND column_name = 'groupId' LIMIT 1`;
+    rentalGroupColumn = rows.length > 0;
+  } catch {
+    rentalGroupColumn = false;
+  }
+  return rentalGroupColumn;
+}
+
 export async function POST(request: Request) {
   console.log('RENTAL POST API HIT');
   const body = await request.json();
@@ -92,7 +114,11 @@ export async function POST(request: Request) {
     discount,
     paymentMethod,
     createdBy,
+    groupId,
+    joinSaleId,
   } = body;
+
+  const groupReady = await hasRentalGroupColumn();
 
   if (!customerName || !customerPhone || !startDate || !endDate || !items || items.length === 0) {
     return NextResponse.json({ error: 'Name, Phone, and Dates are required' }, { status: 400 });
@@ -143,6 +169,17 @@ export async function POST(request: Request) {
 
       const orderNumber = `RENT-${(lastNum + 1).toString().padStart(5, '0')}`;
 
+      // The sale was already saved before anybody knew a hire was coming, so
+      // it is stamped with the group here — inside the same transaction, so
+      // the two orders are joined together or not at all. A half-joined pair
+      // would print a bill missing one side of the visit.
+      if (groupReady && groupId && joinSaleId) {
+        await tx.sale.update({
+          where: { id: joinSaleId },
+          data: { groupId },
+        });
+      }
+
       const newRental = await tx.rental.create({
         data: {
           orderNumber,
@@ -171,6 +208,7 @@ export async function POST(request: Request) {
           safaTyingDate: tieSafa ? (safaTyingDate || null) : null,
           tieSafaCharge: parseFloat(tieSafaCharge?.toString() || '0') || 0,
           discount: parseFloat(discount?.toString() || '0') || 0,
+          ...(groupReady ? { groupId: groupId?.trim() || null } : {}),
           paymentMethod: paymentMethod || 'CASH',
           createdBy: createdBy?.trim() || null,
           items: {
