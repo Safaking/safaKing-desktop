@@ -9,7 +9,7 @@
     "dev": "PRISMA_CLIENT_ENGINE_TYPE=library concurrently \"npm run next-dev\" \"wait-on http://localhost:3000 && electron .\"",
     "web": "PRISMA_CLIENT_ENGINE_TYPE=library next dev",
     "next-dev": "PRISMA_CLIENT_ENGINE_TYPE=library next dev",
-    "build": "next build",
+    "build": "node scripts/apply-schema.mjs && next build",
     "start": "next start",
     "lint": "eslint src",
     "electron": "electron .",
